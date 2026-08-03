@@ -61,7 +61,7 @@ export default function Home() {
 
   // Daily non-negotiables: a personal must-do list that resets every day.
   const [nonNegs, setNonNegs] = useStore<NonNeg[]>('home.nonneg', [])
-  const [nnToday, setNnToday] = useStore<{ date: string; done: string[] }>('home.nonneg.today', { date: '', done: [] })
+  const [nnToday, setNnToday] = useStore<{ date: string; done: string[]; times?: Record<string, number> }>('home.nonneg.today', { date: '', done: [] })
   const [nnDraft, setNnDraft] = useState('')
   const [nnView, setNnView] = useState<'today' | 'week' | 'weekend' | 'all'>('today')
   const [shared, setShared] = useState(false)
@@ -129,6 +129,8 @@ export default function Home() {
 
   // Completion is tracked per-day; a fresh day starts everything unchecked.
   const nnDone = nnToday.date === today ? nnToday.done : []
+  const nnTimes = nnToday.date === today ? (nnToday.times ?? {}) : {}
+  const fmtTime = (ts?: number) => ts ? new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : ''
   const isWeekend = [0, 6].includes(new Date().getDay())
   const scopeOf = (n: NonNeg): Scope => n.scope ?? 'all'
   const appliesToday = (n: NonNeg) => scopeOf(n) === 'all' || scopeOf(n) === (isWeekend ? 'weekend' : 'week')
@@ -141,8 +143,11 @@ export default function Home() {
   const todayList = nonNegs.filter(appliesToday)
   const nnCompleted = todayList.filter((n) => nnDone.includes(n.id)).length
   const toggleNonNeg = (id: string) => {
-    const done = nnDone.includes(id) ? nnDone.filter((x) => x !== id) : [...nnDone, id]
-    setNnToday({ date: today, done })
+    const isDone = nnDone.includes(id)
+    const done = isDone ? nnDone.filter((x) => x !== id) : [...nnDone, id]
+    const times = { ...nnTimes }
+    if (isDone) delete times[id]; else times[id] = Date.now()
+    setNnToday({ date: today, done, times })
   }
   const addNonNeg = () => {
     const t = nnDraft.trim()
@@ -152,8 +157,11 @@ export default function Home() {
   }
   const removeNonNeg = (id: string) => {
     setNonNegs((prev) => prev.filter((n) => n.id !== id))
-    if (nnDone.includes(id)) setNnToday({ date: today, done: nnDone.filter((x) => x !== id) })
+    if (nnDone.includes(id)) { const times = { ...nnTimes }; delete times[id]; setNnToday({ date: today, done: nnDone.filter((x) => x !== id), times }) }
   }
+  // Today view is split: what's still open (left) vs. what's done (right).
+  const nnUpNext = todayList.filter((n) => !nnDone.includes(n.id))
+  const nnDoneList = todayList.filter((n) => nnDone.includes(n.id)).sort((a, b) => (nnTimes[a.id] ?? 0) - (nnTimes[b.id] ?? 0))
   const nnPct = todayList.length ? Math.round((nnCompleted / todayList.length) * 100) : 0
   const nnAllDone = todayList.length > 0 && nnCompleted === todayList.length
   const shareNonNegs = async () => {
@@ -220,12 +228,63 @@ export default function Home() {
           ))}
         </div>
 
-        {visibleNonNegs.length === 0 ? (
-          <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>
-            {nnView === 'today'
-              ? 'Nothing set for today. Add one below or check the Weekdays / Weekends tabs.'
-              : 'None here yet — add one below. They reset each morning.'}
-          </p>
+        {nnView === 'today' ? (
+          todayList.length === 0 ? (
+            <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>Nothing set for today. Add one below or check the Weekdays / Weekends tabs.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-5 mb-3">
+              {/* Up next — what's still on you today */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--color-muted)' }}>Up next</h3>
+                  <span className="text-[11px] font-semibold" style={{ color: 'var(--color-muted)' }}>{nnUpNext.length} left</span>
+                </div>
+                {nnUpNext.length === 0 ? (
+                  <p className="text-sm py-3 px-3 rounded-xl text-center" style={{ background: 'color-mix(in srgb, #16a34a 10%, var(--color-bg))', color: '#15803d' }}>All checked off — game strong! 💪</p>
+                ) : (
+                  <ul className="flex flex-col gap-1.5">
+                    {nnUpNext.map((n, idx) => (
+                      <li key={n.id} className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2"
+                        style={idx === 0
+                          ? { background: 'color-mix(in srgb, var(--color-accent) 9%, var(--color-bg))', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }
+                          : { border: '1px solid transparent' }}>
+                        <button onClick={() => toggleNonNeg(n.id)} className="h-5 w-5 rounded-md grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: 'transparent' }} aria-label="Mark done" />
+                        <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{n.text}</span>
+                        {idx === 0 && <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full shrink-0" style={{ color: 'var(--color-accent)', background: 'var(--color-surface)', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }}>Next up</span>}
+                        <button onClick={() => confirmDelete({ label: `“${n.text}”`, detail: 'This non-negotiable will be removed.', onConfirm: () => removeNonNeg(n.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove"><IconTrash width={15} height={15} /></button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Done today — a running record of the day, with the time you finished */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--color-muted)' }}>Done today</h3>
+                  <span className="text-[11px] font-semibold tnum px-1.5 rounded-full" style={{ background: nnDoneList.length ? 'color-mix(in srgb, #16a34a 16%, var(--color-bg))' : 'var(--color-bg)', color: nnDoneList.length ? '#15803d' : 'var(--color-muted)' }}>{nnDoneList.length}</span>
+                </div>
+                {nnDoneList.length === 0 ? (
+                  <p className="text-sm py-4 px-3 rounded-xl text-center" style={{ background: 'var(--color-bg)', border: '1px dashed var(--color-border)', color: 'var(--color-muted)' }}>Check one off and it lands here — your proof of a day well spent.</p>
+                ) : (
+                  <ul className="flex flex-col gap-1.5">
+                    {nnDoneList.map((n) => (
+                      <li key={n.id} className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2" style={{ background: 'color-mix(in srgb, #16a34a 10%, var(--color-bg))', border: '1px solid color-mix(in srgb, #16a34a 28%, transparent)' }}>
+                        <button onClick={() => toggleNonNeg(n.id)} className="h-5 w-5 rounded-md grid place-items-center shrink-0" style={{ border: '2px solid #16a34a', background: '#16a34a' }} aria-label="Mark not done">
+                          <IconCheck width={12} height={12} style={{ color: '#fff' }} />
+                        </button>
+                        <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{n.text}</span>
+                        <span className="text-xs font-semibold tnum shrink-0" style={{ color: '#15803d' }}>{fmtTime(nnTimes[n.id])}</span>
+                        <button onClick={() => confirmDelete({ label: `“${n.text}”`, detail: 'This non-negotiable will be removed.', onConfirm: () => removeNonNeg(n.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove"><IconTrash width={14} height={14} /></button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )
+        ) : visibleNonNegs.length === 0 ? (
+          <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>None here yet — add one below. They reset each morning.</p>
         ) : (
           <ul className="flex flex-col gap-1.5 mb-3">
             {visibleNonNegs.map((n) => {
@@ -243,7 +302,7 @@ export default function Home() {
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.5 : 1 }}>
                     {n.text}
                   </span>
-                  {nnView !== 'today' && scopeOf(n) !== (nnView as Scope) && (
+                  {scopeOf(n) !== (nnView as Scope) && (
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{SCOPE_LABEL[scopeOf(n)]}</span>
                   )}
                   <button onClick={() => confirmDelete({ label: `“${n.text}”`, detail: 'This non-negotiable will be removed.', onConfirm: () => removeNonNeg(n.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove">
