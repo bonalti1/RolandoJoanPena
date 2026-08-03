@@ -94,8 +94,9 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <div className="text-[11px] mt-0.5 opacity-55 tracking-wide">{weekday}, {monthDay}</div>
       </div>
 
-      <div className="mt-4 mb-5 flex justify-center">
+      <div className="mt-4 mb-5 flex flex-col items-center">
         <Logo height={64} />
+        <div className="mt-2 text-[10px] font-medium uppercase tracking-[0.22em] opacity-55 text-center">Personal Operating System</div>
       </div>
 
       {/* Nav fills the remaining height: Menu spreads evenly, Preferences anchored at the bottom. */}
