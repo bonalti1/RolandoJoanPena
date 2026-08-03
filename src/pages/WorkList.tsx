@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, PageHeader, Input, Button } from '../components/ui'
-import { IconPlus, IconTrash, IconCheck } from '../components/icons'
+import { IconPlus, IconTrash, IconCheck, IconHome } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { startOfWeek, addDays, toISO, todayISO, isoWeek, formatWeekRange } from '../lib/dates'
@@ -354,6 +354,11 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         subtitle="Plan your week by dragging tasks onto a day."
         action={
           <div className="flex items-center gap-1.5">
+            {!isWork && (
+              <Link to="/home-care" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold mr-1" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+                <IconHome width={15} height={15} /> Home Service
+              </Link>
+            )}
             <Button variant="outline" onClick={() => setWeekStart((w) => addDays(w, -7))}>‹</Button>
             <div className="text-center px-2 min-w-[150px]">
               <div className="font-semibold leading-tight" style={{ color: 'var(--color-text)' }}>Week {isoWeek(weekStart)}</div>
