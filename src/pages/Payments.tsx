@@ -90,7 +90,7 @@ function PaidCell({ value, expected, onToggle, onSet }: {
         onFocus={(e) => e.target.select()}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
-        className="h-8 w-16 text-center rounded-lg outline-none mx-auto"
+        className="h-7 w-[54px] text-center rounded-lg outline-none mx-auto text-xs"
         style={{ background: 'var(--color-surface)', border: '2px solid var(--color-accent)', color: 'var(--color-text)', fontWeight: 600 }}
       />
     )
@@ -101,11 +101,11 @@ function PaidCell({ value, expected, onToggle, onSet }: {
       onClick={onClick}
       onDoubleClick={onDouble}
       title={paid ? 'Tap to undo · double-tap to edit the amount' : 'Tap to mark paid · double-tap to set a custom amount'}
-      className="h-8 w-16 text-center rounded-lg mx-auto transition-colors text-sm"
+      className="h-7 w-[54px] text-center rounded-lg mx-auto transition-colors text-xs"
       style={{
         touchAction: 'manipulation',
-        background: paid ? 'color-mix(in srgb, var(--color-accent) 22%, transparent)' : 'var(--color-bg)',
-        border: `1px solid ${paid ? 'color-mix(in srgb, var(--color-accent) 45%, transparent)' : 'var(--color-border)'}`,
+        background: paid ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : 'var(--color-bg)',
+        border: `1px solid ${paid ? 'color-mix(in srgb, var(--color-accent) 35%, transparent)' : 'var(--color-border)'}`,
         color: paid ? 'var(--color-text)' : 'var(--color-muted)',
         fontWeight: paid ? 600 : 400,
       }}
