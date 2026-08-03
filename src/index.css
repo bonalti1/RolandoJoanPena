@@ -23,9 +23,9 @@
   --color-border: #e5e7eb;
 
   /* Apple-grade layered shadows */
-  --shadow-sm: 0 1px 2px rgba(20, 18, 35, 0.04), 0 1px 1px rgba(20, 18, 35, 0.03);
-  --shadow-md: 0 6px 16px -4px rgba(20, 18, 35, 0.08), 0 2px 6px -2px rgba(20, 18, 35, 0.05);
-  --shadow-lg: 0 18px 40px -12px rgba(20, 18, 35, 0.16), 0 6px 14px -6px rgba(20, 18, 35, 0.08);
+  --shadow-sm: 0 1px 2px rgba(17, 18, 20, 0.04), 0 1px 1px rgba(17, 18, 20, 0.03);
+  --shadow-md: 0 6px 16px -4px rgba(17, 18, 20, 0.08), 0 2px 6px -2px rgba(17, 18, 20, 0.05);
+  --shadow-lg: 0 18px 40px -12px rgba(17, 18, 20, 0.16), 0 6px 14px -6px rgba(17, 18, 20, 0.08);
 }
 
 html, body, #root {

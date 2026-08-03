@@ -36,7 +36,7 @@ export default function App() {
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40">
-          <div className="absolute inset-0" style={{ background: 'rgba(10,8,20,0.5)' }} onClick={() => setMobileOpen(false)} />
+          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setMobileOpen(false)} />
           <div className="absolute left-0 top-0 h-full shadow-2xl">
             <Sidebar onNavigate={() => setMobileOpen(false)} />
           </div>
