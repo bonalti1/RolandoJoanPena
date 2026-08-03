@@ -33,6 +33,15 @@ function daysUntilBirthday(bday: string): number | null {
   return Math.round((next.getTime() - today.getTime()) / 86400000)
 }
 
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function fmtBday(bday: string): string {
+  const [, mm, dd] = bday.split('-').map(Number)
+  if (!mm || !dd) return ''
+  return `${MONTHS_SHORT[mm - 1]} ${dd}`
+}
+/** Kids get full tracking (appointments, meds); everyone else is birthdays-only. */
+const isKid = (relation: string) => /son|daughter|kid|child/i.test(relation)
+
 const fieldStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
 
 function Avatar({ member, size = 44 }: { member: Member; size?: number }) {
@@ -84,7 +93,7 @@ export default function Family() {
             <div className="flex flex-wrap gap-2">
               {upcoming.map(({ mem, days }) => (
                 <span key={mem.id} className="text-sm px-3 py-1.5 rounded-full" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>
-                  <b>{mem.name}</b> · {days === 0 ? 'today!' : `in ${days} day${days === 1 ? '' : 's'}`}
+                  <b>{mem.name}</b> · {fmtBday(mem.birthday)}{days === 0 ? ' · today! 🎉' : ` · in ${days} day${days === 1 ? '' : 's'}`}
                 </span>
               ))}
             </div>
@@ -124,27 +133,25 @@ export default function Family() {
           <EmptyState icon={<IconFamily width={44} height={44} />} title="No one added yet" hint="Add your family above, then tap a card to build their profile." />
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {members.map((mem) => {
-              const age = ageFrom(mem.birthday)
-              return (
-                <Card key={mem.id} className="p-4 cursor-pointer transition hover:scale-[1.01]" >
-                  <button onClick={() => setSelectedId(mem.id)} className="w-full text-left flex items-center gap-3">
-                    <Avatar member={mem} size={52} />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold truncate" style={{ color: 'var(--color-text)' }}>{mem.name}</div>
-                      <div className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                        {mem.relation}{age != null ? ` · ${age} yrs` : ''}
-                      </div>
+            {members.map((mem) => (
+              <Card key={mem.id} className="p-4 cursor-pointer transition hover:scale-[1.01]" >
+                <button onClick={() => setSelectedId(mem.id)} className="w-full text-left flex items-center gap-3">
+                  <Avatar member={mem} size={52} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold truncate" style={{ color: 'var(--color-text)' }}>{mem.name}</div>
+                    <div className="text-xs" style={{ color: 'var(--color-muted)' }}>
+                      {mem.relation}{mem.birthday ? ` · 🎂 ${fmtBday(mem.birthday)}` : ''}
+                    </div>
+                    {isKid(mem.relation) && (
                       <div className="flex gap-3 mt-1.5 text-xs" style={{ color: 'var(--color-muted)' }}>
                         <span>{memberAppts(mem.id).length} appts</span>
                         <span>{memberMeds(mem.id).length} meds</span>
-                        <span>{memberRecs(mem.id).length} records</span>
                       </div>
-                    </div>
-                  </button>
-                </Card>
-              )
-            })}
+                    )}
+                  </div>
+                </button>
+              </Card>
+            ))}
           </div>
         )}
       </div>
@@ -152,7 +159,6 @@ export default function Family() {
   }
 
   // ---------- Member profile ----------
-  const age = ageFrom(selected.birthday)
   const mAppts = memberAppts(selected.id)
   const mMeds = memberMeds(selected.id)
   const mRecs = memberRecs(selected.id)
@@ -178,7 +184,6 @@ export default function Family() {
               <input value={selected.relation} onChange={(e) => updateMember(selected.id, { relation: e.target.value })} placeholder="Relation" className="text-sm bg-transparent outline-none" style={{ color: 'var(--color-muted)' }} />
               <span style={{ color: 'var(--color-muted)' }}>·</span>
               <input type="date" value={selected.birthday} onChange={(e) => updateMember(selected.id, { birthday: e.target.value })} className="text-sm bg-transparent outline-none" style={{ color: 'var(--color-muted)' }} />
-              {age != null && <span className="text-sm" style={{ color: 'var(--color-muted)' }}>· {age} yrs</span>}
             </div>
           </div>
           <button onClick={() => removeWithUndo(`${selected.name} removed`,
