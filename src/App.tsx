@@ -5,8 +5,7 @@ import { IconMenu } from './components/icons'
 import { Logo } from './components/Logo'
 import Home from './pages/Home'
 import WorkList from './pages/WorkList'
-import Payments from './pages/Payments'
-import Bank from './pages/Bank'
+import Finances from './pages/Finances'
 import Calendar from './pages/Calendar'
 import Health from './pages/Health'
 import Family from './pages/Family'
@@ -61,8 +60,9 @@ export default function App() {
             <Route path="/work-tasks" element={<WorkList fixedBoard="Work" />} />
             <Route path="/tasks" element={<Navigate to="/home-tasks" replace />} />
             <Route path="/work" element={<Navigate to="/work-tasks" replace />} />
-            <Route path="/payments" element={<Payments />} />
-            <Route path="/bank" element={<Bank />} />
+            <Route path="/finances" element={<Finances />} />
+            <Route path="/payments" element={<Navigate to="/finances" replace />} />
+            <Route path="/bank" element={<Navigate to="/finances" replace />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/health" element={<Health />} />
             <Route path="/family" element={<Family />} />

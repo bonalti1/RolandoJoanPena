@@ -4,7 +4,7 @@ import { IconPlus, IconTrash, IconCheck } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { startOfWeek, addDays, toISO, todayISO, isoWeek, formatWeekRange, formatDayShort } from '../lib/dates'
 
-type Item = { id: string; text: string; done: boolean }
+type Item = { id: string; text: string; done: boolean; completedAt?: number }
 type WeekBoard = Record<string, Item[]> // day name -> items
 type Board = { backlog: Item[]; weeks: Record<string, WeekBoard> } // weeks keyed by Monday ISO
 
@@ -47,7 +47,6 @@ function Bucket({
   onDragLeaveBucket: () => void
 }) {
   const [draft, setDraft] = useState('')
-  const done = items.filter((i) => i.done).length
   return (
     <Card
       className={`p-4 flex flex-col transition-colors ${className}`}
@@ -71,7 +70,7 @@ function Bucket({
             </span>
           )}
         </div>
-        {items.length > 0 && <span className="text-xs tnum mt-0.5" style={{ color: 'var(--color-muted)' }}>{done}/{items.length}</span>}
+        {items.length > 0 && <span className="text-xs tnum mt-0.5" style={{ color: 'var(--color-muted)' }}>{items.length}</span>}
       </div>
 
       <ul
@@ -151,7 +150,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const add = (bucket: string, text: string) =>
     update((b) => setBucket(b, bucket, [...getBucket(b, bucket), { id: uid('w'), text, done: false }]))
   const toggle = (bucket: string, id: string) =>
-    update((b) => setBucket(b, bucket, getBucket(b, bucket).map((i) => (i.id === id ? { ...i, done: !i.done } : i))))
+    update((b) => setBucket(b, bucket, getBucket(b, bucket).map((i) => (i.id === id ? { ...i, done: !i.done, completedAt: !i.done ? Date.now() : undefined } : i))))
   const remove = (bucket: string, id: string) =>
     update((b) => setBucket(b, bucket, getBucket(b, bucket).filter((i) => i.id !== id)))
 
@@ -284,7 +283,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
                 name={day}
                 subtitle={formatDayShort(dayDate)}
                 highlight={toISO(dayDate) === todayISO()}
-                items={week[day] ?? []}
+                items={(week[day] ?? []).filter((i) => !i.done)}
                 draggingOver={overBucket === day}
                 onAdd={(text) => add(day, text)}
                 onToggle={(id) => toggle(day, id)}
@@ -303,7 +302,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
             name={BACKLOG}
             subtitle="Carries across weeks"
             accent
-            items={board.backlog}
+            items={board.backlog.filter((i) => !i.done)}
             draggingOver={overBucket === BACKLOG}
             onAdd={(text) => add(BACKLOG, text)}
             onToggle={(id) => toggle(BACKLOG, id)}
@@ -316,6 +315,39 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
           />
         </div>
       </div>
+
+      {(() => {
+        const completed = [
+          ...DAYS.flatMap((day) => (week[day] ?? []).filter((i) => i.done).map((i) => ({ item: i, where: day }))),
+          ...board.backlog.filter((i) => i.done).map((i) => ({ item: i, where: BACKLOG })),
+        ].sort((a, b) => (b.item.completedAt ?? 0) - (a.item.completedAt ?? 0))
+        if (completed.length === 0) return null
+        const fmtDone = (ts?: number) => ts ? new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+        return (
+          <Card className="p-4 mt-5">
+            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--color-muted)' }}>
+              <IconCheck width={15} height={15} /> Completed this week ({completed.length})
+            </h3>
+            <ul className="flex flex-col gap-1">
+              {completed.map(({ item, where }) => (
+                <li key={item.id} className="group flex items-center gap-2 py-1.5 px-2 rounded-lg" style={{ background: 'var(--color-bg)' }}>
+                  <button
+                    onClick={() => toggle(where, item.id)}
+                    className="h-4 w-4 rounded grid place-items-center shrink-0"
+                    style={{ border: '2px solid var(--color-accent)', background: 'var(--color-accent)' }}
+                    title="Mark not done"
+                  >
+                    <IconCheck width={11} height={11} style={{ color: 'var(--color-on-accent)' }} />
+                  </button>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: 'line-through', opacity: 0.6 }}>{item.text}</span>
+                  <span className="text-xs tnum shrink-0" style={{ color: 'var(--color-muted)' }}>{where === BACKLOG ? 'Unscheduled' : where} · {fmtDone(item.completedAt)}</span>
+                  <button onClick={() => remove(where, item.id)} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )
+      })()}
     </div>
   )
 }

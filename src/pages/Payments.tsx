@@ -174,7 +174,7 @@ export default function Payments() {
   return (
     <div>
       <PageHeader
-        title="Payments"
+        title="Bills"
         subtitle="Your bills for the whole year. Tap a cell to mark it paid; double-tap to edit the amount."
         action={
           <div className="flex items-center gap-1.5">

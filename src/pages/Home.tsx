@@ -283,7 +283,7 @@ export default function Home() {
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconPayments width={18} height={18} /> {monthLabel} bills</h2>
-            <Link to="/payments" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open →</Link>
+            <Link to="/finances" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open →</Link>
           </div>
           <div className="flex items-end gap-4 mb-3">
             <div>
