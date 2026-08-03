@@ -51,26 +51,6 @@ const IconSlider = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
-/** Circular completion ring — accent while in progress, green when finished. */
-function ProgressRing({ pct, done, size = 58 }: { pct: number; done: boolean; size?: number }) {
-  const stroke = 6
-  const r = (size - stroke) / 2
-  const circ = 2 * Math.PI * r
-  const color = done ? '#16a34a' : 'var(--color-accent)'
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border)" strokeWidth={stroke} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
-        strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        style={{ transition: 'stroke-dashoffset 0.5s ease, stroke 0.3s ease' }}
-      />
-      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fontSize={size * 0.27} fontWeight="700" fill={done ? '#16a34a' : 'var(--color-text)'}>{pct}%</text>
-    </svg>
-  )
-}
-
 /** Shell for a Today's-Focus card: coloured icon + title, a "View all" link, body, and a footer link. */
 function FocusCard({ accent, icon, title, viewAllLabel = 'View all', onViewAll, viewAllTo, footerLabel, footerTo, onFooter, children }: {
   accent: string; icon: React.ReactNode; title: string
@@ -159,9 +139,6 @@ export default function Home() {
   const scopeOf = (n: NonNeg): Scope => n.scope ?? 'all'
   const appliesToday = (n: NonNeg) => scopeOf(n) === 'all' || scopeOf(n) === (isWeekend ? 'weekend' : 'week')
   const todayList = nonNegs.filter(appliesToday)
-  const nnCompleted = todayList.filter((n) => nnDone.includes(n.id)).length
-  const nnPct = todayList.length ? Math.round((nnCompleted / todayList.length) * 100) : 0
-  const nnAllDone = todayList.length > 0 && nnCompleted === todayList.length
   const nnOrdered = [...todayList.filter((n) => nnDone.includes(n.id)), ...todayList.filter((n) => !nnDone.includes(n.id))]
   const firstOpenId = todayList.find((n) => !nnDone.includes(n.id))?.id
   const toggleNonNeg = (id: string) => {
@@ -260,14 +237,6 @@ export default function Home() {
           {todayList.length === 0 ? (
             <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>None set for today. Tap Customize to add your daily non-negotiables.</p>
           ) : (
-            <>
-              <div className="flex items-center gap-4 mb-4 p-3 rounded-xl" style={{ background: nnAllDone ? 'color-mix(in srgb, #16a34a 12%, var(--color-bg))' : 'var(--color-bg)' }}>
-                <ProgressRing pct={nnPct} done={nnAllDone} size={54} />
-                <div>
-                  <p className="font-semibold text-sm" style={{ color: nnAllDone ? '#16a34a' : 'var(--color-text)' }}>{nnAllDone ? 'All done — game strong! 💪' : `${nnCompleted} of ${todayList.length} done today`}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{nnAllDone ? 'Every non-negotiable checked.' : 'Keep going — check them off below.'}</p>
-                </div>
-              </div>
               <ul className="flex flex-col gap-2.5">
                 {nnOrdered.map((n) => {
                   const done = nnDone.includes(n.id)
@@ -282,7 +251,6 @@ export default function Home() {
                   )
                 })}
               </ul>
-            </>
           )}
         </FocusCard>
 
