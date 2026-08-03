@@ -210,6 +210,10 @@ export default function Payments() {
     [bills],
   )
 
+  // Shade the current month's column, but only while viewing the current year.
+  const curMonth = year === new Date().getFullYear() ? new Date().getMonth() : -1
+  const monthColBg = 'color-mix(in srgb, var(--color-accent) 9%, transparent)'
+
   const rowTotal = (billId: string) =>
     MONTHS.reduce((s, _, m) => s + (cells[key(billId, m)] ?? 0), 0)
 
@@ -335,8 +339,8 @@ export default function Payments() {
             <thead>
               <tr style={{ background: 'var(--color-bg)' }}>
                 <th className="sticky left-0 z-10 text-left px-4 py-3 font-semibold" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', minWidth: 240 }}>Bill</th>
-                {MONTHS.map((m) => (
-                  <th key={m} className="px-2 py-3 font-medium text-center" style={{ color: 'var(--color-muted)', minWidth: 58 }}>{m}</th>
+                {MONTHS.map((m, i) => (
+                  <th key={m} className="px-2 py-3 font-semibold text-center" style={{ color: i === curMonth ? 'var(--color-accent)' : 'var(--color-muted)', background: i === curMonth ? monthColBg : undefined, minWidth: 58 }}>{m}</th>
                 ))}
                 <th className="px-3 py-3 font-semibold text-right sticky right-0 z-10" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', minWidth: 90 }}>Total</th>
               </tr>
@@ -379,7 +383,7 @@ export default function Payments() {
                   {MONTHS.map((_, m) => {
                     const val = cells[key(b.id, m)]
                     return (
-                      <td key={m} className="px-1 py-1 text-center">
+                      <td key={m} className="px-1 py-1 text-center" style={{ background: m === curMonth ? monthColBg : undefined }}>
                         <PaidCell
                           value={val}
                           expected={b.amount}
@@ -399,7 +403,7 @@ export default function Payments() {
               <tr style={{ borderTop: '2px solid var(--color-border)', background: 'var(--color-bg)' }}>
                 <td className="sticky left-0 z-10 px-4 py-2 font-semibold" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>Income</td>
                 {MONTHS.map((_, m) => (
-                  <td key={m} className="px-1 py-1 text-center">
+                  <td key={m} className="px-1 py-1 text-center" style={{ background: m === curMonth ? monthColBg : undefined }}>
                     <input
                       type="number"
                       value={income[`${year}:${m}`] ?? ''}
@@ -422,7 +426,7 @@ export default function Payments() {
               <tr style={{ borderTop: '1px solid var(--color-border)' }}>
                 <td className="sticky left-0 z-10 px-4 py-3 font-semibold" style={{ background: 'var(--color-surface)', color: 'var(--color-text)' }}>Total paid</td>
                 {colTotals.map((amt, m) => (
-                  <td key={m} className="px-1 py-3 text-center text-xs font-semibold" style={{ color: amt > 0 ? 'var(--color-accent)' : 'var(--color-muted)' }}>
+                  <td key={m} className="px-1 py-3 text-center text-xs font-semibold" style={{ color: amt > 0 ? 'var(--color-accent)' : 'var(--color-muted)', background: m === curMonth ? monthColBg : undefined }}>
                     {amt > 0 ? money(amt) : '—'}
                   </td>
                 ))}
