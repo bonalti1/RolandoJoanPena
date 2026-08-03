@@ -67,7 +67,7 @@ export default function Notifications() {
   const enable = async () => {
     if (typeof Notification === 'undefined') return
     const p = await Notification.requestPermission(); setPerm(p)
-    if (p === 'granted') new Notification("Rolando's Dashboard", { body: "You'll get reminders here 💜" })
+    if (p === 'granted') new Notification("Rolando's Dashboard", { body: "You'll get reminders here." })
   }
 
   return (

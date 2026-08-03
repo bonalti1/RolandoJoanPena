@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Button, Input } from '../components/ui'
-import { IconTasks, IconPayments, IconCalendar, IconHealth, IconBell, IconPlus } from '../components/icons'
+import { IconTasks, IconPayments, IconCalendar, IconHealth, IconBell, IconPlus, IconCheck, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { taskAgenda } from '../lib/agenda'
 import { todayISO, daysUntil, formatDayShort, parseDate } from '../lib/dates'
 import { money } from '../lib/format'
 
 type Task = { id: string; text: string; done: boolean; created: number; due?: string }
+type NonNeg = { id: string; text: string }
 type Bill = { id: string; name: string; amount: number }
 type Event = { id: string; date: string; title: string }
 type Appt = { id: string; who: string; what: string; date: string }
@@ -22,7 +23,7 @@ function greeting(): string {
 }
 
 export default function Home() {
-  const [profile] = useStore<{ name: string; photo?: string }>('profile', { name: 'Rolando' })
+  const [profile] = useStore<{ name: string; photo?: string }>('profile', { name: 'Rolando Joan' })
   const [tasks, setTasks] = useStore<Task[]>('tasks.master', [])
   const [bills] = useStore<Bill[]>('pay.bills', [])
   const [cells] = useStore<Record<string, number>>('pay.cells', {})
@@ -31,6 +32,11 @@ export default function Home() {
   const [members] = useStore<Member[]>('family.members', [])
   const [weights] = useStore<Weigh[]>('health.weights', [])
   const [quick, setQuick] = useState('')
+
+  // Daily non-negotiables: a personal must-do list that resets every day.
+  const [nonNegs, setNonNegs] = useStore<NonNeg[]>('home.nonneg', [])
+  const [nnToday, setNnToday] = useStore<{ date: string; done: string[] }>('home.nonneg.today', { date: '', done: [] })
+  const [nnDraft, setNnDraft] = useState('')
 
   const today = todayISO()
   const now = new Date()
@@ -83,6 +89,24 @@ export default function Home() {
     setQuick('')
   }
 
+  // Completion is tracked per-day; a fresh day starts everything unchecked.
+  const nnDone = nnToday.date === today ? nnToday.done : []
+  const toggleNonNeg = (id: string) => {
+    const done = nnDone.includes(id) ? nnDone.filter((x) => x !== id) : [...nnDone, id]
+    setNnToday({ date: today, done })
+  }
+  const addNonNeg = () => {
+    const t = nnDraft.trim()
+    if (!t) return
+    setNonNegs((prev) => [...prev, { id: uid('nn'), text: t }])
+    setNnDraft('')
+  }
+  const removeNonNeg = (id: string) => {
+    setNonNegs((prev) => prev.filter((n) => n.id !== id))
+    if (nnDone.includes(id)) setNnToday({ date: today, done: nnDone.filter((x) => x !== id) })
+  }
+  const nnCompleted = nonNegs.filter((n) => nnDone.includes(n.id)).length
+
   return (
     <div className="fade-up">
       <div className="mb-7 flex items-center gap-4">
@@ -99,6 +123,55 @@ export default function Home() {
       <Card className="p-3 mb-6 flex gap-2">
         <Input value={quick} onChange={(e) => setQuick(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addQuick() }} placeholder="Quick add a task for today…" />
         <Button onClick={addQuick}><IconPlus width={16} height={16} /> Add</Button>
+      </Card>
+
+      {/* Daily non-negotiables — the handful of things that get done every day. */}
+      <Card className="p-5 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+            <IconCheck width={18} height={18} /> Daily non-negotiables
+          </h2>
+          {nonNegs.length > 0 && (
+            <span className="text-sm font-semibold tnum" style={{ color: nnCompleted === nonNegs.length ? 'var(--color-accent)' : 'var(--color-muted)' }}>
+              {nnCompleted}/{nonNegs.length} today
+            </span>
+          )}
+        </div>
+
+        {nonNegs.length === 0 ? (
+          <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>
+            The few things you commit to every day. e.g. <em>Prospect for 1 hour</em>, <em>Follow up with 5 leads</em>, <em>Exercise</em>. They reset each morning.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-1.5 mb-3">
+            {nonNegs.map((n) => {
+              const done = nnDone.includes(n.id)
+              return (
+                <li key={n.id} className="group flex items-center gap-2.5">
+                  <button
+                    onClick={() => toggleNonNeg(n.id)}
+                    className="h-5 w-5 rounded-md grid place-items-center shrink-0 transition"
+                    style={{ border: '2px solid var(--color-accent)', background: done ? 'var(--color-accent)' : 'transparent' }}
+                    aria-label={done ? 'Mark not done' : 'Mark done'}
+                  >
+                    {done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
+                  </button>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.5 : 1 }}>
+                    {n.text}
+                  </span>
+                  <button onClick={() => removeNonNeg(n.id)} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove">
+                    <IconTrash width={15} height={15} />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        <div className="flex gap-2">
+          <Input value={nnDraft} onChange={(e) => setNnDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addNonNeg() }} placeholder="Add a daily non-negotiable…" />
+          <Button variant="outline" onClick={addNonNeg}><IconPlus width={16} height={16} /> Add</Button>
+        </div>
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-6">

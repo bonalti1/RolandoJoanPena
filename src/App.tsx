@@ -5,13 +5,12 @@ import { IconMenu } from './components/icons'
 import Home from './pages/Home'
 import Tasks from './pages/Tasks'
 import WorkList from './pages/WorkList'
-import Wishlist from './pages/Wishlist'
 import Payments from './pages/Payments'
 import Bank from './pages/Bank'
 import Calendar from './pages/Calendar'
 import Health from './pages/Health'
 import Family from './pages/Family'
-import Assistant from './pages/Assistant'
+import Journal from './pages/Journal'
 import Notifications from './pages/Notifications'
 import Settings from './pages/Settings'
 
@@ -50,7 +49,7 @@ export default function App() {
           <button onClick={() => setMobileOpen(true)} aria-label="Menu" style={{ color: 'var(--color-text)' }}>
             <IconMenu width={24} height={24} />
           </button>
-          <span className="font-signature text-2xl leading-none" style={{ color: 'var(--color-text)' }}>Rolando</span>
+          <span className="font-signature text-2xl leading-none" style={{ color: 'var(--color-text)' }}>Rolando Joan</span>
           <span className="ml-auto text-sm tnum font-medium" style={{ color: 'var(--color-muted)' }}>{time}</span>
         </div>
 
@@ -60,13 +59,13 @@ export default function App() {
             <Route path="/home" element={<Home />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/work" element={<WorkList />} />
-            <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/bank" element={<Bank />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/health" element={<Health />} />
             <Route path="/family" element={<Family />} />
-            <Route path="/assistant" element={<Assistant />} />
+            <Route path="/journal" element={<Journal />} />
+            <Route path="/assistant" element={<Navigate to="/journal" replace />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/home" replace />} />

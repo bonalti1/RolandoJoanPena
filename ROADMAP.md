@@ -15,14 +15,15 @@ Target pricing direction: consumer **$8–10/month** with a free tier (not $100)
 - [x] Payments: month view, fill-row, spend chart, CSV import
 - [x] Calendar: event times, click-to-edit, agenda view
 - [x] Tasks: filter chips + grouping (week/month)
-- [x] Wishlist: running totals + price history
+- [x] Home: daily non-negotiables
+- [x] Journal: voice recording + live transcription + daily entries
 
 ## Phase 3 — Connected services
 - [ ] Google Calendar sync
 - [ ] Plaid (bank)
 - [ ] Push notifications
 - [ ] Apple Health / Garmin import
-- [ ] Live shopping search key
+- [ ] Journal: cloud transcription (Whisper) + AI summaries
 
 ## Phase 4 — Productize (sellable)
 - [ ] Accounts + cloud sync

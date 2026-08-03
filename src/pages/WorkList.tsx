@@ -235,7 +235,7 @@ export default function WorkList() {
               className="px-6 py-2 rounded-lg text-sm font-semibold transition-all"
               style={{ background: tab === t ? 'var(--color-accent)' : 'transparent', color: tab === t ? 'var(--color-on-accent)' : 'var(--color-muted)' }}
             >
-              {t}
+              {t === 'Home' ? 'Home tasks' : 'Work tasks'}
             </button>
           ))}
         </div>

@@ -6,7 +6,6 @@ export default async (): Promise<Response> =>
   new Response(
     JSON.stringify({
       openai: !!process.env.OPENAI_API_KEY,
-      rapidapi: !!process.env.RAPIDAPI_KEY,
       plaid: !!process.env.PLAID_CLIENT_ID && !!process.env.PLAID_SECRET,
       googleCalendar: !!process.env.GOOGLE_CLIENT_ID,
       push: !!process.env.VAPID_PUBLIC_KEY,

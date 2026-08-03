@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  IconHome, IconTasks, IconWork, IconWishlist, IconPayments, IconBank, IconCalendar,
-  IconHealth, IconFamily, IconAssistant, IconBell, IconSettings,
+  IconHome, IconTasks, IconWork, IconPayments, IconBank, IconCalendar,
+  IconHealth, IconFamily, IconJournal, IconBell, IconSettings,
 } from './icons'
 import { useStore } from '../lib/store'
 
@@ -10,13 +10,12 @@ const MENU = [
   { to: '/home', label: 'Home', Icon: IconHome },
   { to: '/tasks', label: 'Tasks', Icon: IconTasks },
   { to: '/work', label: 'Work list', Icon: IconWork },
-  { to: '/wishlist', label: 'Wishlist', Icon: IconWishlist },
   { to: '/payments', label: 'Payments', Icon: IconPayments },
   { to: '/bank', label: 'Bank', Icon: IconBank },
   { to: '/calendar', label: 'Calendar', Icon: IconCalendar },
   { to: '/health', label: 'Health', Icon: IconHealth },
   { to: '/family', label: 'Family', Icon: IconFamily },
-  { to: '/assistant', label: 'Ask AI', Icon: IconAssistant },
+  { to: '/journal', label: 'Journal', Icon: IconJournal },
 ]
 
 const PREFS = [
@@ -68,14 +67,14 @@ function Section({ items, label, onNavigate, spread }: { items: typeof MENU; lab
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const now = useClock()
-  const [profile] = useStore<{ name: string; photo?: string; photoInSidebar?: boolean }>('profile', { name: 'Rolando' })
+  const [profile] = useStore<{ name: string; photo?: string; photoInSidebar?: boolean }>('profile', { name: 'Rolando Joan' })
   const showPhoto = profile.photo && profile.photoInSidebar
   const hour = now.getHours() % 12 || 12
   const minute = String(now.getMinutes()).padStart(2, '0')
   const ampm = now.getHours() < 12 ? 'AM' : 'PM'
   const weekday = now.toLocaleDateString([], { weekday: 'long' })
   const monthDay = now.toLocaleDateString([], { month: 'long', day: 'numeric' })
-  const [first, ...rest] = (profile.name || 'Rolando Joan Pena').split(' ')
+  const [first, ...rest] = (profile.name || 'Rolando Joan').split(' ')
 
   return (
     <aside
@@ -108,8 +107,6 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <Section items={PREFS} label="Preferences" onNavigate={onNavigate} />
         </div>
       </div>
-
-      <div className="pt-3 text-[11px] opacity-30 px-3 shrink-0">Made with love 💜</div>
     </aside>
   )
 }

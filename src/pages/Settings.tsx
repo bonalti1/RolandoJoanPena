@@ -4,14 +4,13 @@ import { useTheme, PRESETS, type Theme } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { CURRENCIES } from '../lib/format'
 
-type StatusFlags = { openai?: boolean; rapidapi?: boolean; plaid?: boolean; googleCalendar?: boolean; push?: boolean }
+type StatusFlags = { openai?: boolean; plaid?: boolean; googleCalendar?: boolean; push?: boolean }
 
 const INTEGRATIONS: { key: keyof StatusFlags; name: string; desc: string; setup: string }[] = [
-  { key: 'openai', name: 'AI Assistant (OpenAI)', desc: 'Powers Ask AI and Wishlist pros/cons & "help me decide".', setup: 'Add OPENAI_API_KEY in Netlify' },
-  { key: 'googleCalendar', name: 'Google Calendar', desc: 'Two-way sync of real events into the Calendar.', setup: 'Authorize the connector + add GOOGLE_CLIENT_ID' },
-  { key: 'plaid', name: 'Plaid (Bank)', desc: 'Live balances and deposits from her real accounts.', setup: 'Add PLAID_CLIENT_ID and PLAID_SECRET' },
-  { key: 'rapidapi', name: 'Live Product Search', desc: 'Type a product and get live prices, ratings & similar items.', setup: 'Add RAPIDAPI_KEY in Netlify' },
-  { key: 'push', name: 'Phone Push Notifications', desc: 'Send reminders to her phone, even when the app is closed.', setup: 'Add VAPID_PUBLIC_KEY (+ a scheduler)' },
+  { key: 'googleCalendar', name: 'Google Calendar', desc: 'Two-way sync of your real events into the Calendar page.', setup: 'Authorize the connector + add GOOGLE_CLIENT_ID' },
+  { key: 'plaid', name: 'Plaid (Bank)', desc: 'Live account balances and deposits on the Bank page.', setup: 'Add PLAID_CLIENT_ID and PLAID_SECRET' },
+  { key: 'openai', name: 'AI (OpenAI)', desc: 'Optional cloud transcription & AI summaries for the Journal.', setup: 'Add OPENAI_API_KEY in Netlify' },
+  { key: 'push', name: 'Phone push notifications', desc: 'Send reminders to your phone, even when the app is closed.', setup: 'Add VAPID_PUBLIC_KEY (+ a scheduler)' },
 ]
 
 function IntegrationsCard() {
@@ -36,7 +35,7 @@ function IntegrationsCard() {
   return (
     <Card className="p-5 mb-6">
       <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--color-text)' }}>Integrations</h2>
-      <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>Connect external services. Keys live securely on the server — never in the app.</p>
+      <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>Everything works offline without these. Connect them when you're ready — API keys live securely on the server, never in the app. Status updates automatically once deployed to Netlify with the keys set.</p>
       <ul className="flex flex-col gap-2">
         {INTEGRATIONS.map((it) => {
           const b = badge(status?.[it.key])
@@ -99,7 +98,7 @@ export default function Settings() {
           </label>
           <div className="flex-1 min-w-[200px]">
             <label className="text-sm block mb-1" style={{ color: 'var(--color-muted)' }}>Name (greeting + signature)</label>
-            <Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="Rolando Joan Pena" className="max-w-sm" />
+            <Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="Rolando Joan" className="max-w-sm" />
             {profile.photo && (
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 <button
@@ -115,7 +114,7 @@ export default function Settings() {
                 </button>
               </div>
             )}
-            <p className="text-xs mt-2" style={{ color: 'var(--color-muted)' }}>Add a selfie and show it in the sidebar if you like 💜</p>
+            <p className="text-xs mt-2" style={{ color: 'var(--color-muted)' }}>Add a photo and show it in the sidebar if you like.</p>
           </div>
           <div>
             <label className="text-sm block mb-1" style={{ color: 'var(--color-muted)' }}>Currency</label>
@@ -171,7 +170,7 @@ export default function Settings() {
               </label>
             ))}
           </div>
-          <Button variant="outline" className="mt-5" onClick={() => applyPreset('Noir Lavender')}>Reset to default</Button>
+          <Button variant="outline" className="mt-5" onClick={() => applyPreset('Charcoal')}>Reset to default</Button>
         </Card>
       </div>
 

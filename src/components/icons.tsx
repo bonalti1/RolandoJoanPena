@@ -43,9 +43,19 @@ export const IconWork = (p: P) => (
   </svg>
 )
 
-export const IconWishlist = (p: P) => (
+export const IconJournal = (p: P) => (
   <svg {...base(p)}>
-    <path d="M20.8 5.6a4.4 4.4 0 0 0-6.2 0L12 8.2 9.4 5.6a4.4 4.4 0 1 0-6.2 6.2L12 20.6l8.8-8.8a4.4 4.4 0 0 0 0-6.2Z" />
+    <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5.5A1.5 1.5 0 0 1 4 19.5Z" />
+    <path d="M4 17.5A1.5 1.5 0 0 1 5.5 16H20" />
+    <path d="M8 7h7M8 10.5h7" />
+  </svg>
+)
+
+export const IconMic = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="9" y="2" width="6" height="12" rx="3" />
+    <path d="M5 11a7 7 0 0 0 14 0" />
+    <path d="M12 18v3" />
   </svg>
 )
 

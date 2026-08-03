@@ -13,9 +13,9 @@ export default defineConfig({
       manifest: {
         name: "Rolando's Dashboard",
         short_name: 'Rolando',
-        description: 'Tasks, bills, family, health and more — all in one place.',
-        theme_color: '#8b7fb8',
-        background_color: '#f6f5fb',
+        description: 'Tasks, bills, calendar, journal and more — all in one place.',
+        theme_color: '#212327',
+        background_color: '#f3f4f6',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',

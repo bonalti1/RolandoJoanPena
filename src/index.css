@@ -11,15 +11,16 @@
 
 :root {
   /* Theme variables — overridden at runtime by Settings (see lib/theme.tsx) */
-  --color-sidebar: #1d1b29;
-  --color-sidebar-2: #2a2740;
-  --color-sidebar-text: #f3f1fb;
-  --color-accent: #b9a8ff;
-  --color-bg: #f5f4f8;
+  --color-sidebar: #212327;
+  --color-sidebar-2: #2c2f34;
+  --color-sidebar-text: #f2f3f5;
+  --color-accent: #4b5563;
+  --color-on-accent: #ffffff;
+  --color-bg: #f3f4f6;
   --color-surface: #ffffff;
-  --color-text: #1d1b26;
-  --color-muted: #8a8699;
-  --color-border: #ecebf2;
+  --color-text: #1f2023;
+  --color-muted: #6b7280;
+  --color-border: #e5e7eb;
 
   /* Apple-grade layered shadows */
   --shadow-sm: 0 1px 2px rgba(20, 18, 35, 0.04), 0 1px 1px rgba(20, 18, 35, 0.03);

@@ -15,37 +15,40 @@ export type Theme = {
 }
 
 export const PRESETS: Record<string, Theme> = {
-  'Noir Lavender': {
-    sidebar: '#1d1b29', sidebar2: '#2d2a44', sidebarText: '#f3f1fb',
-    accent: '#b9a8ff', onAccent: '#241f3a', bg: '#f5f4f8', surface: '#ffffff',
-    text: '#1d1b26', muted: '#8a8699', border: '#ecebf2',
+  Charcoal: {
+    sidebar: '#212327', sidebar2: '#2c2f34', sidebarText: '#f2f3f5',
+    accent: '#4b5563', onAccent: '#ffffff', bg: '#f3f4f6', surface: '#ffffff',
+    text: '#1f2023', muted: '#6b7280', border: '#e5e7eb',
   },
-  Pearl: {
-    sidebar: '#ffffff', sidebar2: '#f3f2f7', sidebarText: '#2a2740',
-    accent: '#8b7fb8', onAccent: '#ffffff', bg: '#fafafb', surface: '#ffffff',
-    text: '#222029', muted: '#9b97a8', border: '#ededf3',
-  },
-  'Rose Gold': {
-    sidebar: '#2a1f24', sidebar2: '#422d36', sidebarText: '#fbf2f5',
-    accent: '#e8b4be', onAccent: '#3a2229', bg: '#faf6f7', surface: '#ffffff',
-    text: '#2a1f24', muted: '#a18d94', border: '#f1e7ea',
+  Slate: {
+    sidebar: '#1e293b', sidebar2: '#334155', sidebarText: '#f1f5f9',
+    accent: '#64748b', onAccent: '#ffffff', bg: '#f4f6f8', surface: '#ffffff',
+    text: '#1e293b', muted: '#64748b', border: '#e6eaef',
   },
   Graphite: {
     sidebar: '#1c1d22', sidebar2: '#2b2d35', sidebarText: '#f0f1f4',
-    accent: '#8ad1c5', onAccent: '#0c322c', bg: '#f4f5f7', surface: '#ffffff',
+    accent: '#5b6472', onAccent: '#ffffff', bg: '#f4f5f7', surface: '#ffffff',
     text: '#1c1d22', muted: '#888c96', border: '#eaecef',
   },
-  Sage: {
-    sidebar: '#1f2622', sidebar2: '#2f3a33', sidebarText: '#f0f4f1',
-    accent: '#a8cbb0', onAccent: '#1d3526', bg: '#f4f7f4', surface: '#ffffff',
-    text: '#1f2622', muted: '#86918a', border: '#e7eee9',
+  Steel: {
+    sidebar: '#1f2733', sidebar2: '#2d3a4a', sidebarText: '#eef2f7',
+    accent: '#5a7796', onAccent: '#ffffff', bg: '#f3f5f8', surface: '#ffffff',
+    text: '#1f2733', muted: '#77808c', border: '#e6eaef',
   },
-  Midnight: {
-    sidebar: '#16151f', sidebar2: '#23212f', sidebarText: '#ecebf5',
-    accent: '#9d8df1', onAccent: '#1b1726', bg: '#191822', surface: '#22212e',
-    text: '#ecebf5', muted: '#928eaa', border: '#34323f',
+  Fog: {
+    sidebar: '#f4f5f7', sidebar2: '#e9ebef', sidebarText: '#2b2e33',
+    accent: '#5b6472', onAccent: '#ffffff', bg: '#fafafb', surface: '#ffffff',
+    text: '#22242a', muted: '#9297a0', border: '#ededf1',
+  },
+  Onyx: {
+    sidebar: '#161719', sidebar2: '#212327', sidebarText: '#ebecee',
+    accent: '#8a919c', onAccent: '#17181a', bg: '#191a1c', surface: '#222427',
+    text: '#ebecee', muted: '#8b8f96', border: '#33363b',
   },
 }
+
+/** The default theme new installs start with. */
+export const DEFAULT_PRESET = 'Charcoal'
 
 const VAR_MAP: Record<keyof Theme, string> = {
   sidebar: '--color-sidebar',
@@ -78,11 +81,11 @@ type ThemeCtx = {
 const Ctx = createContext<ThemeCtx | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useStore<Theme>('theme', PRESETS['Noir Lavender'])
+  const [theme, setTheme] = useStore<Theme>('theme', PRESETS[DEFAULT_PRESET])
 
   useEffect(() => {
     // Backfill any keys added in newer versions so older saved themes don't break.
-    applyTheme({ ...PRESETS['Noir Lavender'], ...theme })
+    applyTheme({ ...PRESETS[DEFAULT_PRESET], ...theme })
   }, [theme])
 
   const applyPreset = (name: string) => {
