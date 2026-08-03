@@ -91,7 +91,7 @@ function PaidCell({ value, expected, onToggle, onSet }: {
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
         className="h-7 w-[54px] text-center rounded-lg outline-none mx-auto text-xs"
-        style={{ background: 'var(--color-surface)', border: '2px solid var(--color-accent)', color: 'var(--color-text)', fontWeight: 600 }}
+        style={{ background: 'var(--color-surface)', border: '2px solid var(--color-accent)', color: 'var(--color-text)', fontWeight: 500 }}
       />
     )
   }
@@ -107,7 +107,7 @@ function PaidCell({ value, expected, onToggle, onSet }: {
         background: paid ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : 'var(--color-bg)',
         border: `1px solid ${paid ? 'color-mix(in srgb, var(--color-accent) 35%, transparent)' : 'var(--color-border)'}`,
         color: paid ? 'var(--color-text)' : 'var(--color-muted)',
-        fontWeight: paid ? 600 : 400,
+        fontWeight: paid ? 500 : 400,
       }}
     >
       {paid ? money(value!) : <span style={{ opacity: 0.45 }}>{expected ? money(expected) : ''}</span>}
