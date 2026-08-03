@@ -97,6 +97,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const [masterCat, setMasterCat] = useState<Cat>('Home')
   const [catFilter, setCatFilter] = useState<'All' | Cat>('All')
   const [rolledNote, setRolledNote] = useState(0)
+  const [focusDay, setFocusDay] = useState<string | null>(null)
 
   // Company support (Work board only)
   const [companyFilter, setCompanyFilter] = useState<'all' | CompanyId>('all')
@@ -222,6 +223,69 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
 
   const companyEmpty = isWork && companyFilter !== 'all' && coItems.length === 0
 
+  const IconExpand = (p: { width?: number; height?: number }) => (
+    <svg width={p.width ?? 14} height={p.height ?? 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+  )
+  const IconCollapse = (p: { width?: number; height?: number }) => (
+    <svg width={p.width ?? 14} height={p.height ?? 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></svg>
+  )
+
+  const renderDay = (day: string, idx: number, focused: boolean) => {
+    const dayDate = addDays(weekStart, idx)
+    const isToday = toISO(dayDate) === todayISO()
+    const items = (week[day] ?? []).filter((i) => !i.done && matchCompany(i))
+    const over = overBucket === day
+    const fullLabel = dayDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+    return (
+      <div
+        key={day}
+        onDragOver={(e) => { e.preventDefault(); if (overBucket !== day) setOverBucket(day) }}
+        onDragLeave={() => setOverBucket((o) => (o === day ? null : o))}
+        onDrop={(e) => { e.preventDefault(); handleDrop(day) }}
+        className={`${focused ? 'w-full' : 'snap-start shrink-0 min-w-[78%] sm:min-w-[46%] md:min-w-[31%] lg:min-w-0'} flex flex-col rounded-2xl p-2.5 min-h-[240px] transition-colors`}
+        style={{
+          background: over ? 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))' : isToday ? 'color-mix(in srgb, var(--color-accent) 8%, var(--color-surface))' : 'var(--color-surface)',
+          border: `1px solid ${over ? 'var(--color-accent)' : 'var(--color-border)'}`,
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <div className="flex items-baseline justify-between px-1 mb-2 gap-2">
+          <span className="font-semibold text-sm truncate" style={{ color: isToday ? 'var(--color-accent)' : 'var(--color-text)' }}>{focused ? fullLabel : DAY_SHORT[day]}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            {!focused && <span className="text-[11px] tnum" style={{ color: isToday ? 'var(--color-accent)' : 'var(--color-muted)' }}>{dayDate.getDate()}</span>}
+            <button
+              onClick={() => setFocusDay(focused ? null : day)}
+              className="opacity-55 hover:opacity-100 transition"
+              style={{ color: isToday ? 'var(--color-accent)' : 'var(--color-muted)' }}
+              title={focused ? 'Show the full week' : 'Focus on this day'}
+              aria-label={focused ? 'Collapse to week' : 'Expand this day'}
+            >
+              {focused ? <IconCollapse width={15} height={15} /> : <IconExpand width={14} height={14} />}
+            </button>
+          </div>
+        </div>
+        <ul className={`flex flex-col gap-1 flex-1 ${focused ? 'sm:grid sm:grid-cols-2 sm:gap-2 sm:items-start' : ''}`}>
+          {items.map((i) => (
+            <TaskRow key={i.id} item={i} variant={focused ? 'full' : 'compact'} onToggle={() => toggle(day, i.id)} onRemove={() => remove(day, i.id)} onOpen={() => setSelected({ bucket: day, id: i.id })} onDragStart={() => setDrag({ from: day, id: i.id })} />
+          ))}
+          {focused && items.length === 0 && (
+            <li className="text-sm py-6 text-center sm:col-span-2" style={{ color: 'var(--color-muted)' }}>Nothing scheduled for this day. Add a task below.</li>
+          )}
+        </ul>
+        {isWork ? (
+          <button onClick={() => openModal(day)} className="mt-1 text-xs font-semibold flex items-center gap-1 px-1 py-1 opacity-70 hover:opacity-100 transition" style={{ color: 'var(--color-accent)' }}><IconPlus width={13} height={13} /> Add</button>
+        ) : addingCol === day ? (
+          <input autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') submitColAdd(day); if (e.key === 'Escape') { setAddingCol(null); setAddDraft('') } }}
+            onBlur={() => { submitColAdd(day); setAddingCol(null) }} placeholder="Task…"
+            className="mt-1 rounded-lg px-2 py-1 text-sm outline-none w-full" style={fieldStyle} />
+        ) : (
+          <button onClick={() => { setAddingCol(day); setAddDraft('') }} className="mt-1 text-xs font-semibold flex items-center gap-1 px-1 py-1 opacity-70 hover:opacity-100 transition" style={{ color: 'var(--color-accent)' }}><IconPlus width={13} height={13} /> Add</button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div onDragEnd={() => { setDrag(null); setOverBucket(null) }}>
       <PageHeader
@@ -298,49 +362,19 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         <p className="text-sm mb-4 px-1" style={{ color: 'var(--color-muted)' }}>No tasks for {selCompany?.name} yet. Add a task to get started.</p>
       )}
 
-      {/* Week across the top */}
-      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 lg:grid lg:grid-cols-7 lg:overflow-visible">
-        {DAYS.map((day, idx) => {
-          const dayDate = addDays(weekStart, idx)
-          const isToday = toISO(dayDate) === todayISO()
-          const items = (week[day] ?? []).filter((i) => !i.done && matchCompany(i))
-          const over = overBucket === day
-          return (
-            <div
-              key={day}
-              onDragOver={(e) => { e.preventDefault(); if (overBucket !== day) setOverBucket(day) }}
-              onDragLeave={() => setOverBucket((o) => (o === day ? null : o))}
-              onDrop={(e) => { e.preventDefault(); handleDrop(day) }}
-              className="snap-start shrink-0 min-w-[78%] sm:min-w-[46%] md:min-w-[31%] lg:min-w-0 flex flex-col rounded-2xl p-2.5 min-h-[240px] transition-colors"
-              style={{
-                background: over ? 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))' : isToday ? 'color-mix(in srgb, var(--color-accent) 8%, var(--color-surface))' : 'var(--color-surface)',
-                border: `1px solid ${over ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <div className="flex items-baseline justify-between px-1 mb-2">
-                <span className="font-semibold text-sm" style={{ color: isToday ? 'var(--color-accent)' : 'var(--color-text)' }}>{DAY_SHORT[day]}</span>
-                <span className="text-[11px] tnum" style={{ color: isToday ? 'var(--color-accent)' : 'var(--color-muted)' }}>{dayDate.getDate()}</span>
-              </div>
-              <ul className="flex flex-col gap-1 flex-1">
-                {items.map((i) => (
-                  <TaskRow key={i.id} item={i} variant="compact" onToggle={() => toggle(day, i.id)} onRemove={() => remove(day, i.id)} onOpen={() => setSelected({ bucket: day, id: i.id })} onDragStart={() => setDrag({ from: day, id: i.id })} />
-                ))}
-              </ul>
-              {isWork ? (
-                <button onClick={() => openModal(day)} className="mt-1 text-xs font-semibold flex items-center gap-1 px-1 py-1 opacity-70 hover:opacity-100 transition" style={{ color: 'var(--color-accent)' }}><IconPlus width={13} height={13} /> Add</button>
-              ) : addingCol === day ? (
-                <input autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') submitColAdd(day); if (e.key === 'Escape') { setAddingCol(null); setAddDraft('') } }}
-                  onBlur={() => { submitColAdd(day); setAddingCol(null) }} placeholder="Task…"
-                  className="mt-1 rounded-lg px-2 py-1 text-sm outline-none w-full" style={fieldStyle} />
-              ) : (
-                <button onClick={() => { setAddingCol(day); setAddDraft('') }} className="mt-1 text-xs font-semibold flex items-center gap-1 px-1 py-1 opacity-70 hover:opacity-100 transition" style={{ color: 'var(--color-accent)' }}><IconPlus width={13} height={13} /> Add</button>
-              )}
-            </div>
-          )
-        })}
-      </div>
+      {/* Week — either the full 7-day grid, or a single focused day full-width */}
+      {focusDay ? (
+        <div>
+          <button onClick={() => setFocusDay(null)} className="mb-3 text-sm font-semibold flex items-center gap-1.5 px-1 py-1 opacity-80 hover:opacity-100 transition" style={{ color: 'var(--color-accent)' }}>
+            <IconCollapse width={15} height={15} /> Show full week
+          </button>
+          {renderDay(focusDay, DAYS.indexOf(focusDay), true)}
+        </div>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 lg:grid lg:grid-cols-7 lg:overflow-visible">
+          {DAYS.map((day, idx) => renderDay(day, idx, false))}
+        </div>
+      )}
 
       {/* Master List */}
       <div
