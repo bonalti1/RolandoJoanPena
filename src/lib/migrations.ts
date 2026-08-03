@@ -13,7 +13,7 @@ import { PRESETS, DEFAULT_PRESET, type Theme } from './theme'
 
 const PREFIX = 'jess:'
 const VERSION_KEY = 'migrations.version'
-const CURRENT = 2
+const CURRENT = 3
 
 const LEGACY_ACCENTS = new Set(['#b9a8ff', '#8b7fb8', '#e8b4be', '#9d8df1'])
 const LEGACY_DEFAULT_NAMES = new Set(['Jessica', 'Jessica Peña', 'Rolando'])
@@ -51,7 +51,7 @@ const SEED_GOALS = [
 ].map((text, i) => ({ id: `goal_${i}`, text, done: false }))
 
 const SEED_KIDS = [
-  { id: 'kid_noe', name: 'Noe', relation: 'Son', birthday: '2017-11-07' },
+  { id: 'kid_noe', name: 'Noah', relation: 'Son', birthday: '2017-11-07' },
   { id: 'kid_natalia', name: 'Natalia', relation: 'Daughter', birthday: '2020-07-12' },
 ]
 
@@ -88,6 +88,17 @@ export function runMigrations(): void {
 
     const members = read<{ id?: string }[]>('family.members') ?? []
     write('family.members', hasSeed(members, SEED_KIDS) ? members : [...members, ...SEED_KIDS])
+  }
+
+  // v3 — correct the seeded son's name from "Noe" to "Noah".
+  if (version < 3) {
+    const members = read<{ id?: string; name?: string }[]>('family.members') ?? []
+    let changed = false
+    const updated = members.map((m) => {
+      if (m.id === 'kid_noe' && m.name === 'Noe') { changed = true; return { ...m, name: 'Noah' } }
+      return m
+    })
+    if (changed) write('family.members', updated)
   }
 
   write(VERSION_KEY, CURRENT)
