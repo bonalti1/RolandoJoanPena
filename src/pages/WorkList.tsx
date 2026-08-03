@@ -6,7 +6,7 @@ import { useConfirmDelete } from '../lib/confirmDelete'
 import { startOfWeek, addDays, toISO, todayISO, isoWeek, formatWeekRange } from '../lib/dates'
 import { COMPANIES, companyById, type CompanyId } from '../lib/companies'
 
-type Cat = 'Home' | 'Work' | 'Errands' | 'Someday'
+type Cat = 'Task' | 'Misc' | 'Legal'
 type Priority = 'Low' | 'Medium' | 'High'
 type Item = { id: string; text: string; done: boolean; completedAt?: number; cat?: Cat; notes?: string; time?: string; company?: CompanyId; desc?: string; due?: string; priority?: Priority }
 type WeekBoard = Record<string, Item[]>
@@ -16,7 +16,7 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 const DAY_SHORT: Record<string, string> = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' }
 const BACKLOG = 'Unscheduled'
 type Tab = 'Home' | 'Work'
-const CATS: Cat[] = ['Home', 'Work', 'Errands', 'Someday']
+const CATS: Cat[] = ['Task', 'Misc', 'Legal']
 const PRIORITIES: Priority[] = ['Low', 'Medium', 'High']
 const DRAG_MIME = 'application/x-jess-task'
 const fieldStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
@@ -96,7 +96,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const [addDraft, setAddDraft] = useState('')
   const [masterAdding, setMasterAdding] = useState(false)
   const [masterDraft, setMasterDraft] = useState('')
-  const [masterCat, setMasterCat] = useState<Cat>('Home')
+  const [masterCat, setMasterCat] = useState<Cat>('Task')
   const [catFilter, setCatFilter] = useState<'All' | Cat>('All')
   const [rolledNote, setRolledNote] = useState(0)
   const [focusDay, setFocusDay] = useState<string | null>(null)
@@ -107,7 +107,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const [modal, setModal] = useState<{ day: string | null } | null>(null)
   const [mTitle, setMTitle] = useState('')
   const [mCompany, setMCompany] = useState<CompanyId | ''>('')
-  const [mCat, setMCat] = useState<Cat>('Work')
+  const [mCat, setMCat] = useState<Cat>('Task')
   const [mDesc, setMDesc] = useState('')
   const [mDay, setMDay] = useState('')
   const [mDue, setMDue] = useState('')
@@ -207,7 +207,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const submitMaster = () => { const t = masterDraft.trim(); if (t) { add(BACKLOG, t, masterCat); setMasterDraft('') } }
 
   const openModal = (day: string | null) => {
-    setMTitle(''); setMDesc(''); setMDue(''); setMPriority('Medium'); setMCat('Work'); setMError('')
+    setMTitle(''); setMDesc(''); setMDue(''); setMPriority('Medium'); setMCat('Task'); setMError('')
     setMCompany(companyFilter !== 'all' ? companyFilter : '')
     setMDay(day ?? '')
     setModal({ day })

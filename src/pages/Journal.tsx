@@ -216,6 +216,13 @@ export default function Journal() {
   const addGoal = () => { const t = goalDraft.trim(); if (!t) return; setGoals((p) => [...p, { id: uid('goal'), text: t, done: false, category: goalCat }]); setGoalDraft('') }
   const toggleGoal = (id: string) => setGoals((p) => p.map((g) => g.id === id ? { ...g, done: !g.done } : g))
   const removeGoal = (id: string) => setGoals((p) => p.filter((g) => g.id !== id))
+  // Goal categories start collapsed; tap a category to reveal its goals.
+  const [openGoalCats, setOpenGoalCats] = useState<Set<string>>(new Set())
+  const toggleGoalCat = (cat: string) => setOpenGoalCats((prev) => {
+    const next = new Set(prev)
+    next.has(cat) ? next.delete(cat) : next.add(cat)
+    return next
+  })
   const goalGroups = [
     ...GOAL_CATEGORIES.map((cat) => ({ cat, items: goals.filter((g) => (g.category ?? '') === cat) })),
     { cat: 'Other', items: goals.filter((g) => !GOAL_CATEGORIES.includes(g.category ?? '')) },
@@ -301,30 +308,40 @@ export default function Journal() {
             {goalGroups.length === 0 ? (
               <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>Add your first goal below.</p>
             ) : (
-              <div className="flex flex-col gap-4 mb-4">
-                {goalGroups.map((grp) => (
-                  <div key={grp.cat}>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-1.5" style={{ color: 'var(--color-muted)' }}>{grp.cat}</h3>
-                    <ul className="flex flex-col gap-1.5">
-                      {grp.items.map((g) => (
-                        <li key={g.id} className="group flex items-center gap-2.5">
-                          <button
-                            onClick={() => toggleGoal(g.id)}
-                            className="h-5 w-5 rounded-md grid place-items-center shrink-0 transition"
-                            style={{ border: '2px solid var(--color-accent)', background: g.done ? 'var(--color-accent)' : 'transparent' }}
-                            aria-label={g.done ? 'Mark not achieved' : 'Mark achieved'}
-                          >
-                            {g.done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
-                          </button>
-                          <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: g.done ? 'line-through' : 'none', opacity: g.done ? 0.5 : 1 }}>{g.text}</span>
-                          <button onClick={() => confirmDelete({ label: g.text ? `the goal “${g.text}”` : 'this goal', onConfirm: () => removeGoal(g.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove goal">
-                            <IconTrash width={15} height={15} />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+              <div className="flex flex-col gap-1.5 mb-4">
+                {goalGroups.map((grp) => {
+                  const open = openGoalCats.has(grp.cat)
+                  const doneCount = grp.items.filter((g) => g.done).length
+                  return (
+                    <div key={grp.cat} className="rounded-xl" style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
+                      <button onClick={() => toggleGoalCat(grp.cat)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
+                        <span className="text-xs shrink-0 transition-transform" style={{ color: 'var(--color-muted)', transform: open ? 'rotate(90deg)' : 'none' }}>▸</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] flex-1" style={{ color: 'var(--color-text)' }}>{grp.cat}</span>
+                        <span className="text-[11px] font-semibold tnum" style={{ color: 'var(--color-muted)' }}>{doneCount}/{grp.items.length}</span>
+                      </button>
+                      {open && (
+                        <ul className="flex flex-col gap-1.5 px-3 pb-3 pt-0.5">
+                          {grp.items.map((g) => (
+                            <li key={g.id} className="group flex items-center gap-2.5">
+                              <button
+                                onClick={() => toggleGoal(g.id)}
+                                className="h-5 w-5 rounded-md grid place-items-center shrink-0 transition"
+                                style={{ border: '2px solid var(--color-accent)', background: g.done ? 'var(--color-accent)' : 'transparent' }}
+                                aria-label={g.done ? 'Mark not achieved' : 'Mark achieved'}
+                              >
+                                {g.done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
+                              </button>
+                              <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: g.done ? 'line-through' : 'none', opacity: g.done ? 0.5 : 1 }}>{g.text}</span>
+                              <button onClick={() => confirmDelete({ label: g.text ? `the goal “${g.text}”` : 'this goal', onConfirm: () => removeGoal(g.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove goal">
+                                <IconTrash width={15} height={15} />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
             <div className="flex flex-col gap-2">

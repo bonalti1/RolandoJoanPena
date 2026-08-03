@@ -3,7 +3,7 @@ import { Card, PageHeader, Button, Input, EmptyState } from '../components/ui'
 import { IconPlus, IconTrash, IconFamily } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
-import { pickIdeas } from '../lib/familyIdeas'
+import { GROWTH_TOPICS, pickGrowthIdeas, type GrowthIdea } from '../lib/familyGrowth'
 
 type Member = {
   id: string; name: string; relation: string; birthday: string
@@ -65,9 +65,11 @@ export default function Family() {
 
   const selected = members.find((m) => m.id === selectedId) || null
 
-  // Kids (for personalizing family-time ideas) = young members.
+  // Kids (for personalizing growth ideas) = young members.
   const kidNames = members.filter((m) => { const a = ageFrom(m.birthday); return a != null && a <= 15 }).map((m) => m.name.split(' ')[0])
-  const [ideas, setIdeas] = useState<string[]>(() => pickIdeas(4, kidNames))
+  const [growthTopic, setGrowthTopic] = useState(GROWTH_TOPICS[0].id)
+  const [ideas, setIdeas] = useState<GrowthIdea[]>(() => pickGrowthIdeas(GROWTH_TOPICS[0].id, 4, kidNames))
+  const pickTopic = (id: string) => { setGrowthTopic(id); setIdeas(pickGrowthIdeas(id, 4, kidNames)) }
 
   const upcoming = useMemo(() => members
     .map((mem) => ({ mem, days: daysUntilBirthday(mem.birthday) }))
@@ -100,21 +102,62 @@ export default function Family() {
           </Card>
         )}
 
-        {/* Family time ideas — fresh things to do together */}
-        <Card className="p-5 mb-6">
-          <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-            <div>
-              <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Family time ideas</h2>
-              <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Something to do together{kidNames.length ? ` with ${kidNames.join(' & ')}` : ''} — reshuffle anytime.</p>
-            </div>
-            <Button variant="outline" onClick={() => setIdeas(pickIdeas(4, kidNames))}>↻ New ideas</Button>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-2">
-            {ideas.map((idea, i) => (
-              <div key={i} className="text-sm px-3 py-2.5 rounded-xl" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>{idea}</div>
-            ))}
-          </div>
-        </Card>
+        {/* Grow — the father/husband you want to be, with the "why" behind each idea */}
+        {(() => {
+          const topic = GROWTH_TOPICS.find((t) => t.id === growthTopic) ?? GROWTH_TOPICS[0]
+          return (
+            <Card className="p-5 mb-6">
+              <div className="mb-4">
+                <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Grow</h2>
+                <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Pick what you want to work on — you'll get ideas and why each one matters.</p>
+              </div>
+              <div className="grid md:grid-cols-[190px_1fr] gap-5">
+                {/* Topic picker */}
+                <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible pb-1 md:pb-0">
+                  {GROWTH_TOPICS.map((t) => {
+                    const active = t.id === growthTopic
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => pickTopic(t.id)}
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left shrink-0 md:w-full transition"
+                        style={{
+                          background: active ? 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))' : 'var(--color-bg)',
+                          border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                        }}
+                      >
+                        <span className="text-lg shrink-0">{t.emoji}</span>
+                        <span>
+                          <span className="block text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{t.label}</span>
+                          <span className="hidden md:block text-[11px] leading-tight" style={{ color: 'var(--color-muted)' }}>{t.blurb}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Ideas for the chosen topic */}
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-2.5">
+                    <h3 className="font-semibold flex items-center gap-2" style={{ color: 'var(--color-text)' }}><span>{topic.emoji}</span> {topic.label}</h3>
+                    <Button variant="outline" onClick={() => setIdeas(pickGrowthIdeas(growthTopic, 4, kidNames))}>↻ New ideas</Button>
+                  </div>
+                  <div className="flex flex-col gap-2.5">
+                    {ideas.map((idea, i) => (
+                      <div key={i} className="px-3.5 py-3 rounded-xl" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                        <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{idea.text}</p>
+                        <p className="text-[13px] mt-1.5 flex gap-1.5" style={{ color: 'var(--color-muted)' }}>
+                          <span className="font-semibold shrink-0" style={{ color: 'var(--color-accent)' }}>Why</span>
+                          <span>{idea.why}</span>
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )
+        })()}
 
         <Card className="p-4 mb-6">
           <div className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">

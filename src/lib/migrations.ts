@@ -13,7 +13,10 @@ import { PRESETS, DEFAULT_PRESET, type Theme } from './theme'
 
 const PREFIX = 'jess:'
 const VERSION_KEY = 'migrations.version'
-const CURRENT = 5
+const CURRENT = 6
+
+// v6 remaps the old task categories onto the new set (Task / Misc / Legal).
+const CAT_REMAP: Record<string, string> = { Home: 'Task', Work: 'Task', Errands: 'Task', Someday: 'Misc' }
 
 const LEGACY_ACCENTS = new Set(['#b9a8ff', '#8b7fb8', '#e8b4be', '#9d8df1'])
 const LEGACY_DEFAULT_NAMES = new Set(['Jessica', 'Jessica Peña', 'Rolando'])
@@ -133,6 +136,24 @@ export function runMigrations(): void {
     const theme = read<Theme>('theme')
     if (theme && theme.accent && theme.accent.toLowerCase() === '#4b5563') {
       write('theme', PRESETS[DEFAULT_PRESET])
+    }
+  }
+
+  // v6 — the Home-tasks / Work-tasks categories became Task / Misc / Legal.
+  // Remap any tasks still tagged with an old category so filters keep working.
+  if (version < 6) {
+    const remapItem = (it: { cat?: string }) =>
+      it.cat && CAT_REMAP[it.cat] ? { ...it, cat: CAT_REMAP[it.cat] } : it
+    for (const boardKey of ['work.home', 'work.work']) {
+      const board = read<{ backlog?: { cat?: string }[]; weeks?: Record<string, Record<string, { cat?: string }[]>> }>(boardKey)
+      if (!board) continue
+      const backlog = (board.backlog ?? []).map(remapItem)
+      const weeks: Record<string, Record<string, { cat?: string }[]>> = {}
+      for (const [wk, days] of Object.entries(board.weeks ?? {})) {
+        weeks[wk] = {}
+        for (const [day, items] of Object.entries(days ?? {})) weeks[wk][day] = (items ?? []).map(remapItem)
+      }
+      write(boardKey, { ...board, backlog, weeks })
     }
   }
 

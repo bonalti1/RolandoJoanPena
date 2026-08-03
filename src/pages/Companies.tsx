@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, PageHeader, Button, Input } from '../components/ui'
 import { IconPlus, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
@@ -41,7 +41,27 @@ function fmtAgo(ts: number): string {
 /** Compact single status dropdown: dot + label + arrow. */
 function StatusSelect({ value, onChange, readOnly }: { value?: Status; onChange: (s?: Status) => void; readOnly?: boolean }) {
   const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  // Menu is positioned with fixed coordinates from the button's rect so it can
+  // never be clipped by an ancestor's overflow (the table wrapper) or run off
+  // the bottom of the page.
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null)
   const cur = value ? STATUS_META[value] : null
+
+  const openMenu = () => {
+    const el = btnRef.current
+    if (el) {
+      const r = el.getBoundingClientRect()
+      const width = Math.max(r.width, 160)
+      const menuH = 8 + STATUS_ORDER.length * 34
+      // Flip above the button if there isn't room below.
+      const below = window.innerHeight - r.bottom
+      const top = below < menuH + 12 ? r.top - menuH - 4 : r.bottom + 4
+      setPos({ left: Math.min(r.left, window.innerWidth - width - 8), top, width })
+    }
+    setOpen(true)
+  }
+
   if (readOnly) return (
     <span className="inline-flex items-center gap-1.5 text-sm">
       <span className="h-2.5 w-2.5 rounded-full" style={{ background: cur ? cur.dot : 'var(--color-border)' }} />
@@ -49,18 +69,18 @@ function StatusSelect({ value, onChange, readOnly }: { value?: Status; onChange:
     </span>
   )
   return (
-    <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} className="inline-flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg text-sm w-full" style={fieldStyle}>
+    <>
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} className="inline-flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg text-sm w-full" style={fieldStyle}>
         <span className="flex items-center gap-1.5 min-w-0">
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: cur ? cur.dot : 'var(--color-border)' }} />
           <span className="truncate" style={{ color: cur ? 'var(--color-text)' : 'var(--color-muted)' }}>{cur ? cur.label : 'Set status'}</span>
         </span>
         <span className="text-xs shrink-0" style={{ color: 'var(--color-muted)' }}>▾</span>
       </button>
-      {open && (
+      {open && pos && (
         <>
-          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 mt-1 z-30 rounded-lg p-1 w-full min-w-[150px]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)' }}>
+          <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
+          <div className="fixed z-[70] rounded-lg p-1" style={{ left: pos.left, top: pos.top, width: pos.width, background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)' }}>
             {STATUS_ORDER.map((s) => (
               <button key={s} onClick={() => { onChange(value === s ? undefined : s); setOpen(false) }} className="w-full text-left px-2 py-1.5 rounded-md text-sm flex items-center gap-2" style={{ background: value === s ? 'var(--color-bg)' : 'transparent', color: 'var(--color-text)' }}>
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_META[s].dot }} /> {STATUS_META[s].label}
@@ -69,7 +89,7 @@ function StatusSelect({ value, onChange, readOnly }: { value?: Status; onChange:
           </div>
         </>
       )}
-    </div>
+    </>
   )
 }
 
