@@ -9,6 +9,45 @@ import { money } from '../lib/format'
 type Bill = { id: string; name: string; amount: number; dueDay?: number }
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+/** 1 → "1st", 2 → "2nd", 15 → "15th". */
+const ordinal = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`
+}
+
+/**
+ * The payment date for a bill — the day of the month it's due. Reads as
+ * "Due 5th"; click to set or change it. Used in both Year and Month views.
+ */
+function DueChip({ day, onSet }: { day?: number; onSet: (d: number | undefined) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const commit = () => { const d = parseInt(draft, 10); onSet(d >= 1 && d <= 31 ? d : undefined); setEditing(false) }
+  if (editing) return (
+    <input
+      autoFocus type="number" min={1} max={31} value={draft}
+      onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
+      placeholder="day"
+      className="w-16 text-center rounded-full px-1 py-0.5 outline-none tnum text-xs"
+      style={{ background: 'var(--color-surface)', border: '2px solid var(--color-accent)', color: 'var(--color-text)' }}
+    />
+  )
+  return (
+    <button
+      onClick={() => { setDraft(day ? String(day) : ''); setEditing(true) }}
+      className="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 tnum transition"
+      style={day
+        ? { background: 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))', color: 'var(--color-accent)', border: '1px solid color-mix(in srgb, var(--color-accent) 35%, transparent)' }
+        : { background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px dashed var(--color-border)' }}
+      title="Payment date — the day of the month this bill is due"
+    >
+      {day ? `Due ${ordinal(day)}` : '+ Due date'}
+    </button>
+  )
+}
+
 /**
  * One month cell.
  *   • single tap → toggle paid/unpaid (fills the bill's usual amount)
@@ -164,6 +203,13 @@ export default function Payments() {
 
   const expectedMonthly = useMemo(() => bills.reduce((s, b) => s + b.amount, 0), [bills])
 
+  // Order bills by payment date, earliest first (bills with no date go last),
+  // so the list reads down the month from the 1st.
+  const sortedBills = useMemo(
+    () => [...bills].sort((a, b) => (a.dueDay ?? 99) - (b.dueDay ?? 99)),
+    [bills],
+  )
+
   const rowTotal = (billId: string) =>
     MONTHS.reduce((s, _, m) => s + (cells[key(billId, m)] ?? 0), 0)
 
@@ -181,7 +227,7 @@ export default function Payments() {
     <div>
       <PageHeader
         title="Bills"
-        subtitle="Your bills for the whole year. Tap a cell to mark it paid; double-tap to edit the amount."
+        subtitle="Ordered by payment date. Set each bill's Due date, tap a cell to mark it paid, double-tap to edit the amount."
         action={
           <div className="flex items-center gap-1.5">
             <Button variant="outline" onClick={() => setYear((y) => y - 1)}>‹</Button>
@@ -262,7 +308,7 @@ export default function Payments() {
             <span className="text-sm tnum font-semibold" style={{ color: 'var(--color-accent)' }}>{money(colTotals[viewMonth])} paid</span>
           </div>
           <ul className="flex flex-col gap-2">
-            {bills.map((b) => {
+            {sortedBills.map((b) => {
               const val = cells[key(b.id, viewMonth)]
               const paid = val !== undefined
               return (
@@ -271,10 +317,8 @@ export default function Payments() {
                     style={{ border: '2px solid var(--color-accent)', background: paid ? 'var(--color-accent)' : 'transparent' }}>
                     {paid && <IconCheck width={14} height={14} style={{ color: 'var(--color-on-accent)' }} />}
                   </button>
-                  <span className="flex-1 font-medium" style={{ color: 'var(--color-text)', opacity: paid ? 1 : 0.7 }}>{b.name}</span>
-                  <input type="number" min={1} max={31} value={b.dueDay ?? ''} placeholder="day" title="Due day of the month"
-                    onChange={(e) => { const d = parseInt(e.target.value, 10); editBillDue(b.id, d >= 1 && d <= 31 ? d : undefined) }}
-                    className="w-14 text-center rounded-lg px-1 py-1 outline-none tnum" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-muted)' }} />
+                  <span className="flex-1 min-w-0 truncate font-medium" style={{ color: 'var(--color-text)', opacity: paid ? 1 : 0.7 }}>{b.name}</span>
+                  <DueChip day={b.dueDay} onSet={(d) => editBillDue(b.id, d)} />
                   <input type="number" value={val ?? ''} placeholder={String(b.amount || 0)} onChange={(e) => setCell(b.id, viewMonth, e.target.value === '' ? null : parseFloat(e.target.value))}
                     className="w-24 text-right rounded-lg px-2 py-1 outline-none tnum" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: paid ? 'var(--color-text)' : 'var(--color-muted)', fontWeight: paid ? 600 : 400 }} />
                 </li>
@@ -290,7 +334,7 @@ export default function Payments() {
           <table className="w-full border-collapse text-sm tnum">
             <thead>
               <tr style={{ background: 'var(--color-bg)' }}>
-                <th className="sticky left-0 z-10 text-left px-4 py-3 font-semibold" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', minWidth: 190 }}>Bill</th>
+                <th className="sticky left-0 z-10 text-left px-4 py-3 font-semibold" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', minWidth: 240 }}>Bill</th>
                 {MONTHS.map((m) => (
                   <th key={m} className="px-2 py-3 font-medium text-center" style={{ color: 'var(--color-muted)', minWidth: 58 }}>{m}</th>
                 ))}
@@ -298,18 +342,21 @@ export default function Payments() {
               </tr>
             </thead>
             <tbody>
-              {bills.map((b) => (
+              {sortedBills.map((b) => (
                 <tr key={b.id} className="group" style={{ borderTop: '1px solid var(--color-border)' }}>
-                  <td className="sticky left-0 z-10 px-4 py-2" style={{ background: 'var(--color-surface)' }}>
-                    <div className="flex items-center gap-2">
+                  <td className="sticky left-0 z-10 px-4 py-2.5" style={{ background: 'var(--color-surface)' }}>
+                    <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <input
-                          value={b.name}
-                          onChange={(e) => setBills((prev) => prev.map((x) => x.id === b.id ? { ...x, name: e.target.value } : x))}
-                          className="font-medium bg-transparent outline-none w-full"
-                          style={{ color: 'var(--color-text)' }}
-                        />
-                        <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-muted)' }}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={b.name}
+                            onChange={(e) => setBills((prev) => prev.map((x) => x.id === b.id ? { ...x, name: e.target.value } : x))}
+                            className="font-medium bg-transparent outline-none flex-1 min-w-0"
+                            style={{ color: 'var(--color-text)' }}
+                          />
+                          <DueChip day={b.dueDay} onSet={(d) => editBillDue(b.id, d)} />
+                        </div>
+                        <div className="flex items-center gap-1 text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
                           <span>usually $</span>
                           <input
                             type="number"
