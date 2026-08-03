@@ -95,8 +95,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      <div className="mt-3 mb-4 px-1">
-        <Logo height={56} />
+      <div className="mt-3 mb-4 flex justify-center">
+        <Logo height={60} />
       </div>
 
       {/* Nav fills the remaining height: Menu spreads evenly, Preferences anchored at the bottom. */}

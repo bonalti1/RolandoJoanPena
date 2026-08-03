@@ -1,12 +1,14 @@
 /**
- * JP monogram — a high-contrast Didone serif "JP" (cream J, taupe P) to match
- * Rolando's brand mark. Rendered as live text so it stays razor-sharp at any
- * size; on Apple devices the Didot face gives it that elegant fashion-house
- * look, with graceful serif fallbacks elsewhere.
+ * JP monogram — a high-contrast Didone serif "JP": the J takes the surrounding
+ * text color (white on the dark sidebar, dark on the light mobile bar) and the P
+ * is the brand blue. Rendered as live text so it stays razor-sharp at any size;
+ * on Apple devices the Didot face gives it that elegant fashion-house look.
  *
  * To use an exact image instead, drop it at public/logo.png and swap this for
  * an <img src="/logo.png" />.
  */
+const BRAND_BLUE = '#2f6fed'
+
 export function Logo({ height = 52, title = 'JP' }: { height?: number; title?: string }) {
   return (
     <div
@@ -23,8 +25,8 @@ export function Logo({ height = 52, title = 'JP' }: { height?: number; title?: s
         fontWeight: 500,
       }}
     >
-      <span style={{ color: '#f1eae4' }}>J</span>
-      <span style={{ color: '#b7a69f', marginLeft: '-0.06em' }}>P</span>
+      <span style={{ color: 'currentColor' }}>J</span>
+      <span style={{ color: BRAND_BLUE, marginLeft: '-0.06em' }}>P</span>
     </div>
   )
 }
