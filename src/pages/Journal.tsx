@@ -64,23 +64,23 @@ function fmtClock(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-/** Loads a recording from IndexedDB on demand and plays it inline. */
+/** Loads a recording from IndexedDB and shows an inline player so you can hear it. */
 function AudioPlayer({ id }: { id: string }) {
   const [url, setUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  useEffect(() => () => { if (url) URL.revokeObjectURL(url) }, [url])
-  const load = async () => {
-    setLoading(true)
-    const blob = await getAudio(id)
-    setLoading(false)
-    if (blob) setUrl(URL.createObjectURL(blob))
-  }
-  if (url) return <audio src={url} controls className="h-9 w-full max-w-xs" />
-  return (
-    <Button variant="outline" onClick={load} disabled={loading}>
-      <IconMic width={15} height={15} /> {loading ? 'Loading…' : 'Play recording'}
-    </Button>
-  )
+  const [missing, setMissing] = useState(false)
+  useEffect(() => {
+    let objUrl: string | null = null
+    let alive = true
+    getAudio(id).then((blob) => {
+      if (!alive) return
+      if (blob) { objUrl = URL.createObjectURL(blob); setUrl(objUrl) }
+      else setMissing(true)
+    }).catch(() => alive && setMissing(true))
+    return () => { alive = false; if (objUrl) URL.revokeObjectURL(objUrl) }
+  }, [id])
+  if (missing) return <span className="text-xs" style={{ color: 'var(--color-muted)' }}>🎤 Recording saved on the device it was made on</span>
+  if (!url) return <span className="text-xs" style={{ color: 'var(--color-muted)' }}>Loading audio…</span>
+  return <audio src={url} controls preload="metadata" className="h-9 w-full max-w-sm" />
 }
 
 export default function Journal() {
@@ -93,14 +93,27 @@ export default function Journal() {
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const [draftBlob, setDraftBlob] = useState<Blob | null>(null)
+  const [draftUrl, setDraftUrl] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editText, setEditText] = useState('')
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
-  const blobRef = useRef<Blob | null>(null)
+  const draftBlobRef = useRef<Blob | null>(null)
+  const mimeRef = useRef<string>('')
+  const stopResolveRef = useRef<((b: Blob | null) => void) | null>(null)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const timerRef = useRef<number | null>(null)
   const startedRef = useRef(0)
+
+  const setDraft = (blob: Blob | null) => {
+    draftBlobRef.current = blob
+    setDraftBlob(blob)
+    setDraftUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return blob ? URL.createObjectURL(blob) : null })
+  }
 
   const stopTracks = () => { streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null }
 
@@ -124,13 +137,17 @@ export default function Journal() {
     }
     streamRef.current = stream
     chunksRef.current = []
-    blobRef.current = null
+    setDraft(null)
     const mime = pickMime()
+    mimeRef.current = mime
     const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined)
     rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
     rec.onstop = () => {
-      blobRef.current = new Blob(chunksRef.current, { type: mime || 'audio/webm' })
+      const blob = new Blob(chunksRef.current, { type: mime || 'audio/webm' })
+      setDraft(blob)
       stopTracks()
+      stopResolveRef.current?.(blob)
+      stopResolveRef.current = null
     }
     rec.start()
     recorderRef.current = rec
@@ -162,25 +179,32 @@ export default function Journal() {
     timerRef.current = window.setInterval(() => setElapsed(Date.now() - startedRef.current), 250)
   }
 
-  const stopRecording = () => {
+  // Returns the finished recording once MediaRecorder has flushed it, so Save
+  // works even if you tap Save while still recording.
+  const stopRecording = (): Promise<Blob | null> => {
     if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null }
     try { recognitionRef.current?.stop() } catch { /* ignore */ }
     recognitionRef.current = null
-    try { recorderRef.current?.stop() } catch { /* ignore */ }
-    recorderRef.current = null
     setInterim('')
     setRecording(false)
+    const rec = recorderRef.current
+    recorderRef.current = null
+    if (!rec || rec.state === 'inactive') return Promise.resolve(draftBlobRef.current)
+    return new Promise<Blob | null>((resolve) => {
+      stopResolveRef.current = resolve
+      try { rec.stop() } catch { stopResolveRef.current = null; resolve(draftBlobRef.current) }
+    })
   }
 
   const clearDraft = () => {
-    if (recording) stopRecording()
-    blobRef.current = null
+    if (recording) void stopRecording()
+    setDraft(null)
     setText(''); setTitle(''); setInterim(''); setElapsed(0); setError('')
   }
 
   const save = async () => {
+    const blob = recording ? await stopRecording() : draftBlobRef.current
     const body = text.trim()
-    const blob = blobRef.current
     if (!body && !blob) return
     const id = uid('j')
     let audioSaved = false
@@ -198,8 +222,15 @@ export default function Journal() {
       durationMs: audioSaved ? elapsed : 0,
     }
     setEntries((prev) => [entry, ...prev])
-    blobRef.current = null
+    setDraft(null)
     setText(''); setTitle(''); setInterim(''); setElapsed(0)
+  }
+
+  // ---- Edit an existing entry's title & text ----
+  const startEdit = (e: Entry) => { setEditing(e.id); setEditTitle(e.title); setEditText(e.transcript); setOpen(e.id) }
+  const saveEdit = () => {
+    setEntries((prev) => prev.map((e) => e.id === editing ? { ...e, title: editTitle.trim(), transcript: editText.trim(), summary: makeSummary(editText.trim()) } : e))
+    setEditing(null)
   }
 
   const remove = async (e: Entry) => {
@@ -207,8 +238,8 @@ export default function Journal() {
     setEntries((prev) => prev.filter((x) => x.id !== e.id))
   }
 
-  const hasDraftAudio = !!blobRef.current
-  const canSave = text.trim().length > 0 || hasDraftAudio
+  const hasDraftAudio = !!draftBlob
+  const canSave = recording || text.trim().length > 0 || hasDraftAudio
 
   const [goals, setGoals] = useStore<Goal[]>('journal.goals', [])
   const [goalDraft, setGoalDraft] = useState('')
@@ -296,6 +327,12 @@ export default function Journal() {
             />
             {interim && <p className="text-sm mt-1 px-1 italic" style={{ color: 'var(--color-muted)' }}>{interim}</p>}
           </div>
+          {draftUrl && !recording && (
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+              <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--color-accent)' }}>Preview</span>
+              <audio src={draftUrl} controls preload="metadata" className="h-9 flex-1 min-w-0" />
+            </div>
+          )}
         </div>
       </Card>
 
@@ -372,35 +409,53 @@ export default function Journal() {
                         <h3 className="text-xs font-semibold uppercase tracking-[0.12em] mb-2 px-1" style={{ color: 'var(--color-muted)' }}>{g.day}</h3>
                         <div className="flex flex-col gap-3">
                           {g.items.map((e) => {
-                            const time = new Date(e.ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+                            const stamp = new Date(e.ts).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
                             const expanded = open === e.id
+                            const isEditing = editing === e.id
                             return (
                               <Card key={e.id} className="p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{e.title || 'Journal entry'}</span>
-                                      <span className="text-xs tnum" style={{ color: 'var(--color-muted)' }}>{time}{e.hasAudio && e.durationMs ? ` · ${fmtClock(e.durationMs)}` : ''}</span>
+                                {isEditing ? (
+                                  <div className="flex flex-col gap-2">
+                                    <Input value={editTitle} onChange={(ev) => setEditTitle(ev.target.value)} placeholder="Title (optional)" />
+                                    <textarea value={editText} onChange={(ev) => setEditText(ev.target.value)} rows={5} placeholder="Your entry…"
+                                      className="rounded-xl px-3 py-2 text-sm outline-none w-full resize-y" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                                    <div className="flex justify-end gap-2">
+                                      <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                                      <Button onClick={saveEdit}><IconCheck width={16} height={16} /> Save</Button>
                                     </div>
-                                    <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{e.summary || '(no transcript)'}</p>
                                   </div>
-                                  <button onClick={() => confirmDelete({ label: e.title ? `the entry “${e.title}”` : 'this journal entry', detail: 'The entry and its audio recording will be permanently deleted.', onConfirm: () => { void remove(e) } })} className="shrink-0 opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Delete entry">
-                                    <IconTrash width={16} height={16} />
-                                  </button>
-                                </div>
+                                ) : (
+                                  <>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <span className="font-semibold block" style={{ color: 'var(--color-text)' }}>{e.title || 'Journal entry'}</span>
+                                        <span className="text-xs tnum" style={{ color: 'var(--color-muted)' }}>{stamp}{e.hasAudio && e.durationMs ? ` · 🎤 ${fmtClock(e.durationMs)}` : ''}</span>
+                                        <p className="text-sm mt-1.5" style={{ color: 'var(--color-muted)' }}>{e.summary || '(no transcript)'}</p>
+                                      </div>
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button onClick={() => startEdit(e)} className="opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Edit entry" title="Edit">
+                                          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                                        </button>
+                                        <button onClick={() => confirmDelete({ label: e.title ? `the entry “${e.title}”` : 'this journal entry', detail: 'The entry and its audio recording will be permanently deleted.', onConfirm: () => { void remove(e) } })} className="opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Delete entry">
+                                          <IconTrash width={16} height={16} />
+                                        </button>
+                                      </div>
+                                    </div>
 
-                                {expanded && e.transcript && e.transcript !== e.summary && (
-                                  <p className="text-sm mt-3 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--color-text)' }}>{e.transcript}</p>
+                                    {expanded && e.transcript && e.transcript !== e.summary && (
+                                      <p className="text-sm mt-3 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--color-text)' }}>{e.transcript}</p>
+                                    )}
+
+                                    <div className="flex items-center gap-3 mt-3 flex-wrap">
+                                      {e.transcript && e.transcript !== e.summary && (
+                                        <button onClick={() => setOpen(expanded ? null : e.id)} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>
+                                          {expanded ? 'Hide transcript' : 'Show full transcript'}
+                                        </button>
+                                      )}
+                                      {e.hasAudio && <AudioPlayer id={e.id} />}
+                                    </div>
+                                  </>
                                 )}
-
-                                <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                  {e.transcript && e.transcript !== e.summary && (
-                                    <button onClick={() => setOpen(expanded ? null : e.id)} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>
-                                      {expanded ? 'Hide transcript' : 'Show full transcript'}
-                                    </button>
-                                  )}
-                                  {e.hasAudio && <AudioPlayer id={e.id} />}
-                                </div>
                               </Card>
                             )
                           })}
