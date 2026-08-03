@@ -45,9 +45,10 @@ function CoLogo({ id, h = 15 }: { id?: string; h?: number }) {
   return <img src={c.logo} alt={c.name} draggable={false} className="shrink-0 object-contain" style={{ height: h, width: 'auto', maxWidth: h * 3.6 }} />
 }
 
-function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart }: {
+function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBadge }: {
   item: Item; variant: 'compact' | 'full'
   onToggle: () => void; onRemove: () => void; onOpen: () => void; onDragStart: () => void
+  dayBadge?: string
 }) {
   const c = companyById(item.company)
   return (
@@ -74,6 +75,7 @@ function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart }: {
         {variant === 'full' && item.desc && <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{item.desc}</div>}
       </button>
       <div className="flex items-center gap-1 shrink-0">
+        {dayBadge && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))', color: 'var(--color-accent)' }}>{dayBadge}</span>}
         {item.due && <span className="text-[10px] font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{fmtDue(item.due)}</span>}
         {variant === 'full' && item.priority && item.priority !== 'Medium' && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--color-surface)', color: item.priority === 'High' ? '#c0504d' : 'var(--color-muted)' }}>{item.priority}</span>}
         <button onClick={onRemove} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }} aria-label="Delete"><IconTrash width={13} height={13} /></button>
@@ -192,7 +194,16 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
 
   const weekTotal = DAYS.reduce((s, d) => s + (week[d] ?? []).filter(matchCompany).length, 0)
   const weekDone = DAYS.reduce((s, d) => s + (week[d] ?? []).filter((i) => matchCompany(i) && i.done).length, 0)
-  const masterItems = board.backlog.filter((i) => !i.done).filter(matchCompany).filter((i) => catFilter === 'All' || i.cat === catFilter)
+  // The Master List is the full, readable checklist of every open task this
+  // week — scheduled days included — so nothing hides behind a truncated day
+  // card. Ordered by day (Mon→Sun), with unscheduled tasks last.
+  const masterItems: { item: Item; bucket: string }[] = [
+    ...DAYS.flatMap((day) => (week[day] ?? []).map((item) => ({ item, bucket: day }))),
+    ...board.backlog.map((item) => ({ item, bucket: BACKLOG })),
+  ]
+    .filter(({ item }) => !item.done)
+    .filter(({ item }) => matchCompany(item))
+    .filter(({ item }) => catFilter === 'All' || item.cat === catFilter)
   const selItem = selected ? getBucket(board, selected.bucket).find((i) => i.id === selected.id) ?? null : null
 
   // Company banner stats (all-time for the selected company).
@@ -389,7 +400,10 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)', outline: overBucket === BACKLOG ? '2px solid var(--color-accent)' : '2px solid transparent', outlineOffset: -2 }}
       >
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-          <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Master List</h2>
+          <div>
+            <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Master List</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>Every open task this week — check one off and it moves to Completed.</p>
+          </div>
           <button onClick={() => isWork ? openModal(null) : setMasterAdding((v) => !v)} className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--color-accent)' }}><IconPlus width={15} height={15} /> Add task</button>
         </div>
 
@@ -422,12 +436,12 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
 
         {masterItems.length === 0 ? (
           <p className="text-sm py-4 text-center" style={{ color: 'var(--color-muted)' }}>
-            {companyEmpty ? `No tasks for ${selCompany?.name} yet. Add a task to get started.` : board.backlog.filter((i) => !i.done).length === 0 ? 'Nothing here yet. Add tasks, then drag them up onto a day.' : 'No tasks match these filters.'}
+            {companyEmpty ? `No tasks for ${selCompany?.name} yet. Add a task to get started.` : weekTotal - weekDone + board.backlog.filter((i) => !i.done).length === 0 ? 'Nothing here yet. Add a task to get started.' : 'No tasks match these filters.'}
           </p>
         ) : (
           <ul className="flex flex-col gap-1">
-            {masterItems.map((i) => (
-              <TaskRow key={i.id} item={i} variant="full" onToggle={() => toggle(BACKLOG, i.id)} onRemove={() => confirmRemove(BACKLOG, i)} onOpen={() => setSelected({ bucket: BACKLOG, id: i.id })} onDragStart={() => setDrag({ from: BACKLOG, id: i.id })} />
+            {masterItems.map(({ item: i, bucket }) => (
+              <TaskRow key={i.id} item={i} variant="full" dayBadge={bucket === BACKLOG ? undefined : DAY_SHORT[bucket]} onToggle={() => toggle(bucket, i.id)} onRemove={() => confirmRemove(bucket, i)} onOpen={() => setSelected({ bucket, id: i.id })} onDragStart={() => setDrag({ from: bucket, id: i.id })} />
             ))}
           </ul>
         )}
