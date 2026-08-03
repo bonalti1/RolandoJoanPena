@@ -14,6 +14,7 @@ type Event = { id: string; date: string; title: string }
 type Appt = { id: string; who: string; what: string; date: string }
 type Member = { id: string; name: string; birthday: string }
 type Weigh = { id: string; date: string; value: number }
+type Scan = { id: string; date: string; bodyFatPct?: number }
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -31,6 +32,7 @@ export default function Home() {
   const [appts] = useStore<Appt[]>('family.appts', [])
   const [members] = useStore<Member[]>('family.members', [])
   const [weights] = useStore<Weigh[]>('health.weights', [])
+  const [scans] = useStore<Scan[]>('health.scans', [])
   const [quick, setQuick] = useState('')
 
   // Daily non-negotiables: a personal must-do list that resets every day.
@@ -81,6 +83,10 @@ export default function Home() {
   }, [events, appts, tasks, members])
 
   const latestWeight = useMemo(() => weights.length ? [...weights].sort((a, b) => b.date.localeCompare(a.date))[0] : null, [weights])
+  const latestBodyFat = useMemo(() => {
+    const withBf = scans.filter((s) => s.bodyFatPct != null).sort((a, b) => b.date.localeCompare(a.date))
+    return withBf[0]?.bodyFatPct ?? null
+  }, [scans])
 
   const addQuick = () => {
     const t = quick.trim()
@@ -250,13 +256,23 @@ export default function Home() {
             <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconHealth width={18} height={18} /> Health</h2>
             <Link to="/health" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open →</Link>
           </div>
-          {latestWeight ? (
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{latestWeight.value}</span>
-              <span className="text-sm" style={{ color: 'var(--color-muted)' }}>latest weight · {(() => { const d = parseDate(latestWeight.date); return d ? formatDayShort(d) : latestWeight.date })()}</span>
+          {latestWeight || latestBodyFat != null ? (
+            <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+              {latestWeight && (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-3xl font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{latestWeight.value}</span>
+                  <span className="text-sm" style={{ color: 'var(--color-muted)' }}>lbs · {(() => { const d = parseDate(latestWeight.date); return d ? formatDayShort(d) : latestWeight.date })()}</span>
+                </div>
+              )}
+              {latestBodyFat != null && (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-3xl font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{latestBodyFat}%</span>
+                  <span className="text-sm" style={{ color: 'var(--color-muted)' }}>body fat</span>
+                </div>
+              )}
             </div>
           ) : (
-            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Log a weight or a doctor visit to see it here.</p>
+            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Log a weight or upload a DEXA scan to see it here.</p>
           )}
           <Link to="/calendar" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>
             <IconCalendar width={16} height={16} /> Open calendar

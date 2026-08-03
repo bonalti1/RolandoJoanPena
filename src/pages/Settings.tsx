@@ -9,7 +9,7 @@ type StatusFlags = { openai?: boolean; plaid?: boolean; googleCalendar?: boolean
 const INTEGRATIONS: { key: keyof StatusFlags; name: string; desc: string; setup: string }[] = [
   { key: 'googleCalendar', name: 'Google Calendar', desc: 'Two-way sync of your real events into the Calendar page.', setup: 'Authorize the connector + add GOOGLE_CLIENT_ID' },
   { key: 'plaid', name: 'Plaid (Bank)', desc: 'Live account balances and deposits on the Bank page.', setup: 'Add PLAID_CLIENT_ID and PLAID_SECRET' },
-  { key: 'openai', name: 'AI (OpenAI)', desc: 'Optional cloud transcription & AI summaries for the Journal.', setup: 'Add OPENAI_API_KEY in Netlify' },
+  { key: 'openai', name: 'AI (OpenAI)', desc: 'Optional: reads DEXA scans on the Health page, plus cloud transcription & summaries for the Journal.', setup: 'Add OPENAI_API_KEY in Netlify' },
   { key: 'push', name: 'Phone push notifications', desc: 'Send reminders to your phone, even when the app is closed.', setup: 'Add VAPID_PUBLIC_KEY (+ a scheduler)' },
 ]
 
