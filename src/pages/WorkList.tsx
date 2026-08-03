@@ -50,10 +50,11 @@ function CoLogo({ id, h = 15 }: { id?: string; h?: number }) {
   return <img src={c.logo} alt={c.name} draggable={false} className="shrink-0 object-contain" style={{ height: h, width: 'auto', maxWidth: h * 3.6 }} />
 }
 
-function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBadge }: {
+function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBadge, onHover, onLeave }: {
   item: Item; variant: 'compact' | 'full'
   onToggle: () => void; onRemove: () => void; onOpen: () => void; onDragStart: () => void
   dayBadge?: string
+  onHover?: (e: React.MouseEvent, item: Item) => void; onLeave?: () => void
 }) {
   const c = companyById(item.company)
   return (
@@ -67,10 +68,10 @@ function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBa
       <button onClick={onToggle} className="h-4 w-4 rounded grid place-items-center shrink-0 mt-0.5" style={{ border: '2px solid var(--color-accent)', background: item.done ? 'var(--color-accent)' : 'transparent' }} aria-label="Toggle done">
         {item.done && <IconCheck width={11} height={11} style={{ color: 'var(--color-on-accent)' }} />}
       </button>
-      <button onClick={onOpen} className="flex-1 min-w-0 text-left">
+      <button onClick={onOpen} onMouseEnter={(e) => onHover?.(e, item)} onMouseLeave={onLeave} className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-1.5">
           {c && <CoLogo id={item.company} h={14} />}
-          <span className="text-sm truncate" style={{ color: 'var(--color-text)', textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.5 : 1 }}>{item.text}</span>
+          <span className="js-tasktext text-sm truncate" style={{ color: 'var(--color-text)', textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.5 : 1 }}>{item.text}</span>
         </div>
         {(c || (variant === 'full' && item.cat)) && (
           <div className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>
@@ -107,6 +108,19 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const [catFilter, setCatFilter] = useState<'All' | Cat | 'Bills'>('All')
   const [rolledNote, setRolledNote] = useState(0)
   const [focusDay, setFocusDay] = useState<string | null>(null)
+
+  // Hover tooltip: shows a task's full name + details when the card truncates it.
+  const [hoverTip, setHoverTip] = useState<{ text: string; desc?: string; company?: string; left: number; top: number } | null>(null)
+  const showTip = (e: React.MouseEvent, item: Item) => {
+    const el = e.currentTarget as HTMLElement
+    const span = el.querySelector('.js-tasktext') as HTMLElement | null
+    const truncated = span ? span.scrollWidth > span.clientWidth + 1 : false
+    const detail = item.desc || item.notes
+    if (!truncated && !detail) return // nothing hidden — no need for a tooltip
+    const r = el.getBoundingClientRect()
+    setHoverTip({ text: item.text, desc: detail, company: companyById(item.company)?.name, left: r.left, top: r.bottom + 6 })
+  }
+  const hideTip = () => setHoverTip(null)
 
   // Bills come straight from Finances so paying them can live as a to-do here.
   const [bills] = useStore<Bill[]>('pay.bills', [])
@@ -302,7 +316,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         </div>
         <ul className={`flex flex-col gap-1 flex-1 ${focused ? 'sm:grid sm:grid-cols-2 sm:gap-2 sm:items-start' : ''}`}>
           {items.map((i) => (
-            <TaskRow key={i.id} item={i} variant={focused ? 'full' : 'compact'} onToggle={() => toggle(day, i.id)} onRemove={() => confirmRemove(day, i)} onOpen={() => setSelected({ bucket: day, id: i.id })} onDragStart={() => setDrag({ from: day, id: i.id })} />
+            <TaskRow key={i.id} item={i} variant={focused ? 'full' : 'compact'} onToggle={() => toggle(day, i.id)} onRemove={() => confirmRemove(day, i)} onOpen={() => setSelected({ bucket: day, id: i.id })} onDragStart={() => setDrag({ from: day, id: i.id })} onHover={showTip} onLeave={hideTip} />
           ))}
           {focused && items.length === 0 && (
             <li className="text-sm py-6 text-center sm:col-span-2" style={{ color: 'var(--color-muted)' }}>Nothing scheduled for this day. Add a task below.</li>
@@ -324,6 +338,17 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
 
   return (
     <div onDragEnd={() => { setDrag(null); setOverBucket(null) }}>
+      {/* Hover tooltip — full task name + details when a card truncates them */}
+      {hoverTip && (
+        <div
+          className="fixed z-[80] max-w-xs rounded-xl px-3 py-2 pointer-events-none fade-up"
+          style={{ left: Math.max(8, Math.min(hoverTip.left, window.innerWidth - 288)), top: hoverTip.top, background: 'var(--color-text)', color: 'var(--color-surface)', boxShadow: 'var(--shadow-lg)' }}
+        >
+          <div className="text-sm font-semibold leading-snug">{hoverTip.text}</div>
+          {hoverTip.company && <div className="text-xs mt-0.5" style={{ opacity: 0.75 }}>{hoverTip.company}</div>}
+          {hoverTip.desc && <div className="text-xs mt-1 whitespace-pre-wrap leading-snug" style={{ opacity: 0.85 }}>{hoverTip.desc}</div>}
+        </div>
+      )}
       <PageHeader
         title={fixedBoard ? `${fixedBoard} tasks` : 'Work list'}
         subtitle="Plan your week by dragging tasks onto a day."
@@ -499,7 +524,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         ) : (
           <ul className="flex flex-col gap-1">
             {masterItems.map(({ item: i, bucket }) => (
-              <TaskRow key={i.id} item={i} variant="full" dayBadge={bucket === BACKLOG ? undefined : DAY_SHORT[bucket]} onToggle={() => toggle(bucket, i.id)} onRemove={() => confirmRemove(bucket, i)} onOpen={() => setSelected({ bucket, id: i.id })} onDragStart={() => setDrag({ from: bucket, id: i.id })} />
+              <TaskRow key={i.id} item={i} variant="full" dayBadge={bucket === BACKLOG ? undefined : DAY_SHORT[bucket]} onToggle={() => toggle(bucket, i.id)} onRemove={() => confirmRemove(bucket, i)} onOpen={() => setSelected({ bucket, id: i.id })} onDragStart={() => setDrag({ from: bucket, id: i.id })} onHover={showTip} onLeave={hideTip} />
             ))}
           </ul>
         )}
