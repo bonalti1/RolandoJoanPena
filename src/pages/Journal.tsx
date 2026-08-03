@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Card, PageHeader, Button, Input, EmptyState } from '../components/ui'
-import { IconMic, IconJournal, IconTrash, IconCheck } from '../components/icons'
+import { IconMic, IconJournal, IconTrash, IconCheck, IconPlus } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { putAudio, getAudio, delAudio } from '../lib/audioStore'
 
@@ -19,6 +19,7 @@ type Entry = {
   hasAudio: boolean
   durationMs: number
 }
+type Goal = { id: string; text: string; done: boolean }
 
 // ---- Minimal typing for the Web Speech API (not in the TS DOM lib) ----------
 interface SRAlt { transcript: string }
@@ -206,19 +207,30 @@ export default function Journal() {
   const hasDraftAudio = !!blobRef.current
   const canSave = text.trim().length > 0 || hasDraftAudio
 
-  // Group entries by calendar day for the timeline.
-  const groups: { day: string; items: Entry[] }[] = []
+  const [goals, setGoals] = useStore<Goal[]>('journal.goals', [])
+  const [goalDraft, setGoalDraft] = useState('')
+  const addGoal = () => { const t = goalDraft.trim(); if (!t) return; setGoals((p) => [...p, { id: uid('goal'), text: t, done: false }]); setGoalDraft('') }
+  const toggleGoal = (id: string) => setGoals((p) => p.map((g) => g.id === id ? { ...g, done: !g.done } : g))
+  const removeGoal = (id: string) => setGoals((p) => p.filter((g) => g.id !== id))
+
+  // Group entries by month, then by day, so a finished month reads as a chapter.
+  const months: { month: string; days: { day: string; items: Entry[] }[] }[] = []
   for (const e of entries) {
-    const day = new Date(e.ts).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-    const g = groups.find((x) => x.day === day)
-    if (g) g.items.push(e); else groups.push({ day, items: [e] })
+    const d = new Date(e.ts)
+    const monthKey = d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    const dayKey = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+    let mg = months.find((m) => m.month === monthKey)
+    if (!mg) { mg = { month: monthKey, days: [] }; months.push(mg) }
+    let dg = mg.days.find((x) => x.day === dayKey)
+    if (!dg) { dg = { day: dayKey, items: [] }; mg.days.push(dg) }
+    dg.items.push(e)
   }
 
   return (
     <div>
       <PageHeader
         title="Journal"
-        subtitle="Record a thought out loud — it's transcribed, summarized and saved by day so you can look back."
+        subtitle="Record a thought — it's transcribed, summarized and saved by month. Your goals live alongside it."
       />
 
       {/* Composer */}
@@ -273,54 +285,97 @@ export default function Journal() {
         </div>
       </Card>
 
-      {/* Timeline */}
-      {entries.length === 0 ? (
-        <EmptyState icon={<IconJournal width={40} height={40} />} title="No journal entries yet"
-          hint="Record your first thought above. Entries are grouped by day so you can revisit what you were thinking." />
-      ) : (
-        <div className="flex flex-col gap-6">
-          {groups.map((g) => (
-            <div key={g.day}>
-              <h2 className="text-xs font-semibold uppercase tracking-[0.12em] mb-2 px-1" style={{ color: 'var(--color-muted)' }}>{g.day}</h2>
-              <div className="flex flex-col gap-3">
-                {g.items.map((e) => {
-                  const time = new Date(e.ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-                  const expanded = open === e.id
-                  return (
-                    <Card key={e.id} className="p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{e.title || 'Journal entry'}</span>
-                            <span className="text-xs tnum" style={{ color: 'var(--color-muted)' }}>{time}{e.hasAudio && e.durationMs ? ` · ${fmtClock(e.durationMs)}` : ''}</span>
-                          </div>
-                          <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{e.summary || '(no transcript)'}</p>
-                        </div>
-                        <button onClick={() => remove(e)} className="shrink-0 opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Delete entry">
-                          <IconTrash width={16} height={16} />
-                        </button>
-                      </div>
-
-                      {expanded && e.transcript && e.transcript !== e.summary && (
-                        <p className="text-sm mt-3 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--color-text)' }}>{e.transcript}</p>
-                      )}
-
-                      <div className="flex items-center gap-2 mt-3 flex-wrap">
-                        {e.transcript && e.transcript !== e.summary && (
-                          <button onClick={() => setOpen(expanded ? null : e.id)} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>
-                            {expanded ? 'Hide transcript' : 'Show full transcript'}
-                          </button>
-                        )}
-                        {e.hasAudio && <AudioPlayer id={e.id} />}
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Goals — right on desktop, first after the composer on mobile */}
+        <div className="lg:col-span-1 lg:order-2">
+          <Card className="p-5 lg:sticky lg:top-4">
+            <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Goals</h2>
+            <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>What you're building toward.</p>
+            {goals.length > 0 && (
+              <ul className="flex flex-col gap-1.5 mb-3">
+                {goals.map((g) => (
+                  <li key={g.id} className="group flex items-center gap-2.5">
+                    <button
+                      onClick={() => toggleGoal(g.id)}
+                      className="h-5 w-5 rounded-md grid place-items-center shrink-0 transition"
+                      style={{ border: '2px solid var(--color-accent)', background: g.done ? 'var(--color-accent)' : 'transparent' }}
+                      aria-label={g.done ? 'Mark not achieved' : 'Mark achieved'}
+                    >
+                      {g.done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
+                    </button>
+                    <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: g.done ? 'line-through' : 'none', opacity: g.done ? 0.5 : 1 }}>{g.text}</span>
+                    <button onClick={() => removeGoal(g.id)} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove goal">
+                      <IconTrash width={15} height={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <Input value={goalDraft} onChange={(e) => setGoalDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addGoal() }} placeholder="Add a goal…" />
+              <Button variant="outline" onClick={addGoal}><IconPlus width={16} height={16} /></Button>
             </div>
-          ))}
+          </Card>
         </div>
-      )}
+
+        {/* Timeline — left on desktop */}
+        <div className="lg:col-span-2 lg:order-1">
+          {entries.length === 0 ? (
+            <EmptyState icon={<IconJournal width={40} height={40} />} title="No journal entries yet"
+              hint="Record your first thought above. Entries are grouped by month so you can look back on a whole season of thinking." />
+          ) : (
+            <div className="flex flex-col gap-8">
+              {months.map((mg) => (
+                <div key={mg.month}>
+                  <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--color-text)' }}>{mg.month}</h2>
+                  <div className="flex flex-col gap-5">
+                    {mg.days.map((g) => (
+                      <div key={g.day}>
+                        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] mb-2 px-1" style={{ color: 'var(--color-muted)' }}>{g.day}</h3>
+                        <div className="flex flex-col gap-3">
+                          {g.items.map((e) => {
+                            const time = new Date(e.ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+                            const expanded = open === e.id
+                            return (
+                              <Card key={e.id} className="p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{e.title || 'Journal entry'}</span>
+                                      <span className="text-xs tnum" style={{ color: 'var(--color-muted)' }}>{time}{e.hasAudio && e.durationMs ? ` · ${fmtClock(e.durationMs)}` : ''}</span>
+                                    </div>
+                                    <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{e.summary || '(no transcript)'}</p>
+                                  </div>
+                                  <button onClick={() => remove(e)} className="shrink-0 opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Delete entry">
+                                    <IconTrash width={16} height={16} />
+                                  </button>
+                                </div>
+
+                                {expanded && e.transcript && e.transcript !== e.summary && (
+                                  <p className="text-sm mt-3 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--color-text)' }}>{e.transcript}</p>
+                                )}
+
+                                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                  {e.transcript && e.transcript !== e.summary && (
+                                    <button onClick={() => setOpen(expanded ? null : e.id)} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>
+                                      {expanded ? 'Hide transcript' : 'Show full transcript'}
+                                    </button>
+                                  )}
+                                  {e.hasAudio && <AudioPlayer id={e.id} />}
+                                </div>
+                              </Card>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <p className="text-xs mt-6" style={{ color: 'var(--color-muted)' }}>
         Recordings and transcripts are stored privately on this device. Live transcription uses your browser's speech engine

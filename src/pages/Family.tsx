@@ -3,6 +3,7 @@ import { Card, PageHeader, Button, Input, EmptyState } from '../components/ui'
 import { IconPlus, IconTrash, IconFamily } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useToast } from '../lib/toast'
+import { pickIdeas } from '../lib/familyIdeas'
 
 type Member = {
   id: string; name: string; relation: string; birthday: string
@@ -55,6 +56,10 @@ export default function Family() {
 
   const selected = members.find((m) => m.id === selectedId) || null
 
+  // Kids (for personalizing family-time ideas) = young members.
+  const kidNames = members.filter((m) => { const a = ageFrom(m.birthday); return a != null && a <= 15 }).map((m) => m.name.split(' ')[0])
+  const [ideas, setIdeas] = useState<string[]>(() => pickIdeas(4, kidNames))
+
   const upcoming = useMemo(() => members
     .map((mem) => ({ mem, days: daysUntilBirthday(mem.birthday) }))
     .filter((x) => x.days !== null)
@@ -85,6 +90,22 @@ export default function Family() {
             </div>
           </Card>
         )}
+
+        {/* Family time ideas — fresh things to do together */}
+        <Card className="p-5 mb-6">
+          <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+            <div>
+              <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Family time ideas</h2>
+              <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Something to do together{kidNames.length ? ` with ${kidNames.join(' & ')}` : ''} — reshuffle anytime.</p>
+            </div>
+            <Button variant="outline" onClick={() => setIdeas(pickIdeas(4, kidNames))}>↻ New ideas</Button>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-2">
+            {ideas.map((idea, i) => (
+              <div key={i} className="text-sm px-3 py-2.5 rounded-xl" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>{idea}</div>
+            ))}
+          </div>
+        </Card>
 
         <Card className="p-4 mb-6">
           <div className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-2 items-center">

@@ -8,7 +8,9 @@ import { todayISO, daysUntil, formatDayShort, parseDate } from '../lib/dates'
 import { money } from '../lib/format'
 
 type Task = { id: string; text: string; done: boolean; created: number; due?: string }
-type NonNeg = { id: string; text: string }
+type Scope = 'week' | 'weekend' | 'all'
+type NonNeg = { id: string; text: string; scope?: Scope }
+const SCOPE_LABEL: Record<Scope, string> = { week: 'Weekdays', weekend: 'Weekends', all: 'Every day' }
 type Bill = { id: string; name: string; amount: number }
 type Event = { id: string; date: string; title: string }
 type Appt = { id: string; who: string; what: string; date: string }
@@ -39,6 +41,7 @@ export default function Home() {
   const [nonNegs, setNonNegs] = useStore<NonNeg[]>('home.nonneg', [])
   const [nnToday, setNnToday] = useStore<{ date: string; done: string[] }>('home.nonneg.today', { date: '', done: [] })
   const [nnDraft, setNnDraft] = useState('')
+  const [nnView, setNnView] = useState<'today' | 'week' | 'weekend' | 'all'>('today')
 
   const today = todayISO()
   const now = new Date()
@@ -97,6 +100,17 @@ export default function Home() {
 
   // Completion is tracked per-day; a fresh day starts everything unchecked.
   const nnDone = nnToday.date === today ? nnToday.done : []
+  const isWeekend = [0, 6].includes(new Date().getDay())
+  const scopeOf = (n: NonNeg): Scope => n.scope ?? 'all'
+  const appliesToday = (n: NonNeg) => scopeOf(n) === 'all' || scopeOf(n) === (isWeekend ? 'weekend' : 'week')
+  const scopeForView: Record<typeof nnView, Scope> = { today: isWeekend ? 'weekend' : 'week', week: 'week', weekend: 'weekend', all: 'all' }
+  const visibleNonNegs = nonNegs.filter((n) => {
+    if (nnView === 'today') return appliesToday(n)
+    if (nnView === 'all') return true
+    return scopeOf(n) === nnView || scopeOf(n) === 'all'
+  })
+  const todayList = nonNegs.filter(appliesToday)
+  const nnCompleted = todayList.filter((n) => nnDone.includes(n.id)).length
   const toggleNonNeg = (id: string) => {
     const done = nnDone.includes(id) ? nnDone.filter((x) => x !== id) : [...nnDone, id]
     setNnToday({ date: today, done })
@@ -104,14 +118,13 @@ export default function Home() {
   const addNonNeg = () => {
     const t = nnDraft.trim()
     if (!t) return
-    setNonNegs((prev) => [...prev, { id: uid('nn'), text: t }])
+    setNonNegs((prev) => [...prev, { id: uid('nn'), text: t, scope: scopeForView[nnView] }])
     setNnDraft('')
   }
   const removeNonNeg = (id: string) => {
     setNonNegs((prev) => prev.filter((n) => n.id !== id))
     if (nnDone.includes(id)) setNnToday({ date: today, done: nnDone.filter((x) => x !== id) })
   }
-  const nnCompleted = nonNegs.filter((n) => nnDone.includes(n.id)).length
 
   return (
     <div className="fade-up">
@@ -131,26 +144,42 @@ export default function Home() {
         <Button onClick={addQuick}><IconPlus width={16} height={16} /> Add</Button>
       </Card>
 
-      {/* Daily non-negotiables — the handful of things that get done every day. */}
+      {/* Daily non-negotiables — the handful of things that must get done, by day type. */}
       <Card className="p-5 mb-6">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-            <IconCheck width={18} height={18} /> Daily non-negotiables
+            <IconCheck width={18} height={18} /> Non-negotiables
           </h2>
-          {nonNegs.length > 0 && (
-            <span className="text-sm font-semibold tnum" style={{ color: nnCompleted === nonNegs.length ? 'var(--color-accent)' : 'var(--color-muted)' }}>
-              {nnCompleted}/{nonNegs.length} today
+          {todayList.length > 0 && (
+            <span className="text-sm font-semibold tnum" style={{ color: nnCompleted === todayList.length ? 'var(--color-accent)' : 'var(--color-muted)' }}>
+              {nnCompleted}/{todayList.length} today
             </span>
           )}
         </div>
 
-        {nonNegs.length === 0 ? (
+        {/* View tabs: today vs each set */}
+        <div className="inline-flex rounded-xl p-1 mb-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+          {([['today', 'Today'], ['week', 'Weekdays'], ['weekend', 'Weekends'], ['all', 'Every day']] as const).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setNnView(v)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+              style={{ background: nnView === v ? 'var(--color-accent)' : 'transparent', color: nnView === v ? 'var(--color-on-accent)' : 'var(--color-muted)' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {visibleNonNegs.length === 0 ? (
           <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>
-            The few things you commit to every day. e.g. <em>Prospect for 1 hour</em>, <em>Follow up with 5 leads</em>, <em>Exercise</em>. They reset each morning.
+            {nnView === 'today'
+              ? 'Nothing set for today. Add one below or check the Weekdays / Weekends tabs.'
+              : 'None here yet — add one below. They reset each morning.'}
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5 mb-3">
-            {nonNegs.map((n) => {
+            {visibleNonNegs.map((n) => {
               const done = nnDone.includes(n.id)
               return (
                 <li key={n.id} className="group flex items-center gap-2.5">
@@ -165,6 +194,9 @@ export default function Home() {
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.5 : 1 }}>
                     {n.text}
                   </span>
+                  {nnView !== 'today' && scopeOf(n) !== (nnView as Scope) && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{SCOPE_LABEL[scopeOf(n)]}</span>
+                  )}
                   <button onClick={() => removeNonNeg(n.id)} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove">
                     <IconTrash width={15} height={15} />
                   </button>
@@ -175,7 +207,7 @@ export default function Home() {
         )}
 
         <div className="flex gap-2">
-          <Input value={nnDraft} onChange={(e) => setNnDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addNonNeg() }} placeholder="Add a daily non-negotiable…" />
+          <Input value={nnDraft} onChange={(e) => setNnDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addNonNeg() }} placeholder={`Add to ${nnView === 'today' ? (isWeekend ? 'Weekends' : 'Weekdays') : SCOPE_LABEL[scopeForView[nnView]]}…`} />
           <Button variant="outline" onClick={addNonNeg}><IconPlus width={16} height={16} /> Add</Button>
         </div>
       </Card>
