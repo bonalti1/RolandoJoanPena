@@ -78,7 +78,7 @@ function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBa
             {c?.name}{c && variant === 'full' && item.cat ? ' · ' : ''}{variant === 'full' && item.cat ? item.cat : ''}
           </div>
         )}
-        {variant === 'full' && item.desc && <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{item.desc}</div>}
+        {variant === 'full' && (item.desc || item.notes) && <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{item.desc || item.notes}</div>}
       </button>
       <div className="flex items-center gap-1 shrink-0">
         {dayBadge && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))', color: 'var(--color-accent)' }}>{dayBadge}</span>}
@@ -114,7 +114,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const showTip = (e: React.MouseEvent, item: Item) => {
     const el = e.currentTarget as HTMLElement
     const span = el.querySelector('.js-tasktext') as HTMLElement | null
-    const truncated = span ? span.scrollWidth > span.clientWidth + 1 : false
+    const truncated = span ? (span.scrollWidth > span.clientWidth + 1 || span.scrollHeight > span.clientHeight + 1) : false
     const detail = item.desc || item.notes
     if (!truncated && !detail) return // nothing hidden — no need for a tooltip
     const r = el.getBoundingClientRect()
