@@ -5,7 +5,7 @@ import { useStore, uid } from '../lib/store'
 import { useToast } from '../lib/toast'
 import { money } from '../lib/format'
 
-type Bill = { id: string; name: string; amount: number }
+type Bill = { id: string; name: string; amount: number; dueDay?: number }
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /**
@@ -96,6 +96,7 @@ export default function Payments() {
   const { removeWithUndo, toast } = useToast()
   const [newName, setNewName] = useState('')
   const [newAmount, setNewAmount] = useState('')
+  const [newDue, setNewDue] = useState('')
   const [view, setView] = useState<'year' | 'month'>(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 'month' : 'year'))
   const [viewMonth, setViewMonth] = useState<number>(new Date().getMonth())
 
@@ -112,9 +113,10 @@ export default function Payments() {
   const addBill = () => {
     const name = newName.trim()
     const amount = parseFloat(newAmount)
+    const dueDay = parseInt(newDue, 10)
     if (!name) return
-    setBills((prev) => [...prev, { id: uid('b'), name, amount: isNaN(amount) ? 0 : amount }])
-    setNewName(''); setNewAmount('')
+    setBills((prev) => [...prev, { id: uid('b'), name, amount: isNaN(amount) ? 0 : amount, ...(dueDay >= 1 && dueDay <= 31 ? { dueDay } : {}) }])
+    setNewName(''); setNewAmount(''); setNewDue('')
   }
   const removeBill = (id: string) => {
     const bill = bills.find((b) => b.id === id)
@@ -128,6 +130,8 @@ export default function Payments() {
   }
   const editBaseAmount = (id: string, amount: number) =>
     setBills((prev) => prev.map((b) => (b.id === id ? { ...b, amount } : b)))
+  const editBillDue = (id: string, dueDay: number | undefined) =>
+    setBills((prev) => prev.map((b) => (b.id === id ? { ...b, dueDay } : b)))
 
   // Mark/clear a whole bill for the year.
   const fillRow = (bill: Bill) => setCells((prev) => {
@@ -266,6 +270,9 @@ export default function Payments() {
                     {paid && <IconCheck width={14} height={14} style={{ color: 'var(--color-on-accent)' }} />}
                   </button>
                   <span className="flex-1 font-medium" style={{ color: 'var(--color-text)', opacity: paid ? 1 : 0.7 }}>{b.name}</span>
+                  <input type="number" min={1} max={31} value={b.dueDay ?? ''} placeholder="day" title="Due day of the month"
+                    onChange={(e) => { const d = parseInt(e.target.value, 10); editBillDue(b.id, d >= 1 && d <= 31 ? d : undefined) }}
+                    className="w-14 text-center rounded-lg px-1 py-1 outline-none tnum" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-muted)' }} />
                   <input type="number" value={val ?? ''} placeholder={String(b.amount || 0)} onChange={(e) => setCell(b.id, viewMonth, e.target.value === '' ? null : parseFloat(e.target.value))}
                     className="w-24 text-right rounded-lg px-2 py-1 outline-none tnum" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: paid ? 'var(--color-text)' : 'var(--color-muted)', fontWeight: paid ? 600 : 400 }} />
                 </li>
@@ -383,6 +390,7 @@ export default function Payments() {
         <div className="flex flex-wrap items-center gap-2">
           <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New bill name" className="max-w-xs" />
           <Input value={newAmount} onChange={(e) => setNewAmount(e.target.value)} placeholder="Expected amount" type="number" className="max-w-[150px]" />
+          <Input value={newDue} onChange={(e) => setNewDue(e.target.value)} placeholder="Due day (1–31)" type="number" className="max-w-[140px]" />
           <Button onClick={addBill}><IconPlus width={16} height={16} /> Add bill</Button>
         </div>
       </Card>

@@ -5,7 +5,7 @@ import { useStore, uid } from '../lib/store'
 import { useToast } from '../lib/toast'
 import { putFile, getFile, delFile } from '../lib/fileStore'
 
-type Weigh = { id: string; date: string; value: number }
+type Weigh = { id: string; date: string; value: number; bodyFat?: number }
 type Record_ = { id: string; date: string; kind: string; title: string; notes: string; file?: { name: string; data: string } }
 type Goals = { goalWeight?: number; heightIn?: number }
 // DEXA / body-composition scan. Metrics are stored in pounds; the file (PDF or
@@ -83,6 +83,7 @@ export default function Health() {
 
   const [wDate, setWDate] = useState(new Date().toISOString().slice(0, 10))
   const [wVal, setWVal] = useState('')
+  const [wBf, setWBf] = useState('')
   const [rKind, setRKind] = useState(RECORD_KINDS[0])
   const [rTitle, setRTitle] = useState('')
   const [rNotes, setRNotes] = useState('')
@@ -111,9 +112,21 @@ export default function Health() {
   const latestScan = sortedScans[0] ?? null
   const prevScan = sortedScans[1] ?? null
 
+  // Latest body-fat % from either a weigh-in or a DEXA scan (most recent wins).
+  const bodyFat = useMemo(() => {
+    const entries = [
+      ...weights.filter((w) => w.bodyFat != null).map((w) => ({ date: w.date, v: w.bodyFat! })),
+      ...scans.filter((s) => s.bodyFatPct != null).map((s) => ({ date: s.date, v: s.bodyFatPct! })),
+    ].sort((a, b) => b.date.localeCompare(a.date))
+    return entries[0] ?? null
+  }, [weights, scans])
+
   const addWeight = () => {
-    const v = parseFloat(wVal); if (isNaN(v)) return
-    setWeights((prev) => [...prev, { id: uid('w'), date: wDate, value: v }]); setWVal('')
+    const v = parseFloat(wVal)
+    const bf = parseFloat(wBf)
+    if (isNaN(v) && isNaN(bf)) return
+    setWeights((prev) => [...prev, { id: uid('w'), date: wDate, value: isNaN(v) ? 0 : v, ...(isNaN(bf) ? {} : { bodyFat: +bf.toFixed(1) }) }])
+    setWVal(''); setWBf('')
   }
   const addRecord = () => {
     if (!rTitle.trim()) return
@@ -201,7 +214,7 @@ export default function Health() {
         </Card>
         <Card className="p-4">
           <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Body fat</p>
-          <p className="text-2xl font-semibold tnum mt-1" style={{ color: 'var(--color-text)' }}>{latestScan?.bodyFatPct != null ? latestScan.bodyFatPct : '—'}<span className="text-sm font-normal ml-0.5" style={{ color: 'var(--color-muted)' }}>{latestScan?.bodyFatPct != null ? '%' : ''}</span></p>
+          <p className="text-2xl font-semibold tnum mt-1" style={{ color: 'var(--color-text)' }}>{bodyFat ? bodyFat.v : '—'}<span className="text-sm font-normal ml-0.5" style={{ color: 'var(--color-muted)' }}>{bodyFat ? '%' : ''}</span></p>
           <div className="mt-0.5"><Delta cur={latestScan?.bodyFatPct} prev={prevScan?.bodyFatPct} unit="%" goodDown /></div>
         </Card>
         <Card className="p-4">
@@ -223,9 +236,10 @@ export default function Health() {
             {latest && <span className="text-sm" style={{ color: 'var(--color-muted)' }}>latest {latest.date}</span>}
           </div>
           <WeightChart data={weights} goal={goals.goalWeight} />
-          <form onSubmit={(e) => { e.preventDefault(); addWeight() }} className="flex gap-2 mt-4">
-            <Input type="date" value={wDate} onChange={(e) => setWDate(e.target.value)} className="max-w-[160px]" />
+          <form onSubmit={(e) => { e.preventDefault(); addWeight() }} className="flex gap-2 mt-4 flex-wrap">
+            <Input type="date" value={wDate} onChange={(e) => setWDate(e.target.value)} className="max-w-[150px]" />
             <Input type="number" step="0.1" value={wVal} onChange={(e) => setWVal(e.target.value)} placeholder="Weight (lbs)" />
+            <Input type="number" step="0.1" value={wBf} onChange={(e) => setWBf(e.target.value)} placeholder="Body fat %" className="max-w-[130px]" />
             <Button type="submit"><IconPlus width={16} height={16} /></Button>
           </form>
           {weights.length > 0 && (
@@ -233,7 +247,7 @@ export default function Health() {
               {sortedDesc.map((w) => (
                 <li key={w.id} className="group flex items-center gap-2 text-sm py-1 px-2 rounded hover:bg-black/5">
                   <span style={{ color: 'var(--color-muted)' }}>{w.date}</span>
-                  <span className="flex-1 font-semibold" style={{ color: 'var(--color-text)' }}>{w.value} <span className="text-xs font-normal" style={{ color: 'var(--color-muted)' }}>lbs</span></span>
+                  <span className="flex-1 font-semibold" style={{ color: 'var(--color-text)' }}>{w.value} <span className="text-xs font-normal" style={{ color: 'var(--color-muted)' }}>lbs</span>{w.bodyFat != null && <span className="text-xs font-normal ml-2" style={{ color: 'var(--color-muted)' }}>· {w.bodyFat}% bf</span>}</span>
                   <button onClick={() => setWeights((p) => p.filter((x) => x.id !== w.id))} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
                 </li>
               ))}

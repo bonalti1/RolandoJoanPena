@@ -11,11 +11,11 @@ type Task = { id: string; text: string; done: boolean; created: number; due?: st
 type Scope = 'week' | 'weekend' | 'all'
 type NonNeg = { id: string; text: string; scope?: Scope }
 const SCOPE_LABEL: Record<Scope, string> = { week: 'Weekdays', weekend: 'Weekends', all: 'Every day' }
-type Bill = { id: string; name: string; amount: number }
+type Bill = { id: string; name: string; amount: number; dueDay?: number }
 type Event = { id: string; date: string; title: string }
 type Appt = { id: string; who: string; what: string; date: string }
 type Member = { id: string; name: string; birthday: string }
-type Weigh = { id: string; date: string; value: number }
+type Weigh = { id: string; date: string; value: number; bodyFat?: number }
 type Scan = { id: string; date: string; bodyFatPct?: number }
 
 function greeting(): string {
@@ -80,12 +80,15 @@ export default function Home() {
 
   const completeTask = (id: string) => setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: true } : t))
 
-  // This month's bills.
+  // This month's upcoming (unpaid) bills, soonest due first.
   const month = now.getMonth(), year = now.getFullYear()
-  const monthLabel = now.toLocaleDateString(undefined, { month: 'long' })
-  const expected = bills.reduce((s, b) => s + b.amount, 0)
-  const paidThisMonth = bills.reduce((s, b) => s + (cells[`${year}:${b.id}:${month}`] ?? 0), 0)
-  const billsLeft = bills.filter((b) => cells[`${year}:${b.id}:${month}`] === undefined).length
+  const monthShort = now.toLocaleDateString(undefined, { month: 'short' })
+  const upcomingBills = useMemo(
+    () => bills
+      .filter((b) => cells[`${year}:${b.id}:${month}`] === undefined)
+      .sort((a, b) => (a.dueDay ?? 99) - (b.dueDay ?? 99)),
+    [bills, cells, year, month],
+  )
 
   // Coming up (next 7 days).
   const coming = useMemo(() => {
@@ -108,9 +111,12 @@ export default function Home() {
 
   const latestWeight = useMemo(() => weights.length ? [...weights].sort((a, b) => b.date.localeCompare(a.date))[0] : null, [weights])
   const latestBodyFat = useMemo(() => {
-    const withBf = scans.filter((s) => s.bodyFatPct != null).sort((a, b) => b.date.localeCompare(a.date))
-    return withBf[0]?.bodyFatPct ?? null
-  }, [scans])
+    const entries = [
+      ...weights.filter((w) => w.bodyFat != null).map((w) => ({ date: w.date, v: w.bodyFat! })),
+      ...scans.filter((s) => s.bodyFatPct != null).map((s) => ({ date: s.date, v: s.bodyFatPct! })),
+    ].sort((a, b) => b.date.localeCompare(a.date))
+    return entries[0]?.v ?? null
+  }, [weights, scans])
 
   const addQuick = () => {
     const t = quick.trim()
@@ -279,26 +285,26 @@ export default function Home() {
           )}
         </Card>
 
-        {/* Bills this month */}
+        {/* Upcoming bills — date + amount */}
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconPayments width={18} height={18} /> {monthLabel} bills</h2>
+            <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconPayments width={18} height={18} /> Upcoming bills</h2>
             <Link to="/finances" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open →</Link>
           </div>
-          <div className="flex items-end gap-4 mb-3">
-            <div>
-              <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Paid</p>
-              <p className="text-2xl font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{money(paidThisMonth)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>of</p>
-              <p className="text-2xl font-semibold tnum" style={{ color: 'var(--color-text)' }}>{money(expected)}</p>
-            </div>
-          </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--color-bg)' }}>
-            <div className="h-full rounded-full" style={{ width: `${expected ? Math.min(100, (paidThisMonth / expected) * 100) : 0}%`, background: 'var(--color-accent)' }} />
-          </div>
-          <p className="text-sm mt-2" style={{ color: 'var(--color-muted)' }}>{billsLeft === 0 ? 'All bills handled this month 🎉' : `${billsLeft} bill${billsLeft === 1 ? '' : 's'} left to pay`}</p>
+          {upcomingBills.length === 0 ? (
+            <p className="text-sm py-6 text-center" style={{ color: 'var(--color-muted)' }}>{bills.length === 0 ? 'Add bills in Finances to see them here.' : 'Nothing due this month.'}</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {upcomingBills.slice(0, 6).map((b) => (
+                <li key={b.id} className="flex items-center gap-2.5 text-sm">
+                  <span className="text-xs font-semibold w-14 shrink-0 tnum" style={{ color: 'var(--color-accent)' }}>{b.dueDay ? `${monthShort} ${b.dueDay}` : '—'}</span>
+                  <span className="flex-1 truncate" style={{ color: 'var(--color-text)' }}>{b.name}</span>
+                  <span className="font-semibold tnum shrink-0" style={{ color: 'var(--color-text)' }}>{money(b.amount)}</span>
+                </li>
+              ))}
+              {upcomingBills.length > 6 && <li className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>+{upcomingBills.length - 6} more</li>}
+            </ul>
+          )}
         </Card>
 
         {/* Coming up */}
