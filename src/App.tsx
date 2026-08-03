@@ -5,6 +5,7 @@ import { IconMenu } from './components/icons'
 import { Logo } from './components/Logo'
 import Home from './pages/Home'
 import WorkList from './pages/WorkList'
+import Companies from './pages/Companies'
 import Finances from './pages/Finances'
 import Calendar from './pages/Calendar'
 import Health from './pages/Health'
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="/home" element={<Home />} />
             <Route path="/home-tasks" element={<WorkList fixedBoard="Home" />} />
             <Route path="/work-tasks" element={<WorkList fixedBoard="Work" />} />
+            <Route path="/companies" element={<Companies />} />
             <Route path="/tasks" element={<Navigate to="/home-tasks" replace />} />
             <Route path="/work" element={<Navigate to="/work-tasks" replace />} />
             <Route path="/finances" element={<Finances />} />
