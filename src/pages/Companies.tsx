@@ -3,6 +3,7 @@ import { Card, PageHeader, Button, Input } from '../components/ui'
 import { IconPlus, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useToast } from '../lib/toast'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { COMPANIES, companyById, type CompanyId } from '../lib/companies'
 
 type Dept = { id: string; name: string }
@@ -74,6 +75,7 @@ function StatusSelect({ value, onChange, readOnly }: { value?: Status; onChange:
 
 export default function Companies() {
   const { toast } = useToast()
+  const confirmDelete = useConfirmDelete()
   const [depts, setDepts] = useStore<Dept[]>('companies.depts', SEED_DEPTS)
   const [reviews, setReviews] = useStore<Record<string, Review>>('companies.reviews', {})
   const [quarters, setQuarters] = useStore<string[]>('companies.quarters', [currentQuarter()])
@@ -249,7 +251,7 @@ export default function Companies() {
             {depts.map((d) => (
               <li key={d.id} className="group flex items-center gap-2 py-1 px-2 rounded-lg" style={{ background: 'var(--color-bg)' }}>
                 <input value={d.name} onChange={(e) => { setDepts((prev) => prev.map((x) => x.id === d.id ? { ...x, name: e.target.value } : x)); setSavedAt(Date.now()) }} className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--color-text)' }} />
-                <button onClick={() => setDepts((prev) => prev.filter((x) => x.id !== d.id))} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
+                <button onClick={() => confirmDelete({ label: d.name ? `the “${d.name}” department` : 'this department', detail: 'This department and its review status will be removed.', onConfirm: () => { setDepts((prev) => prev.filter((x) => x.id !== d.id)); setSavedAt(Date.now()) } })} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
               </li>
             ))}
           </ul>

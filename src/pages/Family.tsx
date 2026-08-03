@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Card, PageHeader, Button, Input, EmptyState } from '../components/ui'
 import { IconPlus, IconTrash, IconFamily } from '../components/icons'
 import { useStore, uid } from '../lib/store'
-import { useToast } from '../lib/toast'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { pickIdeas } from '../lib/familyIdeas'
 
 type Member = {
@@ -59,7 +59,7 @@ export default function Family() {
   const [appts, setAppts] = useStore<Appt[]>('family.appts', [])
   const [meds, setMeds] = useStore<Med[]>('family.meds', [])
   const [records, setRecords] = useStore<Rec[]>('family.records', [])
-  const { removeWithUndo } = useToast()
+  const confirmDelete = useConfirmDelete()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [newMember, setNewMember] = useState({ name: '', relation: '', birthday: '' })
 
@@ -186,9 +186,7 @@ export default function Family() {
               <input type="date" value={selected.birthday} onChange={(e) => updateMember(selected.id, { birthday: e.target.value })} className="text-sm bg-transparent outline-none" style={{ color: 'var(--color-muted)' }} />
             </div>
           </div>
-          <button onClick={() => removeWithUndo(`${selected.name} removed`,
-            () => { setMembers((p) => p.filter((m) => m.id !== selected.id)); setSelectedId(null) },
-            () => setMembers((p) => [...p, selected]))} style={{ color: 'var(--color-muted)' }}>
+          <button onClick={() => confirmDelete({ label: selected.name ? selected.name : 'this family member', detail: 'This person and all their appointments, medicine, and records will be removed.', onConfirm: () => { setMembers((p) => p.filter((m) => m.id !== selected.id)); setSelectedId(null) } })} style={{ color: 'var(--color-muted)' }}>
             <IconTrash width={18} height={18} />
           </button>
         </div>
@@ -214,7 +212,7 @@ export default function Family() {
           <AddRow onAdd={(vals) => setAppts((p) => [...p, { id: uid('a'), memberId: selected.id, who: selected.name, what: vals.what, date: vals.date, time: vals.time }].sort((x, y) => (x.date + (x.time ?? '')).localeCompare(y.date + (y.time ?? ''))))}
             fields={[{ key: 'what', placeholder: 'What (e.g. Dentist)', flex: true }, { key: 'date', placeholder: 'Date', type: 'date' }, { key: 'time', placeholder: 'Time', type: 'time' }]} />
           {mAppts.length === 0 ? <Empty /> : mAppts.map((ap) => (
-            <Row key={ap.id} onDelete={() => setAppts((p) => p.filter((x) => x.id !== ap.id))}>
+            <Row key={ap.id} onDelete={() => confirmDelete({ label: ap.what ? `the appointment “${ap.what}”` : 'this appointment', onConfirm: () => setAppts((p) => p.filter((x) => x.id !== ap.id)) })}>
               <span className="text-xs font-semibold w-24 shrink-0" style={{ color: 'var(--color-accent)' }}>{ap.date || '—'}{ap.time ? ` ${ap.time}` : ''}</span>
               <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{ap.what}</span>
             </Row>
@@ -226,7 +224,7 @@ export default function Family() {
           <AddRow onAdd={(vals) => setMeds((p) => [...p, { id: uid('md'), memberId: selected.id, who: selected.name, name: vals.name, dose: vals.dose, schedule: vals.schedule }])}
             fields={[{ key: 'name', placeholder: 'Medicine', flex: true }, { key: 'dose', placeholder: 'Dose' }, { key: 'schedule', placeholder: 'Schedule' }]} />
           {mMeds.length === 0 ? <Empty /> : mMeds.map((md) => (
-            <Row key={md.id} onDelete={() => setMeds((p) => p.filter((x) => x.id !== md.id))}>
+            <Row key={md.id} onDelete={() => confirmDelete({ label: md.name ? `the medicine “${md.name}”` : 'this medicine', onConfirm: () => setMeds((p) => p.filter((x) => x.id !== md.id)) })}>
               <span className="flex-1 text-sm font-medium" style={{ color: 'var(--color-text)' }}>{md.name}</span>
               <span className="text-xs" style={{ color: 'var(--color-muted)' }}>{md.dose} {md.schedule}</span>
             </Row>
@@ -276,6 +274,7 @@ function AddRow({ fields, onAdd }: { fields: { key: string; placeholder: string;
 }
 
 function RecordsSection({ memberId, records, setRecords }: { memberId: string; records: Rec[]; setRecords: (fn: (p: Rec[]) => Rec[]) => void }) {
+  const confirmDelete = useConfirmDelete()
   const [kind, setKind] = useState(REC_KINDS[0])
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
@@ -305,7 +304,7 @@ function RecordsSection({ memberId, records, setRecords }: { memberId: string; r
                 {r.notes && <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>{r.notes}</p>}
                 {r.file && <a href={r.file.data} download={r.file.name} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>📎 {r.file.name}</a>}
               </div>
-              <button onClick={() => setRecords((p) => p.filter((x) => x.id !== r.id))} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={16} height={16} /></button>
+              <button onClick={() => confirmDelete({ label: r.title ? `the record “${r.title}”` : 'this record', detail: 'This record and any attached file will be removed.', onConfirm: () => setRecords((p) => p.filter((x) => x.id !== r.id)) })} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={16} height={16} /></button>
             </li>
           ))}
         </ul>

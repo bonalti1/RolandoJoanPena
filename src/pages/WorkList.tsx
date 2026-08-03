@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Card, PageHeader, Input, Button } from '../components/ui'
 import { IconPlus, IconTrash, IconCheck } from '../components/icons'
 import { useStore, uid } from '../lib/store'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { startOfWeek, addDays, toISO, todayISO, isoWeek, formatWeekRange } from '../lib/dates'
 import { COMPANIES, companyById, type CompanyId } from '../lib/companies'
 
@@ -84,6 +85,7 @@ function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart }: {
 export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const tab: Tab = fixedBoard ?? 'Home'
   const isWork = tab === 'Work'
+  const confirmDelete = useConfirmDelete()
   const [homeRaw, setHome] = useStore<Board>('work.home', { backlog: [], weeks: {} })
   const [workRaw, setWork] = useStore<Board>('work.work', { backlog: [], weeks: {} })
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
@@ -139,6 +141,8 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
     update((b) => setBucket(b, bucket, getBucket(b, bucket).map((i) => (i.id === id ? { ...i, done: !i.done, completedAt: !i.done ? Date.now() : undefined } : i))))
   const remove = (bucket: string, id: string) =>
     update((b) => setBucket(b, bucket, getBucket(b, bucket).filter((i) => i.id !== id)))
+  const confirmRemove = (bucket: string, item: Item, after?: () => void) =>
+    confirmDelete({ label: item.text ? `“${item.text}”` : 'this task', detail: 'This task will be removed. This can’t be undone.', onConfirm: () => { remove(bucket, item.id); after?.() } })
   const updateItem = (bucket: string, id: string, patch: Partial<Item>) =>
     update((b) => setBucket(b, bucket, getBucket(b, bucket).map((i) => (i.id === id ? { ...i, ...patch } : i))))
   const moveItem = (from: string, to: string, id: string) => {
@@ -266,7 +270,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         </div>
         <ul className={`flex flex-col gap-1 flex-1 ${focused ? 'sm:grid sm:grid-cols-2 sm:gap-2 sm:items-start' : ''}`}>
           {items.map((i) => (
-            <TaskRow key={i.id} item={i} variant={focused ? 'full' : 'compact'} onToggle={() => toggle(day, i.id)} onRemove={() => remove(day, i.id)} onOpen={() => setSelected({ bucket: day, id: i.id })} onDragStart={() => setDrag({ from: day, id: i.id })} />
+            <TaskRow key={i.id} item={i} variant={focused ? 'full' : 'compact'} onToggle={() => toggle(day, i.id)} onRemove={() => confirmRemove(day, i)} onOpen={() => setSelected({ bucket: day, id: i.id })} onDragStart={() => setDrag({ from: day, id: i.id })} />
           ))}
           {focused && items.length === 0 && (
             <li className="text-sm py-6 text-center sm:col-span-2" style={{ color: 'var(--color-muted)' }}>Nothing scheduled for this day. Add a task below.</li>
@@ -423,7 +427,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         ) : (
           <ul className="flex flex-col gap-1">
             {masterItems.map((i) => (
-              <TaskRow key={i.id} item={i} variant="full" onToggle={() => toggle(BACKLOG, i.id)} onRemove={() => remove(BACKLOG, i.id)} onOpen={() => setSelected({ bucket: BACKLOG, id: i.id })} onDragStart={() => setDrag({ from: BACKLOG, id: i.id })} />
+              <TaskRow key={i.id} item={i} variant="full" onToggle={() => toggle(BACKLOG, i.id)} onRemove={() => confirmRemove(BACKLOG, i)} onOpen={() => setSelected({ bucket: BACKLOG, id: i.id })} onDragStart={() => setDrag({ from: BACKLOG, id: i.id })} />
             ))}
           </ul>
         )}
@@ -443,7 +447,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
                 {companyById(item.company) && <CoLogo id={item.company} h={13} />}
                 <span className="flex-1 text-sm truncate" style={{ color: 'var(--color-text)', textDecoration: 'line-through', opacity: 0.6 }}>{item.text}</span>
                 <span className="text-xs tnum shrink-0" style={{ color: 'var(--color-muted)' }}>{where === BACKLOG ? 'Master List' : where} · {fmtDone(item.completedAt)}</span>
-                <button onClick={() => remove(where, item.id)} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
+                <button onClick={() => confirmRemove(where, item)} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
               </li>
             ))}
           </ul>
@@ -564,7 +568,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
               <option value={BACKLOG}>Master List</option>
               {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
-            <Button variant="outline" onClick={() => { remove(selected.bucket, selItem.id); setSelected(null) }} style={{ color: '#c0504d' }}><IconTrash width={15} height={15} /> Delete task</Button>
+            <Button variant="outline" onClick={() => confirmRemove(selected.bucket, selItem, () => setSelected(null))} style={{ color: '#c0504d' }}><IconTrash width={15} height={15} /> Delete task</Button>
           </div>
         </>
       )}

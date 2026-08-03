@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Card, PageHeader, Button, Input, EmptyState } from '../components/ui'
 import { IconPlus, IconTrash, IconHealth, IconSearch } from '../components/icons'
 import { useStore, uid } from '../lib/store'
-import { useToast } from '../lib/toast'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { putFile, getFile, delFile } from '../lib/fileStore'
 
 type Weigh = { id: string; date: string; value: number; bodyFat?: number }
@@ -79,7 +79,7 @@ export default function Health() {
   const [records, setRecords] = useStore<Record_[]>('health.records', [])
   const [goals, setGoals] = useStore<Goals>('health.goals', {})
   const [scans, setScans] = useStore<Scan[]>('health.scans', [])
-  const { removeWithUndo } = useToast()
+  const confirmDelete = useConfirmDelete()
 
   const [wDate, setWDate] = useState(new Date().toISOString().slice(0, 10))
   const [wVal, setWVal] = useState('')
@@ -248,7 +248,7 @@ export default function Health() {
                 <li key={w.id} className="group flex items-center gap-2 text-sm py-1 px-2 rounded hover:bg-black/5">
                   <span style={{ color: 'var(--color-muted)' }}>{w.date}</span>
                   <span className="flex-1 font-semibold" style={{ color: 'var(--color-text)' }}>{w.value} <span className="text-xs font-normal" style={{ color: 'var(--color-muted)' }}>lbs</span>{w.bodyFat != null && <span className="text-xs font-normal ml-2" style={{ color: 'var(--color-muted)' }}>· {w.bodyFat}% bf</span>}</span>
-                  <button onClick={() => setWeights((p) => p.filter((x) => x.id !== w.id))} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
+                  <button onClick={() => confirmDelete({ label: `the ${w.value} lbs entry from ${w.date}`, onConfirm: () => setWeights((p) => p.filter((x) => x.id !== w.id)) })} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
                 </li>
               ))}
             </ul>
@@ -359,7 +359,7 @@ export default function Health() {
                       <span>Total: <b style={{ color: 'var(--color-text)' }}>{s.totalLbs != null ? `${s.totalLbs} lbs` : '—'}</b> <Delta cur={s.totalLbs} prev={older?.totalLbs} unit=" lbs" /></span>
                     </div>
                   </div>
-                  <button onClick={() => removeScan(s)} className="opacity-0 group-hover:opacity-60 shrink-0" style={{ color: 'var(--color-muted)' }} aria-label="Delete scan"><IconTrash width={16} height={16} /></button>
+                  <button onClick={() => confirmDelete({ label: s.date ? `the DEXA scan from ${s.date}` : 'this scan', detail: 'This scan and its uploaded file will be removed.', onConfirm: () => { void removeScan(s) } })} className="opacity-0 group-hover:opacity-60 shrink-0" style={{ color: 'var(--color-muted)' }} aria-label="Delete scan"><IconTrash width={16} height={16} /></button>
                 </li>
               )
             })}
@@ -409,7 +409,7 @@ export default function Health() {
                   {r.notes && <p className="text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>{r.notes}</p>}
                   {r.file && <a href={r.file.data} download={r.file.name} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>📎 {r.file.name}</a>}
                 </div>
-                <button onClick={() => { const rec = r; removeWithUndo('Record deleted', () => setRecords((p) => p.filter((x) => x.id !== rec.id)), () => setRecords((p) => [rec, ...p])) }} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={16} height={16} /></button>
+                <button onClick={() => confirmDelete({ label: r.title ? `the record “${r.title}”` : 'this record', detail: 'This record and any attached file will be removed.', onConfirm: () => setRecords((p) => p.filter((x) => x.id !== r.id)) })} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={16} height={16} /></button>
               </li>
             ))}
           </ul>

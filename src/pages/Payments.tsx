@@ -3,6 +3,7 @@ import { Card, PageHeader, Button, Input } from '../components/ui'
 import { IconPlus, IconTrash, IconCheck } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useToast } from '../lib/toast'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { money } from '../lib/format'
 
 type Bill = { id: string; name: string; amount: number; dueDay?: number }
@@ -94,6 +95,7 @@ export default function Payments() {
   const [income, setIncome] = useStore<Record<string, number>>('pay.income', {})
 
   const { removeWithUndo, toast } = useToast()
+  const confirmDelete = useConfirmDelete()
   const [newName, setNewName] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [newDue, setNewDue] = useState('')
@@ -322,7 +324,7 @@ export default function Payments() {
                           <button onClick={() => clearRow(b)} className="opacity-0 group-hover:opacity-100" style={{ color: 'var(--color-muted)' }} title="Clear all months">Clear</button>
                         </div>
                       </div>
-                      <button onClick={() => removeBill(b.id)} className="opacity-0 group-hover:opacity-60 shrink-0 self-start mt-1" style={{ color: 'var(--color-muted)' }}>
+                      <button onClick={() => confirmDelete({ label: b.name ? `the “${b.name}” bill` : 'this bill', detail: 'This bill and its payment history will be removed.', onConfirm: () => removeBill(b.id) })} className="opacity-0 group-hover:opacity-60 shrink-0 self-start mt-1" style={{ color: 'var(--color-muted)' }}>
                         <IconTrash width={14} height={14} />
                       </button>
                     </div>

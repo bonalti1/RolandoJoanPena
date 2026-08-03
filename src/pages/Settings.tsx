@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Card, PageHeader, Button, Input } from '../components/ui'
 import { useTheme, PRESETS, DEFAULT_PRESET, type Theme } from '../lib/theme'
 import { useStore } from '../lib/store'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { CURRENCIES } from '../lib/format'
 
 type StatusFlags = { openai?: boolean; plaid?: boolean; push?: boolean }
@@ -69,6 +70,7 @@ const FIELDS: { key: keyof Theme; label: string }[] = [
 
 export default function Settings() {
   const { theme, setTheme, applyPreset } = useTheme()
+  const confirmDelete = useConfirmDelete()
   const [profile, setProfile] = useStore<{ name: string; photo?: string; photoInSidebar?: boolean }>('profile', { name: 'Rolando' })
   const [currency, setCurrency] = useStore<string>('currency', 'USD')
 
@@ -108,7 +110,7 @@ export default function Settings() {
                     : { background: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>
                   {profile.photoInSidebar ? '✓ Shown in sidebar' : 'Add to sidebar'}
                 </button>
-                <button onClick={() => setProfile({ ...profile, photo: undefined, photoInSidebar: false })} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-bg)', color: '#d97a7a', border: '1px solid var(--color-border)' }}>
+                <button onClick={() => confirmDelete({ label: 'your profile photo', onConfirm: () => setProfile({ ...profile, photo: undefined, photoInSidebar: false }) })} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-bg)', color: '#d97a7a', border: '1px solid var(--color-border)' }}>
                   Delete photo
                 </button>
               </div>

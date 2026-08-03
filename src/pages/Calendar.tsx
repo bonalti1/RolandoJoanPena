@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { Card, PageHeader, Button, Input } from '../components/ui'
 import { IconPlus, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { taskAgenda, agendaByDate } from '../lib/agenda'
 
 type Event = { id: string; date: string; title: string; time?: string }
@@ -18,6 +19,7 @@ const fmtTime = (t?: string) => {
 }
 
 export default function Calendar() {
+  const confirmDelete = useConfirmDelete()
   const today = new Date()
   const todayStr = iso(today.getFullYear(), today.getMonth(), today.getDate())
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() })
@@ -217,7 +219,7 @@ export default function Calendar() {
                 <li key={e.id} className="group flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-black/5">
                   <input type="time" value={e.time ?? ''} onChange={(ev) => updateEvent(e.id, { time: ev.target.value || undefined })} className="text-xs bg-transparent outline-none w-[72px] shrink-0" style={{ color: 'var(--color-accent)' }} />
                   <input value={e.title} onChange={(ev) => updateEvent(e.id, { title: ev.target.value })} className="flex-1 text-sm bg-transparent outline-none" style={{ color: 'var(--color-text)' }} />
-                  <button onClick={() => removeEvent(e.id)} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
+                  <button onClick={() => confirmDelete({ label: e.title ? `“${e.title}”` : 'this event', detail: 'This event will be removed from your calendar.', onConfirm: () => removeEvent(e.id) })} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
                 </li>
               ))}
               {dayTasks(selected).map((t, i) => (

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import { ThemeProvider } from './lib/theme.tsx'
 import { ToastProvider } from './lib/toast.tsx'
+import { ConfirmDeleteProvider } from './lib/confirmDelete.tsx'
 import { runMigrations } from './lib/migrations.ts'
 import './index.css'
 
@@ -21,9 +22,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
       <ToastProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <ConfirmDeleteProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ConfirmDeleteProvider>
       </ToastProvider>
     </ThemeProvider>
   </React.StrictMode>,

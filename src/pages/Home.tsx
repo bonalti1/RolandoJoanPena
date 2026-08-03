@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Card, Button, Input } from '../components/ui'
 import { IconTasks, IconPayments, IconCalendar, IconHealth, IconBell, IconPlus, IconCheck, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { taskAgenda } from '../lib/agenda'
 import { todayISO, daysUntil, formatDayShort, parseDate } from '../lib/dates'
 import { money } from '../lib/format'
@@ -56,6 +57,7 @@ export default function Home() {
   const [weights] = useStore<Weigh[]>('health.weights', [])
   const [scans] = useStore<Scan[]>('health.scans', [])
   const [quick, setQuick] = useState('')
+  const confirmDelete = useConfirmDelete()
 
   // Daily non-negotiables: a personal must-do list that resets every day.
   const [nonNegs, setNonNegs] = useStore<NonNeg[]>('home.nonneg', [])
@@ -244,7 +246,7 @@ export default function Home() {
                   {nnView !== 'today' && scopeOf(n) !== (nnView as Scope) && (
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{SCOPE_LABEL[scopeOf(n)]}</span>
                   )}
-                  <button onClick={() => removeNonNeg(n.id)} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove">
+                  <button onClick={() => confirmDelete({ label: `“${n.text}”`, detail: 'This non-negotiable will be removed.', onConfirm: () => removeNonNeg(n.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove">
                     <IconTrash width={15} height={15} />
                   </button>
                 </li>

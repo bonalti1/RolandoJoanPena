@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Card, PageHeader, Button, Input, EmptyState } from '../components/ui'
 import { IconMic, IconJournal, IconTrash, IconCheck, IconPlus } from '../components/icons'
 import { useStore, uid } from '../lib/store'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { putAudio, getAudio, delAudio } from '../lib/audioStore'
 
 /**
@@ -83,6 +84,7 @@ function AudioPlayer({ id }: { id: string }) {
 }
 
 export default function Journal() {
+  const confirmDelete = useConfirmDelete()
   const [entries, setEntries] = useStore<Entry[]>('journal.entries', [])
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
@@ -315,7 +317,7 @@ export default function Journal() {
                             {g.done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
                           </button>
                           <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: g.done ? 'line-through' : 'none', opacity: g.done ? 0.5 : 1 }}>{g.text}</span>
-                          <button onClick={() => removeGoal(g.id)} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove goal">
+                          <button onClick={() => confirmDelete({ label: g.text ? `the goal “${g.text}”` : 'this goal', onConfirm: () => removeGoal(g.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove goal">
                             <IconTrash width={15} height={15} />
                           </button>
                         </li>
@@ -365,7 +367,7 @@ export default function Journal() {
                                     </div>
                                     <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{e.summary || '(no transcript)'}</p>
                                   </div>
-                                  <button onClick={() => remove(e)} className="shrink-0 opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Delete entry">
+                                  <button onClick={() => confirmDelete({ label: e.title ? `the entry “${e.title}”` : 'this journal entry', detail: 'The entry and its audio recording will be permanently deleted.', onConfirm: () => { void remove(e) } })} className="shrink-0 opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Delete entry">
                                     <IconTrash width={16} height={16} />
                                   </button>
                                 </div>

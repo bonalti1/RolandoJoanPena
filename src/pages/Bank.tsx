@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Card, PageHeader, Button, Input, IntegrationNote, EmptyState } from '../components/ui'
 import { IconPlus, IconTrash, IconBank } from '../components/icons'
 import { useStore, uid } from '../lib/store'
-import { useToast } from '../lib/toast'
+import { useConfirmDelete } from '../lib/confirmDelete'
 import { money } from '../lib/format'
 
 type Account = { id: string; name: string; type: string; balance: number }
@@ -18,7 +18,7 @@ const monthLabel = (key: string) => {
 export default function Bank() {
   const [accounts, setAccounts] = useStore<Account[]>('bank.accounts', [])
   const [deposits, setDeposits] = useStore<Deposit[]>('bank.deposits', [])
-  const { removeWithUndo } = useToast()
+  const confirmDelete = useConfirmDelete()
   const [draft, setDraft] = useState({ name: '', type: 'Checking', balance: '' })
   const now = new Date()
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -99,7 +99,7 @@ export default function Bank() {
                   </div>
                   <input type="number" value={a.balance} onChange={(e) => setAccounts((p) => p.map((x) => x.id === a.id ? { ...x, balance: parseFloat(e.target.value) || 0 } : x))}
                     className="w-28 text-right font-bold bg-transparent outline-none tnum" style={{ color: a.type === 'Credit' ? '#d97a7a' : 'var(--color-text)' }} />
-                  <button onClick={() => removeWithUndo(`${a.name} removed`, () => setAccounts((p) => p.filter((x) => x.id !== a.id)), () => setAccounts((p) => [...p, a]))} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={16} height={16} /></button>
+                  <button onClick={() => confirmDelete({ label: a.name ? `the “${a.name}” account` : 'this account', detail: 'This account and its balance will be removed.', onConfirm: () => setAccounts((p) => p.filter((x) => x.id !== a.id)) })} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={16} height={16} /></button>
                 </li>
               ))}
             </ul>
@@ -129,7 +129,7 @@ export default function Bank() {
                   <span className="text-xs font-semibold w-24 shrink-0" style={{ color: 'var(--color-accent)' }}>{monthLabel(d.month)}</span>
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{d.note || 'Deposit'}</span>
                   <span className="font-semibold tnum" style={{ color: 'var(--color-text)' }}>{money(d.amount)}</span>
-                  <button onClick={() => setDeposits((p) => p.filter((x) => x.id !== d.id))} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
+                  <button onClick={() => confirmDelete({ label: `the ${money(d.amount)} deposit from ${monthLabel(d.month)}`, onConfirm: () => setDeposits((p) => p.filter((x) => x.id !== d.id)) })} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
                 </li>
               ))}
             </ul>
