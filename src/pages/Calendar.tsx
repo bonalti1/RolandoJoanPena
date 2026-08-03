@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
-import { Card, PageHeader, Button, Input, IntegrationNote } from '../components/ui'
+import { useMemo, useState, useEffect } from 'react'
+import { Card, PageHeader, Button, Input } from '../components/ui'
 import { IconPlus, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { taskAgenda, agendaByDate } from '../lib/agenda'
 
 type Event = { id: string; date: string; title: string; time?: string }
+type GEvent = { date: string; time?: string; title: string; location?: string; allDay?: boolean }
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
@@ -26,9 +27,33 @@ export default function Calendar() {
   const [draft, setDraft] = useState('')
   const [draftTime, setDraftTime] = useState('')
 
+  // Read-only Google Calendar import (via the calendar-ics function).
+  const [icsConf, setIcsConf] = useStore<{ url?: string; lastSynced?: number }>('calendar.ics', {})
+  const [googleEvents, setGoogleEvents] = useStore<GEvent[]>('calendar.googleEvents', [])
+  const [icsUrl, setIcsUrl] = useState(icsConf.url ?? '')
+  const [syncing, setSyncing] = useState(false)
+  const [syncErr, setSyncErr] = useState('')
+
+  const doSync = async (url: string, manual: boolean) => {
+    if (!url) return
+    setSyncing(true); if (manual) setSyncErr('')
+    try {
+      const r = await fetch('/.netlify/functions/calendar-ics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) })
+      const d = await r.json()
+      if (d.ok) { setGoogleEvents(d.events); setIcsConf({ url, lastSynced: Date.now() }) }
+      else if (manual) setSyncErr(d.message || 'Could not read that calendar.')
+    } catch {
+      if (manual) setSyncErr('Sync needs the site deployed with functions — connect the repo to Netlify first.')
+    } finally { setSyncing(false) }
+  }
+  // Refresh once on open if already connected.
+  useEffect(() => { if (icsConf.url) doSync(icsConf.url, false) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const disconnect = () => { setIcsConf({}); setGoogleEvents([]); setIcsUrl(''); setSyncErr('') }
+
   const taskMap = useMemo(() => agendaByDate(taskAgenda()), [])
   const dayTasks = (d: string) => taskMap[d] ?? []
   const dayEvents = (d: string) => events.filter((e) => e.date === d).sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
+  const dayGoogle = (d: string) => googleEvents.filter((e) => e.date === d).sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
 
   const grid = useMemo(() => {
     const first = new Date(view.y, view.m, 1).getDay()
@@ -59,12 +84,13 @@ export default function Calendar() {
   const agenda = useMemo(() => {
     const items: { date: string; time?: string; title: string; tag: string; id?: string }[] = []
     events.forEach((e) => { if (e.date >= todayStr) items.push({ date: e.date, time: e.time, title: e.title, tag: 'Event', id: e.id }) })
+    googleEvents.forEach((e) => { if (e.date >= todayStr) items.push({ date: e.date, time: e.time, title: e.title, tag: 'Google' }) })
     taskAgenda().forEach((a) => { if (a.date >= todayStr && !a.done) items.push({ date: a.date, title: a.title, tag: a.source }) })
     items.sort((a, b) => (a.date + (a.time ?? '')).localeCompare(b.date + (b.time ?? '')))
     const byDate: Record<string, typeof items> = {}
     items.forEach((it) => (byDate[it.date] ??= []).push(it))
     return byDate
-  }, [events, todayStr])
+  }, [events, googleEvents, todayStr])
 
   return (
     <div>
@@ -91,12 +117,22 @@ export default function Calendar() {
         }
       />
 
-      <div className="mb-6">
-        <IntegrationNote title="Google Calendar sync (ready to connect)">
-          Authorize the Google Calendar connector in your Claude settings and we can pull your real
-          events in and push new ones back. Until then, events you add here are saved locally.
-        </IntegrationNote>
-      </div>
+      <Card className="p-4 mb-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+          <h2 className="font-bold" style={{ color: 'var(--color-text)' }}>Google Calendar (read-only)</h2>
+          {icsConf.lastSynced && <span className="text-xs" style={{ color: 'var(--color-muted)' }}>Synced {new Date(icsConf.lastSynced).toLocaleString()}</span>}
+        </div>
+        <p className="text-sm mb-2" style={{ color: 'var(--color-muted)' }}>
+          Paste your calendar's <b>Secret address in iCal format</b> (Google Calendar → Settings → click your calendar → “Integrate calendar”). Your events show up here automatically — the link stays on this device.
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <Input value={icsUrl} onChange={(e) => setIcsUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="flex-1 min-w-[220px]" />
+          <Button onClick={() => doSync(icsUrl.trim(), true)} disabled={syncing || !icsUrl.trim()}>{syncing ? 'Syncing…' : 'Sync'}</Button>
+          {icsConf.url && <Button variant="ghost" onClick={disconnect}>Remove</Button>}
+        </div>
+        {syncErr && <p className="text-xs mt-2" style={{ color: '#c0504d' }}>{syncErr}</p>}
+        {!syncErr && googleEvents.length > 0 && <p className="text-xs mt-2" style={{ color: 'var(--color-muted)' }}>{googleEvents.length} events imported (read-only).</p>}
+      </Card>
 
       {mode === 'agenda' ? (
         <Card className="p-5">
@@ -139,7 +175,7 @@ export default function Calendar() {
               {grid.map((d, i) => {
                 if (d === null) return <div key={i} />
                 const dateStr = iso(view.y, view.m, d)
-                const markers = dayEvents(dateStr).length + dayTasks(dateStr).length
+                const markers = dayEvents(dateStr).length + dayTasks(dateStr).length + dayGoogle(dateStr).length
                 const isToday = dateStr === todayStr
                 const isSel = dateStr === selected
                 return (
@@ -167,9 +203,16 @@ export default function Calendar() {
               <Button type="submit"><IconPlus width={16} height={16} /></Button>
             </form>
             <ul className="flex flex-col gap-1">
-              {dayEvents(selected).length === 0 && dayTasks(selected).length === 0 && (
+              {dayEvents(selected).length === 0 && dayTasks(selected).length === 0 && dayGoogle(selected).length === 0 && (
                 <li className="text-sm py-4 text-center" style={{ color: 'var(--color-muted)' }}>Nothing planned.</li>
               )}
+              {dayGoogle(selected).map((e, i) => (
+                <li key={`g${i}`} className="flex items-center gap-2 py-1.5 px-2 rounded-lg">
+                  <span className="text-xs font-semibold w-[72px] shrink-0 tnum" style={{ color: 'var(--color-accent)' }}>{e.allDay ? 'All day' : fmtTime(e.time)}</span>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{e.title}</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>Google</span>
+                </li>
+              ))}
               {dayEvents(selected).map((e) => (
                 <li key={e.id} className="group flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-black/5">
                   <input type="time" value={e.time ?? ''} onChange={(ev) => updateEvent(e.id, { time: ev.target.value || undefined })} className="text-xs bg-transparent outline-none w-[72px] shrink-0" style={{ color: 'var(--color-accent)' }} />

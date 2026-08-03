@@ -4,12 +4,11 @@ import { useTheme, PRESETS, DEFAULT_PRESET, type Theme } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { CURRENCIES } from '../lib/format'
 
-type StatusFlags = { openai?: boolean; plaid?: boolean; googleCalendar?: boolean; push?: boolean }
+type StatusFlags = { openai?: boolean; plaid?: boolean; push?: boolean }
 
 const INTEGRATIONS: { key: keyof StatusFlags; name: string; desc: string; setup: string }[] = [
-  { key: 'googleCalendar', name: 'Google Calendar', desc: 'Two-way sync of your real events into the Calendar page.', setup: 'Authorize the connector + add GOOGLE_CLIENT_ID' },
-  { key: 'plaid', name: 'Plaid (Bank)', desc: 'Live account balances and deposits on the Bank page.', setup: 'Add PLAID_CLIENT_ID and PLAID_SECRET' },
   { key: 'openai', name: 'AI (OpenAI)', desc: 'Optional: reads DEXA scans on the Health page, plus cloud transcription & summaries for the Journal.', setup: 'Add OPENAI_API_KEY in Netlify' },
+  { key: 'plaid', name: 'Plaid (Bank)', desc: 'Live account balances and deposits on the Bank page.', setup: 'Add PLAID_CLIENT_ID and PLAID_SECRET' },
   { key: 'push', name: 'Phone push notifications', desc: 'Send reminders to your phone, even when the app is closed.', setup: 'Add VAPID_PUBLIC_KEY (+ a scheduler)' },
 ]
 
@@ -35,7 +34,7 @@ function IntegrationsCard() {
   return (
     <Card className="p-5 mb-6">
       <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--color-text)' }}>Integrations</h2>
-      <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>Everything works offline without these. Connect them when you're ready — API keys live securely on the server, never in the app. Status updates automatically once deployed to Netlify with the keys set.</p>
+      <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>Everything works offline without these. Connect them when you're ready — API keys live securely on the server, never in the app. Status updates automatically once deployed to Netlify with the keys set. <b>Google Calendar</b> is read-only and set up on the Calendar page (no key needed).</p>
       <ul className="flex flex-col gap-2">
         {INTEGRATIONS.map((it) => {
           const b = badge(status?.[it.key])

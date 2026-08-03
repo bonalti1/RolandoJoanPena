@@ -35,8 +35,8 @@ Settings + themes + backup.
 ## 4. Environment variables (set in Netlify → Site configuration → Environment variables)
 | Variable | Turns on | Status |
 | --- | --- | --- |
+| _(none — paste iCal link in-app)_ | Google Calendar (read-only) | ✅ built — needs functions deployed |
 | `OPENAI_API_KEY` | DEXA scan auto-read (Health) | ✅ built — works once set |
-| `GOOGLE_CLIENT_ID` (+ OAuth) | Google Calendar sync | ⛔ not built yet |
 | `PLAID_CLIENT_ID`, `PLAID_SECRET` | Live bank balances | ⛔ not built yet |
 | `VAPID_PUBLIC_KEY` (+ scheduler) | Phone push notifications | ⛔ not built yet |
 
@@ -49,14 +49,17 @@ Settings + themes + backup.
 - Note: the Journal already transcribes in the browser for free; this key is only
   for reading DEXA scan images today.
 
-### Google Calendar — not built yet (needs a small build)
-Two ways to make it real:
-- **Read-only import (fast):** paste your calendar's **secret iCal URL**
-  (Google Calendar → Settings → your calendar → "Secret address in iCal format").
-  A function fetches it and shows your events in the dashboard. One-way.
-- **Two-way sync (bigger):** Google Cloud OAuth (consent screen + tokens). Lets the
-  dashboard create events back. Needs a place to store tokens.
-- To start the fast path, have the secret iCal URL ready and I'll wire it up.
+### Google Calendar — read-only import ✅ built
+Requires the repo connected to Netlify (Option B) so the function runs. No API
+key or Google Cloud project needed.
+1. In Google Calendar (desktop): **Settings** (gear) → left sidebar, click the
+   calendar you want under **Settings for my calendars**.
+2. Scroll to **Integrate calendar** → copy the **Secret address in iCal format**
+   (the long URL ending in `/basic.ics`). Treat it like a password.
+3. In the dashboard: **Calendar** page → paste it into **Google Calendar
+   (read-only)** → **Sync**. Your events (incl. weekly/daily repeats) appear on
+   the calendar and agenda, tagged "Google". It refreshes each time you open the page.
+- Two-way sync (creating events back into Google) is a later, bigger build (OAuth).
 
 ### Bank (Plaid) — not built yet
 - Manual balances work today. Live balances need a Plaid account
