@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * Persisted state hook. Everything in the dashboard is stored locally in the
@@ -7,7 +7,17 @@ import { useEffect, useState } from 'react'
  * features will sync through a small API layer — but the local store stays the
  * source of truth for the offline-first experience.
  */
-const PREFIX = 'jess:'
+export const PREFIX = 'jess:'
+
+/**
+ * The cloud sync layer (lib/cloud.ts) registers a listener here so it can push
+ * changes up to Supabase whenever a value is saved. Left null when no cloud is
+ * configured — the store then behaves as pure local-only storage.
+ */
+let onLocalWrite: ((key: string, value: unknown) => void) | null = null
+export function setLocalWriteListener(fn: ((key: string, value: unknown) => void) | null) {
+  onLocalWrite = fn
+}
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -20,6 +30,7 @@ function read<T>(key: string, fallback: T): T {
 
 export function useStore<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(() => read(key, initial))
+  const firstWrite = useRef(true)
 
   useEffect(() => {
     try {
@@ -27,6 +38,9 @@ export function useStore<T>(key: string, initial: T) {
     } catch {
       /* storage full or unavailable — ignore */
     }
+    // Skip the initial mount write (it's just the hydrated value); push real edits.
+    if (firstWrite.current) { firstWrite.current = false; return }
+    onLocalWrite?.(key, value)
   }, [key, value])
 
   // Keep multiple tabs in sync.

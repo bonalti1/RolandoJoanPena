@@ -4,6 +4,8 @@ import { useTheme, PRESETS, DEFAULT_PRESET, type Theme } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { CURRENCIES } from '../lib/format'
+import { supabase, cloudConfigured } from '../lib/supabase'
+import { stopCloudSync } from '../lib/cloud'
 
 type StatusFlags = { openai?: boolean; plaid?: boolean; push?: boolean }
 
@@ -73,6 +75,18 @@ export default function Settings() {
   const confirmDelete = useConfirmDelete()
   const [profile, setProfile] = useStore<{ name: string; photo?: string; photoInSidebar?: boolean }>('profile', { name: 'Rolando' })
   const [currency, setCurrency] = useStore<string>('currency', 'USD')
+  const [accountEmail, setAccountEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!supabase) return
+    supabase.auth.getUser().then(({ data }) => setAccountEmail(data.user?.email ?? null))
+  }, [])
+
+  const signOut = async () => {
+    await stopCloudSync()
+    await supabase?.auth.signOut()
+    window.location.reload()
+  }
 
   const setField = (key: keyof Theme, value: string) => setTheme({ ...theme, [key]: value })
 
@@ -86,6 +100,32 @@ export default function Settings() {
   return (
     <div>
       <PageHeader title="Settings" subtitle="Make the dashboard yours — profile, currency, theme and your data." />
+
+      <Card className="p-5 mb-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="font-bold text-lg mb-1 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+              Cloud backup
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={cloudConfigured ? { background: 'color-mix(in srgb, #2e8b57 20%, var(--color-surface))', color: '#2e8b57' } : { background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>
+                {cloudConfigured ? 'On' : 'Not set up'}
+              </span>
+            </h2>
+            {cloudConfigured ? (
+              <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+                Your data is saved to your own Supabase and synced across every device you sign in on.
+                {accountEmail && <> Signed in as <b style={{ color: 'var(--color-text)' }}>{accountEmail}</b>.</>}
+              </p>
+            ) : (
+              <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+                Right now your data lives only in this browser. Add your Supabase keys in Netlify to back it up and sync it across devices.
+              </p>
+            )}
+          </div>
+          {cloudConfigured && accountEmail && (
+            <button onClick={signOut} className="text-sm font-semibold px-3 py-1.5 rounded-xl shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>Sign out</button>
+          )}
+        </div>
+      </Card>
 
       <Card className="p-5 mb-6">
         <h2 className="font-bold text-lg mb-4" style={{ color: 'var(--color-text)' }}>Profile</h2>
