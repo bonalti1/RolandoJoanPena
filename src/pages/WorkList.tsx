@@ -13,7 +13,8 @@ const ordinalDay = (n: number) => { const s = ['th', 'st', 'nd', 'rd']; const v 
 
 type Cat = 'Task' | 'Misc' | 'Legal'
 type Priority = 'Low' | 'Medium' | 'High'
-type Item = { id: string; text: string; done: boolean; completedAt?: number; cat?: Cat; notes?: string; time?: string; company?: CompanyId; desc?: string; due?: string; priority?: Priority }
+type Item = { id: string; text: string; done: boolean; completedAt?: number; cat?: Cat; notes?: string; time?: string; company?: CompanyId; desc?: string; due?: string; priority?: Priority; urgent?: boolean }
+const URGENT = '#dc2626'
 type WeekBoard = Record<string, Item[]>
 type Board = { backlog: Item[]; weeks: Record<string, WeekBoard> }
 
@@ -70,8 +71,9 @@ function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBa
       </button>
       <button onClick={onOpen} onMouseEnter={(e) => onHover?.(e, item)} onMouseLeave={onLeave} className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-1.5">
+          {item.urgent && !item.done && <span className="shrink-0" style={{ color: URGENT }} title="Urgent"><svg width={12} height={12} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={2} strokeLinejoin="round"><path d="M4 21V4M4 4h11l-1.5 3L15 10H4" /></svg></span>}
           {c && <CoLogo id={item.company} h={14} />}
-          <span className="js-tasktext text-sm truncate" style={{ color: 'var(--color-text)', textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.5 : 1 }}>{item.text}</span>
+          <span className="js-tasktext text-sm truncate" style={{ color: item.urgent && !item.done ? URGENT : 'var(--color-text)', fontWeight: item.urgent && !item.done ? 600 : 400, textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.5 : 1 }}>{item.text}</span>
         </div>
         {(c || (variant === 'full' && item.cat)) && (
           <div className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>
@@ -629,6 +631,10 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
             </div>
             <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Task</label>
             <Input value={selItem.text} onChange={(e) => updateItem(selected.bucket, selItem.id, { text: e.target.value })} className="mb-3 mt-1" />
+            <button onClick={() => updateItem(selected.bucket, selItem.id, { urgent: !selItem.urgent })} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold mb-4 transition" style={selItem.urgent ? { background: 'color-mix(in srgb, #dc2626 14%, var(--color-surface))', border: '1px solid #dc2626', color: URGENT } : { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
+              <svg width={15} height={15} viewBox="0 0 24 24" fill={selItem.urgent ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V4M4 4h11l-1.5 3L15 10H4" /></svg>
+              {selItem.urgent ? 'Urgent' : 'Mark urgent'}
+            </button>
             {isWork && (
               <>
                 <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Company</label>

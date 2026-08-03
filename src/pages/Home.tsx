@@ -11,7 +11,8 @@ type Task = { id: string; text: string; done: boolean; created: number; due?: st
 type Scope = 'week' | 'weekend' | 'all'
 type NonNeg = { id: string; text: string; scope?: Scope }
 type Bill = { id: string; name: string; amount: number; dueDay?: number }
-type WItem = { id: string; text: string; done: boolean; completedAt?: number }
+type WItem = { id: string; text: string; done: boolean; completedAt?: number; urgent?: boolean }
+const URGENT = '#dc2626'
 type WBoard = { backlog: WItem[]; weeks: Record<string, Record<string, WItem[]>> }
 
 const SCOPE_LABEL: Record<Scope, string> = { week: 'Weekdays', weekend: 'Weekends', all: 'Every day' }
@@ -25,7 +26,7 @@ const normBoard = (b: unknown): WBoard => {
 // not the whole week, so tomorrow's items don't clutter today.
 const openBoardItems = (b: WBoard, weekKey: string, dayName: string, limit: number): WItem[] => {
   const week = b.weeks[weekKey] ?? {}
-  return (week[dayName] ?? []).filter((i) => !i.done).slice(0, limit)
+  return (week[dayName] ?? []).filter((i) => !i.done).sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0)).slice(0, limit)
 }
 
 function greeting(): string {
@@ -80,12 +81,23 @@ function FocusCard({ accent, icon, title, viewAllLabel = 'View all', onViewAll, 
   )
 }
 
-/** A single open task row inside a Business/Home priorities card. Checking it completes the task. */
-function BoardRow({ item, accent, onComplete }: { item: WItem; accent: string; onComplete: () => void }) {
+const IconFlag = ({ filled }: { filled?: boolean }) => (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 21V4M4 4h11l-1.5 3L15 10H4" />
+  </svg>
+)
+
+/** A single open task row inside a Business/Home priorities card. Check to complete, flag to mark urgent. */
+function BoardRow({ item, accent, onComplete, onToggleUrgent }: { item: WItem; accent: string; onComplete: () => void; onToggleUrgent: () => void }) {
+  const urgent = !!item.urgent
   return (
-    <li className="flex items-center gap-3 text-sm">
-      <button onClick={onComplete} className="h-5 w-5 rounded-md shrink-0 transition" style={{ border: `2px solid ${accent}`, background: 'transparent' }} aria-label="Complete task" />
-      <span className="flex-1" style={{ color: 'var(--color-text)' }}>{item.text}</span>
+    <li className="group flex items-center gap-3 text-sm">
+      <button onClick={onComplete} className="h-5 w-5 rounded-md shrink-0 transition" style={{ border: `2px solid ${urgent ? URGENT : accent}`, background: 'transparent' }} aria-label="Complete task" />
+      <span className="flex-1" style={{ color: urgent ? URGENT : 'var(--color-text)', fontWeight: urgent ? 600 : 400 }}>{item.text}</span>
+      <button onClick={onToggleUrgent} title={urgent ? 'Remove urgent' : 'Mark urgent'} aria-label={urgent ? 'Remove urgent' : 'Mark urgent'}
+        className={`shrink-0 transition ${urgent ? '' : 'opacity-0 group-hover:opacity-60'}`} style={{ color: urgent ? URGENT : 'var(--color-muted)' }}>
+        <IconFlag filled={urgent} />
+      </button>
     </li>
   )
 }
@@ -161,13 +173,15 @@ export default function Home() {
   const todayName = WDAYS[(now.getDay() + 6) % 7]
   const bizItems = openBoardItems(normBoard(workBoard), weekKey, todayName, 6)
   const homeTaskItems = openBoardItems(normBoard(homeBoard), weekKey, todayName, 6)
-  const completeBoardItem = (setB: (fn: (p: WBoard) => WBoard) => void, id: string) => setB((prev) => {
+  const patchBoardItem = (setB: (fn: (p: WBoard) => WBoard) => void, id: string, fn: (i: WItem) => WItem) => setB((prev) => {
     const b = normBoard(prev)
-    const mark = (arr?: WItem[]) => (arr ?? []).map((i) => i.id === id ? { ...i, done: true, completedAt: Date.now() } : i)
+    const patch = (arr?: WItem[]) => (arr ?? []).map((i) => i.id === id ? fn(i) : i)
     const weeks: WBoard['weeks'] = {}
-    for (const [wk, days] of Object.entries(b.weeks)) { const nd: Record<string, WItem[]> = {}; for (const [d, items] of Object.entries(days)) nd[d] = mark(items); weeks[wk] = nd }
-    return { backlog: mark(b.backlog), weeks }
+    for (const [wk, days] of Object.entries(b.weeks)) { const nd: Record<string, WItem[]> = {}; for (const [d, items] of Object.entries(days)) nd[d] = patch(items); weeks[wk] = nd }
+    return { backlog: patch(b.backlog), weeks }
   })
+  const completeBoardItem = (setB: (fn: (p: WBoard) => WBoard) => void, id: string) => patchBoardItem(setB, id, (i) => ({ ...i, done: true, completedAt: Date.now() }))
+  const toggleUrgentItem = (setB: (fn: (p: WBoard) => WBoard) => void, id: string) => patchBoardItem(setB, id, (i) => ({ ...i, urgent: !i.urgent }))
   // New focus tasks land on today's column, so they show here and on today in the planner.
   const addBoardTask = (setB: (fn: (p: WBoard) => WBoard) => void, text: string) => setB((prev) => {
     const b = normBoard(prev)
@@ -260,7 +274,7 @@ export default function Home() {
             <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Nothing set for today. Add a task below or schedule one in Work tasks.</p>
           ) : (
             <ul className="flex flex-col gap-3 mb-3">
-              {bizItems.map((it) => <BoardRow key={it.id} item={it} accent="#ea580c" onComplete={() => completeBoardItem(setWorkBoard, it.id)} />)}
+              {bizItems.map((it) => <BoardRow key={it.id} item={it} accent="#ea580c" onComplete={() => completeBoardItem(setWorkBoard, it.id)} onToggleUrgent={() => toggleUrgentItem(setWorkBoard, it.id)} />)}
             </ul>
           )}
           <div className="pt-2" style={{ borderTop: bizItems.length ? '1px solid var(--color-border)' : 'none' }}>
@@ -274,7 +288,7 @@ export default function Home() {
             <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Nothing set for today. Add a task below or schedule one in Home tasks.</p>
           ) : (
             <ul className="flex flex-col gap-3 mb-3">
-              {homeTaskItems.map((it) => <BoardRow key={it.id} item={it} accent="#16a34a" onComplete={() => completeBoardItem(setHomeBoard, it.id)} />)}
+              {homeTaskItems.map((it) => <BoardRow key={it.id} item={it} accent="#16a34a" onComplete={() => completeBoardItem(setHomeBoard, it.id)} onToggleUrgent={() => toggleUrgentItem(setHomeBoard, it.id)} />)}
             </ul>
           )}
           <div className="pt-2" style={{ borderTop: homeTaskItems.length ? '1px solid var(--color-border)' : 'none' }}>
