@@ -21,10 +21,11 @@ const normBoard = (b: unknown): WBoard => {
   const x = (b ?? {}) as WBoard
   return Array.isArray(x.backlog) && x.weeks ? x : { backlog: Array.isArray(x.backlog) ? x.backlog : [], weeks: {} }
 }
-const openBoardItems = (b: WBoard, weekKey: string, limit: number): WItem[] => {
+// Only today's scheduled tasks — the focus cards show what's for *this* day,
+// not the whole week, so tomorrow's items don't clutter today.
+const openBoardItems = (b: WBoard, weekKey: string, dayName: string, limit: number): WItem[] => {
   const week = b.weeks[weekKey] ?? {}
-  const dayItems = WDAYS.flatMap((d) => week[d] ?? [])
-  return [...dayItems, ...b.backlog].filter((i) => !i.done).slice(0, limit)
+  return (week[dayName] ?? []).filter((i) => !i.done).slice(0, limit)
 }
 
 function greeting(): string {
@@ -180,8 +181,9 @@ export default function Home() {
   }
 
   // ---- Business (work.work) & Home (work.home) priorities ----
-  const bizItems = openBoardItems(normBoard(workBoard), weekKey, 5)
-  const homeTaskItems = openBoardItems(normBoard(homeBoard), weekKey, 5)
+  const todayName = WDAYS[(now.getDay() + 6) % 7]
+  const bizItems = openBoardItems(normBoard(workBoard), weekKey, todayName, 6)
+  const homeTaskItems = openBoardItems(normBoard(homeBoard), weekKey, todayName, 6)
   const completeBoardItem = (setB: (fn: (p: WBoard) => WBoard) => void, id: string) => setB((prev) => {
     const b = normBoard(prev)
     const mark = (arr?: WItem[]) => (arr ?? []).map((i) => i.id === id ? { ...i, done: true, completedAt: Date.now() } : i)
@@ -189,9 +191,14 @@ export default function Home() {
     for (const [wk, days] of Object.entries(b.weeks)) { const nd: Record<string, WItem[]> = {}; for (const [d, items] of Object.entries(days)) nd[d] = mark(items); weeks[wk] = nd }
     return { backlog: mark(b.backlog), weeks }
   })
+  // New focus tasks land on today's column, so they show here and on today in the planner.
   const addBoardTask = (setB: (fn: (p: WBoard) => WBoard) => void, text: string) => setB((prev) => {
     const b = normBoard(prev)
-    return { ...b, backlog: [...b.backlog, { id: uid('w'), text: text.trim(), done: false }] }
+    const weeks = { ...b.weeks }
+    const wk = { ...(weeks[weekKey] ?? {}) }
+    wk[todayName] = [...(wk[todayName] ?? []), { id: uid('w'), text: text.trim(), done: false }]
+    weeks[weekKey] = wk
+    return { ...b, weeks }
   })
 
   // ---- Upcoming bills (pay.bills / pay.cells) ----
@@ -280,23 +287,23 @@ export default function Home() {
         </FocusCard>
 
         {/* Business priorities → Work tasks */}
-        <FocusCard accent="#7c3aed" icon={<IconBriefcase />} title="Business priorities" viewAllTo="/work-tasks" footerLabel="Open full tab" footerTo="/work-tasks">
+        <FocusCard accent="#ea580c" icon={<IconBriefcase />} title="Business priorities" viewAllTo="/work-tasks" footerLabel="Open full tab" footerTo="/work-tasks">
           {bizItems.length === 0 ? (
-            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>No open work tasks this week. Add one below.</p>
+            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Nothing set for today. Add a task below or schedule one in Work tasks.</p>
           ) : (
             <ul className="flex flex-col gap-3 mb-3">
-              {bizItems.map((it) => <BoardRow key={it.id} item={it} accent="#7c3aed" onComplete={() => completeBoardItem(setWorkBoard, it.id)} />)}
+              {bizItems.map((it) => <BoardRow key={it.id} item={it} accent="#ea580c" onComplete={() => completeBoardItem(setWorkBoard, it.id)} />)}
             </ul>
           )}
           <div className="pt-2" style={{ borderTop: bizItems.length ? '1px solid var(--color-border)' : 'none' }}>
-            <AddRow accent="#7c3aed" placeholder="Add a business task" onAdd={(t) => addBoardTask(setWorkBoard, t)} />
+            <AddRow accent="#ea580c" placeholder="Add a business task" onAdd={(t) => addBoardTask(setWorkBoard, t)} />
           </div>
         </FocusCard>
 
         {/* Home priorities → Home tasks */}
         <FocusCard accent="#16a34a" icon={<IconHome width={22} height={22} />} title="Home priorities" viewAllTo="/home-tasks" footerLabel="Open full tab" footerTo="/home-tasks">
           {homeTaskItems.length === 0 ? (
-            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>No open home tasks this week. Add one below.</p>
+            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Nothing set for today. Add a task below or schedule one in Home tasks.</p>
           ) : (
             <ul className="flex flex-col gap-3 mb-3">
               {homeTaskItems.map((it) => <BoardRow key={it.id} item={it} accent="#16a34a" onComplete={() => completeBoardItem(setHomeBoard, it.id)} />)}
