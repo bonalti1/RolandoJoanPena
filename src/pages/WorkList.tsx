@@ -3,10 +3,12 @@ import { Card, PageHeader, Input, Button } from '../components/ui'
 import { IconPlus, IconTrash, IconCheck } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { startOfWeek, addDays, toISO, todayISO, isoWeek, formatWeekRange } from '../lib/dates'
+import { COMPANIES, companyById, type CompanyId } from '../lib/companies'
 
 type Cat = 'Home' | 'Work' | 'Errands' | 'Someday'
-type Item = { id: string; text: string; done: boolean; completedAt?: number; cat?: Cat; notes?: string; time?: string }
-type WeekBoard = Record<string, Item[]> // day name -> items
+type Priority = 'Low' | 'Medium' | 'High'
+type Item = { id: string; text: string; done: boolean; completedAt?: number; cat?: Cat; notes?: string; time?: string; company?: CompanyId; desc?: string; due?: string; priority?: Priority }
+type WeekBoard = Record<string, Item[]>
 type Board = { backlog: Item[]; weeks: Record<string, WeekBoard> }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -14,11 +16,13 @@ const DAY_SHORT: Record<string, string> = { Monday: 'Mon', Tuesday: 'Tue', Wedne
 const BACKLOG = 'Unscheduled'
 type Tab = 'Home' | 'Work'
 const CATS: Cat[] = ['Home', 'Work', 'Errands', 'Someday']
+const PRIORITIES: Priority[] = ['Low', 'Medium', 'High']
 const DRAG_MIME = 'application/x-jess-task'
+const fieldStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
 
 const emptyWeek = (): WeekBoard => Object.fromEntries(DAYS.map((d) => [d, []]))
+const fmtDue = (d?: string) => d ? new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
 
-/** Accept both the new shape and the older { Unscheduled, Monday, … } shape. */
 function migrate(raw: unknown): Board {
   const r = raw as Record<string, unknown>
   if (r && Array.isArray(r.backlog) && r.weeks && typeof r.weeks === 'object') {
@@ -33,33 +37,53 @@ function migrate(raw: unknown): Board {
   return { backlog: Array.isArray(old[BACKLOG]) ? old[BACKLOG] : [], weeks }
 }
 
-function TaskRow({ item, showCat, onToggle, onRemove, onOpen, onDragStart }: {
-  item: Item; showCat?: boolean
+/** Company wordmark, shown at a fixed height so varying aspect ratios stay tidy. */
+function CoLogo({ id, h = 15 }: { id?: string; h?: number }) {
+  const c = companyById(id)
+  if (!c) return null
+  return <img src={c.logo} alt={c.name} draggable={false} className="shrink-0 object-contain" style={{ height: h, width: 'auto', maxWidth: h * 3.6 }} />
+}
+
+function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart }: {
+  item: Item; variant: 'compact' | 'full'
   onToggle: () => void; onRemove: () => void; onOpen: () => void; onDragStart: () => void
 }) {
+  const c = companyById(item.company)
   return (
     <li
       draggable
       onDragStart={(e) => { e.dataTransfer.setData(DRAG_MIME, '1'); e.dataTransfer.effectAllowed = 'move'; onDragStart() }}
-      className="group flex items-center gap-1.5 rounded-lg px-2 py-1.5 cursor-grab active:cursor-grabbing"
+      className="group flex items-start gap-1.5 rounded-lg px-2 py-1.5 cursor-grab active:cursor-grabbing"
       style={{ background: 'var(--color-bg)' }}
     >
-      <span className="select-none text-xs leading-none shrink-0" style={{ color: 'var(--color-muted)' }}>⋮⋮</span>
-      <button onClick={onToggle} className="h-4 w-4 rounded grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: item.done ? 'var(--color-accent)' : 'transparent' }} aria-label="Toggle done">
+      <span className="select-none text-xs leading-none shrink-0 mt-1" style={{ color: 'var(--color-muted)' }}>⋮⋮</span>
+      <button onClick={onToggle} className="h-4 w-4 rounded grid place-items-center shrink-0 mt-0.5" style={{ border: '2px solid var(--color-accent)', background: item.done ? 'var(--color-accent)' : 'transparent' }} aria-label="Toggle done">
         {item.done && <IconCheck width={11} height={11} style={{ color: 'var(--color-on-accent)' }} />}
       </button>
-      <button onClick={onOpen} className="flex-1 min-w-0 text-left text-sm truncate" style={{ color: 'var(--color-text)', textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.5 : 1 }}>
-        {item.text}
+      <button onClick={onOpen} className="flex-1 min-w-0 text-left">
+        <div className="flex items-center gap-1.5">
+          {c && <CoLogo id={item.company} h={14} />}
+          <span className="text-sm truncate" style={{ color: 'var(--color-text)', textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.5 : 1 }}>{item.text}</span>
+        </div>
+        {(c || (variant === 'full' && item.cat)) && (
+          <div className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>
+            {c?.name}{c && variant === 'full' && item.cat ? ' · ' : ''}{variant === 'full' && item.cat ? item.cat : ''}
+          </div>
+        )}
+        {variant === 'full' && item.desc && <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{item.desc}</div>}
       </button>
-      {item.time && <span className="text-[10px] tnum shrink-0" style={{ color: 'var(--color-accent)' }}>{item.time}</span>}
-      {showCat && item.cat && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-surface)', color: 'var(--color-muted)' }}>{item.cat}</span>}
-      <button onClick={onRemove} className="opacity-0 group-hover:opacity-60 shrink-0" style={{ color: 'var(--color-muted)' }} aria-label="Delete"><IconTrash width={13} height={13} /></button>
+      <div className="flex items-center gap-1 shrink-0">
+        {item.due && <span className="text-[10px] font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{fmtDue(item.due)}</span>}
+        {variant === 'full' && item.priority && item.priority !== 'Medium' && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--color-surface)', color: item.priority === 'High' ? '#c0504d' : 'var(--color-muted)' }}>{item.priority}</span>}
+        <button onClick={onRemove} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }} aria-label="Delete"><IconTrash width={13} height={13} /></button>
+      </div>
     </li>
   )
 }
 
 export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const tab: Tab = fixedBoard ?? 'Home'
+  const isWork = tab === 'Work'
   const [homeRaw, setHome] = useStore<Board>('work.home', { backlog: [], weeks: {} })
   const [workRaw, setWork] = useStore<Board>('work.work', { backlog: [], weeks: {} })
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
@@ -74,6 +98,19 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const [catFilter, setCatFilter] = useState<'All' | Cat>('All')
   const [rolledNote, setRolledNote] = useState(0)
 
+  // Company support (Work board only)
+  const [companyFilter, setCompanyFilter] = useState<'all' | CompanyId>('all')
+  const [companyMenu, setCompanyMenu] = useState(false)
+  const [modal, setModal] = useState<{ day: string | null } | null>(null)
+  const [mTitle, setMTitle] = useState('')
+  const [mCompany, setMCompany] = useState<CompanyId | ''>('')
+  const [mCat, setMCat] = useState<Cat>('Work')
+  const [mDesc, setMDesc] = useState('')
+  const [mDay, setMDay] = useState('')
+  const [mDue, setMDue] = useState('')
+  const [mPriority, setMPriority] = useState<Priority>('Medium')
+  const [mError, setMError] = useState('')
+
   const board = migrate(tab === 'Home' ? homeRaw : workRaw)
   const setBoard = tab === 'Home' ? setHome : setWork
   const weekKey = toISO(weekStart)
@@ -82,6 +119,8 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const hasPrev = !!board.weeks[prevKey]
   const thisWeekKey = toISO(startOfWeek(new Date()))
   const isThisWeek = weekKey === thisWeekKey
+
+  const matchCompany = (i: Item) => !isWork || companyFilter === 'all' || i.company === companyFilter
 
   const getBucket = (b: Board, bucket: string): Item[] => bucket === BACKLOG ? b.backlog : (b.weeks[weekKey]?.[bucket] ?? [])
   const setBucket = (b: Board, bucket: string, items: Item[]): Board => {
@@ -92,7 +131,9 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const update = (fn: (b: Board) => Board) => setBoard((prev) => fn(migrate(prev)))
 
   const add = (bucket: string, text: string, cat?: Cat) =>
-    update((b) => setBucket(b, bucket, [...getBucket(b, bucket), { id: uid('w'), text, done: false, ...(cat ? { cat } : {}) }]))
+    update((b) => setBucket(b, bucket, [...getBucket(b, bucket), { id: uid('w'), text, done: false, ...(cat ? { cat } : {}), ...(isWork && companyFilter !== 'all' ? { company: companyFilter } : {}) }]))
+  const addFull = (bucket: string, fields: Partial<Item> & { text: string }) =>
+    update((b) => setBucket(b, bucket, [...getBucket(b, bucket), { id: uid('w'), done: false, ...fields }]))
   const toggle = (bucket: string, id: string) =>
     update((b) => setBucket(b, bucket, getBucket(b, bucket).map((i) => (i.id === id ? { ...i, done: !i.done, completedAt: !i.done ? Date.now() : undefined } : i))))
   const remove = (bucket: string, id: string) =>
@@ -118,11 +159,10 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
     update((b) => {
       const prev = b.weeks[prevKey]; if (!prev) return b
       const cur = { ...(b.weeks[weekKey] ?? emptyWeek()) }
-      for (const d of DAYS) cur[d] = [...(cur[d] ?? []), ...(prev[d] ?? []).map((i) => ({ id: uid('w'), text: i.text, done: false }))]
+      for (const d of DAYS) cur[d] = [...(cur[d] ?? []), ...(prev[d] ?? []).map((i) => ({ ...i, id: uid('w'), done: false, completedAt: undefined }))]
       return { ...b, weeks: { ...b.weeks, [weekKey]: cur } }
     })
 
-  // Auto-roll: pull incomplete tasks from past weeks into the current week.
   useEffect(() => {
     const b = migrate(tab === 'Home' ? homeRaw : workRaw)
     const movedByDay: Record<string, Item[]> = {}
@@ -145,19 +185,42 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, homeRaw, workRaw])
 
-  const weekTotal = DAYS.reduce((s, d) => s + (week[d]?.length ?? 0), 0)
-  const weekDone = DAYS.reduce((s, d) => s + (week[d]?.filter((i) => i.done).length ?? 0), 0)
-  const masterItems = board.backlog.filter((i) => !i.done).filter((i) => catFilter === 'All' || i.cat === catFilter)
+  const weekTotal = DAYS.reduce((s, d) => s + (week[d] ?? []).filter(matchCompany).length, 0)
+  const weekDone = DAYS.reduce((s, d) => s + (week[d] ?? []).filter((i) => matchCompany(i) && i.done).length, 0)
+  const masterItems = board.backlog.filter((i) => !i.done).filter(matchCompany).filter((i) => catFilter === 'All' || i.cat === catFilter)
   const selItem = selected ? getBucket(board, selected.bucket).find((i) => i.id === selected.id) ?? null : null
+
+  // Company banner stats (all-time for the selected company).
+  const allBoardItems = [...board.backlog, ...Object.values(board.weeks).flatMap((wk) => DAYS.flatMap((d) => wk[d] ?? []))]
+  const selCompany = isWork && companyFilter !== 'all' ? companyById(companyFilter) : null
+  const coItems = selCompany ? allBoardItems.filter((i) => i.company === companyFilter) : []
+  const coOpen = coItems.filter((i) => !i.done).length
+  const coThisWeek = DAYS.reduce((s, d) => s + (week[d] ?? []).filter((i) => i.company === companyFilter && !i.done).length, 0)
+  const coOverdue = coItems.filter((i) => !i.done && i.due && i.due < todayISO()).length
 
   const submitColAdd = (day: string) => { const t = addDraft.trim(); if (t) { add(day, t); setAddDraft('') } }
   const submitMaster = () => { const t = masterDraft.trim(); if (t) { add(BACKLOG, t, masterCat); setMasterDraft('') } }
 
+  const openModal = (day: string | null) => {
+    setMTitle(''); setMDesc(''); setMDue(''); setMPriority('Medium'); setMCat('Work'); setMError('')
+    setMCompany(companyFilter !== 'all' ? companyFilter : '')
+    setMDay(day ?? '')
+    setModal({ day })
+  }
+  const saveModal = () => {
+    if (!mTitle.trim()) { setMError('Give the task a title.'); return }
+    if (!mCompany) { setMError('Please select a company for this task.'); return }
+    addFull(mDay || BACKLOG, { text: mTitle.trim(), company: mCompany, cat: mCat, desc: mDesc.trim() || undefined, due: mDue || undefined, priority: mPriority })
+    setModal(null)
+  }
+
   const completed = [
-    ...DAYS.flatMap((day) => (week[day] ?? []).filter((i) => i.done).map((i) => ({ item: i, where: day }))),
-    ...board.backlog.filter((i) => i.done).map((i) => ({ item: i, where: BACKLOG })),
+    ...DAYS.flatMap((day) => (week[day] ?? []).filter((i) => i.done && matchCompany(i)).map((i) => ({ item: i, where: day }))),
+    ...board.backlog.filter((i) => i.done && matchCompany(i)).map((i) => ({ item: i, where: BACKLOG })),
   ].sort((a, b) => (b.item.completedAt ?? 0) - (a.item.completedAt ?? 0))
   const fmtDone = (ts?: number) => ts ? new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+
+  const companyEmpty = isWork && companyFilter !== 'all' && coItems.length === 0
 
   return (
     <div onDragEnd={() => { setDrag(null); setOverBucket(null) }}>
@@ -176,7 +239,44 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         }
       />
 
-      {/* Weekly progress — kept close to the title */}
+      {/* Company selector (Work board) */}
+      {isWork && (
+        <div className="relative mb-4 inline-block">
+          <button onClick={() => setCompanyMenu((o) => !o)} className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', color: 'var(--color-text)' }}>
+            {companyFilter === 'all' ? <span>All Companies</span> : <><CoLogo id={companyFilter} h={18} /><span>{companyById(companyFilter)?.name}</span></>}
+            <span className="text-xs" style={{ color: 'var(--color-muted)' }}>▾</span>
+          </button>
+          {companyMenu && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setCompanyMenu(false)} />
+              <div className="absolute left-0 mt-1 z-30 rounded-xl p-1 min-w-[240px]" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)' }}>
+                <button onClick={() => { setCompanyFilter('all'); setCompanyMenu(false) }} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2" style={{ background: companyFilter === 'all' ? 'var(--color-bg)' : 'transparent', color: 'var(--color-text)' }}>All Companies</button>
+                {COMPANIES.map((c) => (
+                  <button key={c.id} onClick={() => { setCompanyFilter(c.id); setCompanyMenu(false) }} className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2" style={{ background: companyFilter === c.id ? 'var(--color-bg)' : 'transparent', color: 'var(--color-text)' }}>
+                    <CoLogo id={c.id} h={18} /> {c.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Company banner (a specific company is selected) */}
+      {selCompany && (
+        <Card className="p-4 mb-4 flex items-center gap-4 flex-wrap">
+          <CoLogo id={selCompany.id} h={40} />
+          <div className="flex-1 min-w-[160px]">
+            <h2 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>{selCompany.name}</h2>
+          </div>
+          <div className="flex gap-5 text-center">
+            <div><div className="text-xl font-bold tnum" style={{ color: 'var(--color-text)' }}>{coOpen}</div><div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Open</div></div>
+            <div><div className="text-xl font-bold tnum" style={{ color: 'var(--color-accent)' }}>{coThisWeek}</div><div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>This week</div></div>
+            <div><div className="text-xl font-bold tnum" style={{ color: coOverdue ? '#c0504d' : 'var(--color-text)' }}>{coOverdue}</div><div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Overdue</div></div>
+          </div>
+        </Card>
+      )}
+
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-3 flex-1 min-w-[220px]">
           <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
@@ -194,12 +294,16 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         </button>
       )}
 
-      {/* Week across the top — 7 columns on desktop, swipeable on mobile */}
+      {companyEmpty && (
+        <p className="text-sm mb-4 px-1" style={{ color: 'var(--color-muted)' }}>No tasks for {selCompany?.name} yet. Add a task to get started.</p>
+      )}
+
+      {/* Week across the top */}
       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 lg:grid lg:grid-cols-7 lg:overflow-visible">
         {DAYS.map((day, idx) => {
           const dayDate = addDays(weekStart, idx)
           const isToday = toISO(dayDate) === todayISO()
-          const items = (week[day] ?? []).filter((i) => !i.done)
+          const items = (week[day] ?? []).filter((i) => !i.done && matchCompany(i))
           const over = overBucket === day
           return (
             <div
@@ -220,30 +324,25 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
               </div>
               <ul className="flex flex-col gap-1 flex-1">
                 {items.map((i) => (
-                  <TaskRow key={i.id} item={i} onToggle={() => toggle(day, i.id)} onRemove={() => remove(day, i.id)} onOpen={() => setSelected({ bucket: day, id: i.id })} onDragStart={() => setDrag({ from: day, id: i.id })} />
+                  <TaskRow key={i.id} item={i} variant="compact" onToggle={() => toggle(day, i.id)} onRemove={() => remove(day, i.id)} onOpen={() => setSelected({ bucket: day, id: i.id })} onDragStart={() => setDrag({ from: day, id: i.id })} />
                 ))}
               </ul>
-              {addingCol === day ? (
-                <input
-                  autoFocus value={addDraft}
-                  onChange={(e) => setAddDraft(e.target.value)}
+              {isWork ? (
+                <button onClick={() => openModal(day)} className="mt-1 text-xs font-semibold flex items-center gap-1 px-1 py-1 opacity-70 hover:opacity-100 transition" style={{ color: 'var(--color-accent)' }}><IconPlus width={13} height={13} /> Add</button>
+              ) : addingCol === day ? (
+                <input autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') submitColAdd(day); if (e.key === 'Escape') { setAddingCol(null); setAddDraft('') } }}
-                  onBlur={() => { submitColAdd(day); setAddingCol(null) }}
-                  placeholder="Task…"
-                  className="mt-1 rounded-lg px-2 py-1 text-sm outline-none w-full"
-                  style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-                />
+                  onBlur={() => { submitColAdd(day); setAddingCol(null) }} placeholder="Task…"
+                  className="mt-1 rounded-lg px-2 py-1 text-sm outline-none w-full" style={fieldStyle} />
               ) : (
-                <button onClick={() => { setAddingCol(day); setAddDraft('') }} className="mt-1 text-xs font-semibold flex items-center gap-1 px-1 py-1 opacity-70 hover:opacity-100 transition" style={{ color: 'var(--color-accent)' }}>
-                  <IconPlus width={13} height={13} /> Add
-                </button>
+                <button onClick={() => { setAddingCol(day); setAddDraft('') }} className="mt-1 text-xs font-semibold flex items-center gap-1 px-1 py-1 opacity-70 hover:opacity-100 transition" style={{ color: 'var(--color-accent)' }}><IconPlus width={13} height={13} /> Add</button>
               )}
             </div>
           )
         })}
       </div>
 
-      {/* Master List — everything not yet scheduled */}
+      {/* Master List */}
       <div
         className="rounded-[20px] p-4 mt-5"
         onDragOver={(e) => { e.preventDefault(); if (overBucket !== BACKLOG) setOverBucket(BACKLOG) }}
@@ -253,33 +352,44 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
       >
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Master List</h2>
-          <button onClick={() => setMasterAdding((v) => !v)} className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--color-accent)' }}><IconPlus width={15} height={15} /> Add task</button>
+          <button onClick={() => isWork ? openModal(null) : setMasterAdding((v) => !v)} className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--color-accent)' }}><IconPlus width={15} height={15} /> Add task</button>
         </div>
 
+        {/* Company filters (Work board) */}
+        {isWork && (
+          <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+            <button onClick={() => setCompanyFilter('all')} className="text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 transition" style={{ background: companyFilter === 'all' ? 'var(--color-accent)' : 'var(--color-bg)', color: companyFilter === 'all' ? 'var(--color-on-accent)' : 'var(--color-muted)', border: '1px solid var(--color-border)' }}>All</button>
+            {COMPANIES.map((c) => (
+              <button key={c.id} onClick={() => setCompanyFilter(c.id)} className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1.5 transition" style={{ background: companyFilter === c.id ? 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))' : 'var(--color-bg)', color: 'var(--color-text)', border: `1px solid ${companyFilter === c.id ? 'var(--color-accent)' : 'var(--color-border)'}` }}>
+                <CoLogo id={c.id} h={15} /> {c.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Category filters */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           {(['All', ...CATS] as const).map((c) => (
             <button key={c} onClick={() => setCatFilter(c)} className="text-xs font-semibold px-3 py-1 rounded-full transition" style={{ background: catFilter === c ? 'var(--color-accent)' : 'var(--color-bg)', color: catFilter === c ? 'var(--color-on-accent)' : 'var(--color-muted)', border: '1px solid var(--color-border)' }}>{c}</button>
           ))}
         </div>
 
-        {masterAdding && (
+        {!isWork && masterAdding && (
           <div className="flex gap-2 mb-3 flex-wrap">
-            <input autoFocus value={masterDraft} onChange={(e) => setMasterDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitMaster(); if (e.key === 'Escape') setMasterAdding(false) }} placeholder="New task…" className="flex-1 min-w-[160px] rounded-lg px-3 py-2 text-sm outline-none" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
-            <select value={masterCat} onChange={(e) => setMasterCat(e.target.value as Cat)} className="rounded-lg px-2 py-2 text-sm outline-none" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
-              {CATS.map((c) => <option key={c}>{c}</option>)}
-            </select>
+            <input autoFocus value={masterDraft} onChange={(e) => setMasterDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitMaster(); if (e.key === 'Escape') setMasterAdding(false) }} placeholder="New task…" className="flex-1 min-w-[160px] rounded-lg px-3 py-2 text-sm outline-none" style={fieldStyle} />
+            <select value={masterCat} onChange={(e) => setMasterCat(e.target.value as Cat)} className="rounded-lg px-2 py-2 text-sm outline-none" style={fieldStyle}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
             <Button onClick={submitMaster}>Add</Button>
           </div>
         )}
 
         {masterItems.length === 0 ? (
           <p className="text-sm py-4 text-center" style={{ color: 'var(--color-muted)' }}>
-            {board.backlog.filter((i) => !i.done).length === 0 ? 'Nothing here yet. Add tasks, then drag them up onto a day.' : 'No tasks in this category.'}
+            {companyEmpty ? `No tasks for ${selCompany?.name} yet. Add a task to get started.` : board.backlog.filter((i) => !i.done).length === 0 ? 'Nothing here yet. Add tasks, then drag them up onto a day.' : 'No tasks match these filters.'}
           </p>
         ) : (
           <ul className="flex flex-col gap-1">
             {masterItems.map((i) => (
-              <TaskRow key={i.id} item={i} showCat onToggle={() => toggle(BACKLOG, i.id)} onRemove={() => remove(BACKLOG, i.id)} onOpen={() => setSelected({ bucket: BACKLOG, id: i.id })} onDragStart={() => setDrag({ from: BACKLOG, id: i.id })} />
+              <TaskRow key={i.id} item={i} variant="full" onToggle={() => toggle(BACKLOG, i.id)} onRemove={() => remove(BACKLOG, i.id)} onOpen={() => setSelected({ bucket: BACKLOG, id: i.id })} onDragStart={() => setDrag({ from: BACKLOG, id: i.id })} />
             ))}
           </ul>
         )}
@@ -296,13 +406,76 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
                 <button onClick={() => toggle(where, item.id)} className="h-4 w-4 rounded grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: 'var(--color-accent)' }} title="Mark not done">
                   <IconCheck width={11} height={11} style={{ color: 'var(--color-on-accent)' }} />
                 </button>
-                <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: 'line-through', opacity: 0.6 }}>{item.text}</span>
+                {companyById(item.company) && <CoLogo id={item.company} h={13} />}
+                <span className="flex-1 text-sm truncate" style={{ color: 'var(--color-text)', textDecoration: 'line-through', opacity: 0.6 }}>{item.text}</span>
                 <span className="text-xs tnum shrink-0" style={{ color: 'var(--color-muted)' }}>{where === BACKLOG ? 'Master List' : where} · {fmtDone(item.completedAt)}</span>
                 <button onClick={() => remove(where, item.id)} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
               </li>
             ))}
           </ul>
         </Card>
+      )}
+
+      {/* Add task modal (Work board) */}
+      {modal && (
+        <>
+          <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setModal(null)} />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[92%] max-w-lg max-h-[90vh] overflow-y-auto p-5 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>New task</h3>
+              <button onClick={() => setModal(null)} className="text-lg" style={{ color: 'var(--color-muted)' }} aria-label="Close">✕</button>
+            </div>
+
+            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Task title</label>
+            <Input value={mTitle} onChange={(e) => setMTitle(e.target.value)} placeholder="What needs doing?" className="mb-3 mt-1" autoFocus />
+
+            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Company <span style={{ color: '#c0504d' }}>*</span></label>
+            <div className="flex flex-wrap gap-2 mt-1 mb-2">
+              {COMPANIES.map((c) => (
+                <button key={c.id} onClick={() => setMCompany(c.id)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition" style={{ background: mCompany === c.id ? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface))' : 'var(--color-bg)', border: `1px solid ${mCompany === c.id ? 'var(--color-accent)' : 'var(--color-border)'}` }}>
+                  <CoLogo id={c.id} h={18} /> <span className="text-sm" style={{ color: 'var(--color-text)' }}>{c.name}</span>
+                </button>
+              ))}
+            </div>
+            {mCompany && (
+              <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl" style={{ background: 'var(--color-bg)' }}>
+                <CoLogo id={mCompany} h={22} />
+                <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{companyById(mCompany)?.name}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Category</label>
+                <select value={mCat} onChange={(e) => setMCat(e.target.value as Cat)} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Priority</label>
+                <select value={mPriority} onChange={(e) => setMPriority(e.target.value as Priority)} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle}>{PRIORITIES.map((p) => <option key={p}>{p}</option>)}</select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Scheduled day</label>
+                <select value={mDay} onChange={(e) => setMDay(e.target.value)} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle}>
+                  <option value="">Master List (unscheduled)</option>
+                  {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Due date</label>
+                <input type="date" value={mDue} onChange={(e) => setMDue(e.target.value)} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle} />
+              </div>
+            </div>
+
+            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Description</label>
+            <textarea value={mDesc} onChange={(e) => setMDesc(e.target.value)} rows={3} placeholder="Optional details…" className="w-full mb-1 mt-1 rounded-xl px-3 py-2 text-sm outline-none resize-y" style={fieldStyle} />
+
+            {mError && <p className="text-sm mt-1 mb-1" style={{ color: '#c0504d' }}>{mError}</p>}
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="ghost" onClick={() => setModal(null)}>Cancel</Button>
+              <Button onClick={saveModal}><IconCheck width={16} height={16} /> Add task</Button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Task detail drawer */}
@@ -316,23 +489,44 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
             </div>
             <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Task</label>
             <Input value={selItem.text} onChange={(e) => updateItem(selected.bucket, selItem.id, { text: e.target.value })} className="mb-3 mt-1" />
-            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Notes</label>
-            <textarea value={selItem.notes ?? ''} onChange={(e) => updateItem(selected.bucket, selItem.id, { notes: e.target.value })} rows={4} placeholder="Add notes…" className="w-full mb-3 mt-1 rounded-xl px-3 py-2 text-sm outline-none resize-y" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+            {isWork && (
+              <>
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Company</label>
+                <div className="flex flex-wrap gap-2 mt-1 mb-3">
+                  {COMPANIES.map((c) => (
+                    <button key={c.id} onClick={() => updateItem(selected.bucket, selItem.id, { company: c.id })} className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl" style={{ background: selItem.company === c.id ? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface))' : 'var(--color-bg)', border: `1px solid ${selItem.company === c.id ? 'var(--color-accent)' : 'var(--color-border)'}` }}>
+                      <CoLogo id={c.id} h={16} /> <span className="text-xs" style={{ color: 'var(--color-text)' }}>{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Description</label>
+            <textarea value={selItem.desc ?? selItem.notes ?? ''} onChange={(e) => updateItem(selected.bucket, selItem.id, { desc: e.target.value })} rows={3} placeholder="Add details…" className="w-full mb-3 mt-1 rounded-xl px-3 py-2 text-sm outline-none resize-y" style={fieldStyle} />
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Due time</label>
-                <input type="time" value={selItem.time ?? ''} onChange={(e) => updateItem(selected.bucket, selItem.id, { time: e.target.value || undefined })} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Category</label>
+                <select value={selItem.cat ?? ''} onChange={(e) => updateItem(selected.bucket, selItem.id, { cat: (e.target.value || undefined) as Cat | undefined })} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle}>
+                  <option value="">—</option>{CATS.map((c) => <option key={c}>{c}</option>)}
+                </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Category</label>
-                <select value={selItem.cat ?? ''} onChange={(e) => updateItem(selected.bucket, selItem.id, { cat: (e.target.value || undefined) as Cat | undefined })} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
-                  <option value="">—</option>
-                  {CATS.map((c) => <option key={c}>{c}</option>)}
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Priority</label>
+                <select value={selItem.priority ?? ''} onChange={(e) => updateItem(selected.bucket, selItem.id, { priority: (e.target.value || undefined) as Priority | undefined })} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle}>
+                  <option value="">—</option>{PRIORITIES.map((p) => <option key={p}>{p}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Due date</label>
+                <input type="date" value={selItem.due ?? ''} onChange={(e) => updateItem(selected.bucket, selItem.id, { due: e.target.value || undefined })} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Due time</label>
+                <input type="time" value={selItem.time ?? ''} onChange={(e) => updateItem(selected.bucket, selItem.id, { time: e.target.value || undefined })} className="w-full mt-1 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle} />
               </div>
             </div>
             <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Move to</label>
-            <select value={selected.bucket} onChange={(e) => { const to = e.target.value; moveItem(selected.bucket, to, selItem.id); setSelected({ bucket: to, id: selItem.id }) }} className="w-full mt-1 mb-5 rounded-xl px-3 py-2 text-sm outline-none" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+            <select value={selected.bucket} onChange={(e) => { const to = e.target.value; moveItem(selected.bucket, to, selItem.id); setSelected({ bucket: to, id: selItem.id }) }} className="w-full mt-1 mb-5 rounded-xl px-3 py-2 text-sm outline-none" style={fieldStyle}>
               <option value={BACKLOG}>Master List</option>
               {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
