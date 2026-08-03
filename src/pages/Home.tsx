@@ -1,23 +1,31 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type SVGProps } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Button, Input } from '../components/ui'
-import { IconTasks, IconPayments, IconCalendar, IconHealth, IconBell, IconPlus, IconCheck, IconTrash } from '../components/icons'
+import { IconCheck, IconPayments, IconHome, IconPlus, IconTrash, IconBell } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
-import { taskAgenda } from '../lib/agenda'
-import { todayISO, daysUntil, formatDayShort, parseDate } from '../lib/dates'
+import { todayISO, startOfWeek, toISO } from '../lib/dates'
 import { money } from '../lib/format'
 
 type Task = { id: string; text: string; done: boolean; created: number; due?: string }
 type Scope = 'week' | 'weekend' | 'all'
 type NonNeg = { id: string; text: string; scope?: Scope }
-const SCOPE_LABEL: Record<Scope, string> = { week: 'Weekdays', weekend: 'Weekends', all: 'Every day' }
 type Bill = { id: string; name: string; amount: number; dueDay?: number }
-type Event = { id: string; date: string; title: string }
-type Appt = { id: string; who: string; what: string; date: string }
-type Member = { id: string; name: string; birthday: string }
-type Weigh = { id: string; date: string; value: number; bodyFat?: number }
-type Scan = { id: string; date: string; bodyFatPct?: number }
+type WItem = { id: string; text: string; done: boolean; completedAt?: number }
+type WBoard = { backlog: WItem[]; weeks: Record<string, Record<string, WItem[]>> }
+
+const SCOPE_LABEL: Record<Scope, string> = { week: 'Weekdays', weekend: 'Weekends', all: 'Every day' }
+const WDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+const normBoard = (b: unknown): WBoard => {
+  const x = (b ?? {}) as WBoard
+  return Array.isArray(x.backlog) && x.weeks ? x : { backlog: Array.isArray(x.backlog) ? x.backlog : [], weeks: {} }
+}
+const openBoardItems = (b: WBoard, weekKey: string, limit: number): WItem[] => {
+  const week = b.weeks[weekKey] ?? {}
+  const dayItems = WDAYS.flatMap((d) => week[d] ?? [])
+  return [...dayItems, ...b.backlog].filter((i) => !i.done).slice(0, limit)
+}
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -25,6 +33,22 @@ function greeting(): string {
   if (h < 18) return 'Good afternoon'
   return 'Good evening'
 }
+
+const IconTarget = (p: SVGProps<SVGSVGElement>) => (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.4" fill="currentColor" />
+  </svg>
+)
+const IconBriefcase = (p: SVGProps<SVGSVGElement>) => (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M3 12h18" />
+  </svg>
+)
+const IconSlider = (p: SVGProps<SVGSVGElement>) => (
+  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" {...p}>
+    <path d="M4 6h11M18 6h2M4 12h2M9 12h11M4 18h11M18 18h2" /><circle cx="16" cy="6" r="2" /><circle cx="7" cy="12" r="2" /><circle cx="16" cy="18" r="2" />
+  </svg>
+)
 
 /** Circular completion ring — accent while in progress, green when finished. */
 function ProgressRing({ pct, done, size = 58 }: { pct: number; done: boolean; size?: number }) {
@@ -46,79 +70,74 @@ function ProgressRing({ pct, done, size = 58 }: { pct: number; done: boolean; si
   )
 }
 
+/** Shell for a Today's-Focus card: coloured icon + title, a "View all" link, body, and a footer link. */
+function FocusCard({ accent, icon, title, viewAllLabel = 'View all', onViewAll, viewAllTo, footerLabel, footerTo, onFooter, children }: {
+  accent: string; icon: React.ReactNode; title: string
+  viewAllLabel?: string; onViewAll?: () => void; viewAllTo?: string
+  footerLabel: string; footerTo?: string; onFooter?: () => void
+  children: React.ReactNode
+}) {
+  const viewAll = viewAllTo
+    ? <Link to={viewAllTo} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>{viewAllLabel} →</Link>
+    : <button onClick={onViewAll} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>{viewAllLabel} →</button>
+  return (
+    <div className="rounded-[20px] p-5 flex flex-col" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <span style={{ color: accent }}>{icon}</span>
+          <h3 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>{title}</h3>
+        </div>
+        {viewAll}
+      </div>
+      <div className="flex-1">{children}</div>
+      <div className="mt-4 pt-3 text-center" style={{ borderTop: '1px solid var(--color-border)' }}>
+        {footerTo
+          ? <Link to={footerTo} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</Link>
+          : <button onClick={onFooter} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</button>}
+      </div>
+    </div>
+  )
+}
+
+/** A single open task row inside a Business/Home priorities card. Checking it completes the task. */
+function BoardRow({ item, accent, onComplete }: { item: WItem; accent: string; onComplete: () => void }) {
+  return (
+    <li className="flex items-center gap-3 text-sm">
+      <button onClick={onComplete} className="h-5 w-5 rounded-md shrink-0 transition" style={{ border: `2px solid ${accent}`, background: 'transparent' }} aria-label="Complete task" />
+      <span className="flex-1" style={{ color: 'var(--color-text)' }}>{item.text}</span>
+    </li>
+  )
+}
+
+/** Inline "+ Add a … task" input that drops a task into a board's backlog. */
+function AddRow({ accent, placeholder, onAdd }: { accent: string; placeholder: string; onAdd: (text: string) => void }) {
+  const [text, setText] = useState('')
+  const submit = () => { if (text.trim()) { onAdd(text); setText('') } }
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="grid place-items-center h-5 w-5 rounded-full shrink-0" style={{ color: accent }}><IconPlus width={15} height={15} /></span>
+      <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submit() }} onBlur={submit}
+        placeholder={placeholder} className="flex-1 bg-transparent outline-none text-sm" style={{ color: 'var(--color-text)' }} />
+    </div>
+  )
+}
+
 export default function Home() {
   const [profile] = useStore<{ name: string; photo?: string }>('profile', { name: 'Rolando Joan' })
-  const [tasks, setTasks] = useStore<Task[]>('tasks.master', [])
+  const [, setTasks] = useStore<Task[]>('tasks.master', [])
   const [bills] = useStore<Bill[]>('pay.bills', [])
   const [cells] = useStore<Record<string, number>>('pay.cells', {})
-  const [events] = useStore<Event[]>('calendar.events', [])
-  const [appts] = useStore<Appt[]>('family.appts', [])
-  const [members] = useStore<Member[]>('family.members', [])
-  const [weights] = useStore<Weigh[]>('health.weights', [])
-  const [scans] = useStore<Scan[]>('health.scans', [])
+  const [workBoard, setWorkBoard] = useStore<WBoard>('work.work', { backlog: [], weeks: {} })
+  const [homeBoard, setHomeBoard] = useStore<WBoard>('work.home', { backlog: [], weeks: {} })
   const [quick, setQuick] = useState('')
   const confirmDelete = useConfirmDelete()
-
-  // Daily non-negotiables: a personal must-do list that resets every day.
-  const [nonNegs, setNonNegs] = useStore<NonNeg[]>('home.nonneg', [])
-  const [nnToday, setNnToday] = useStore<{ date: string; done: string[]; times?: Record<string, number> }>('home.nonneg.today', { date: '', done: [] })
-  const [nnDraft, setNnDraft] = useState('')
-  const [nnView, setNnView] = useState<'today' | 'week' | 'weekend' | 'all'>('today')
-  const [shared, setShared] = useState(false)
 
   const today = todayISO()
   const now = new Date()
   const dateLabel = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
-
-  // Today's agenda: due tasks + planner + events + appointments dated today.
-  const todayItems = useMemo(() => {
-    const out: { text: string; tag: string; done?: boolean; id?: string }[] = []
-    tasks.filter((t) => t.due === today && !t.done).forEach((t) => out.push({ text: t.text, tag: 'Task', id: t.id }))
-    taskAgenda().filter((a) => a.date === today && (a.source === 'Home' || a.source === 'Work')).forEach((a) => out.push({ text: a.title, tag: a.source, done: a.done }))
-    events.filter((e) => e.date === today).forEach((e) => out.push({ text: e.title, tag: 'Event' }))
-    appts.filter((a) => a.date === today).forEach((a) => out.push({ text: `${a.who} — ${a.what}`, tag: 'Appt' }))
-    return out
-  }, [tasks, events, appts, today])
-
-  const completeTask = (id: string) => setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: true } : t))
-
-  // This month's upcoming (unpaid) bills, soonest due first.
-  const month = now.getMonth(), year = now.getFullYear()
   const monthShort = now.toLocaleDateString(undefined, { month: 'short' })
-  const upcomingBills = useMemo(
-    () => bills
-      .filter((b) => cells[`${year}:${b.id}:${month}`] === undefined)
-      .sort((a, b) => (a.dueDay ?? 99) - (b.dueDay ?? 99)),
-    [bills, cells, year, month],
-  )
-
-  // Coming up (next 7 days).
-  const coming = useMemo(() => {
-    const out: { text: string; days: number; tag: string }[] = []
-    const within = (d: number | null) => d !== null && d >= 0 && d <= 7
-    events.forEach((e) => { const d = daysUntil(e.date); if (within(d) && d! > 0) out.push({ text: e.title, days: d!, tag: 'Event' }) })
-    appts.forEach((a) => { const d = daysUntil(a.date); if (within(d) && d! > 0) out.push({ text: `${a.who} — ${a.what}`, days: d!, tag: 'Appt' }) })
-    tasks.forEach((t) => { if (t.done || !t.due) return; const d = daysUntil(t.due); if (within(d) && d! > 0) out.push({ text: t.text, days: d!, tag: 'Task' }) })
-    members.forEach((m) => {
-      if (!m.birthday) return
-      const [, mm, dd] = m.birthday.split('-').map(Number)
-      if (!mm || !dd) return
-      let next = new Date(now.getFullYear(), mm - 1, dd)
-      if (next < new Date(now.getFullYear(), now.getMonth(), now.getDate())) next = new Date(now.getFullYear() + 1, mm - 1, dd)
-      const d = Math.round((next.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000)
-      if (d >= 0 && d <= 7) out.push({ text: `${m.name}'s birthday 🎂`, days: d, tag: 'Birthday' })
-    })
-    return out.sort((a, b) => a.days - b.days).slice(0, 6)
-  }, [events, appts, tasks, members])
-
-  const latestWeight = useMemo(() => weights.length ? [...weights].sort((a, b) => b.date.localeCompare(a.date))[0] : null, [weights])
-  const latestBodyFat = useMemo(() => {
-    const entries = [
-      ...weights.filter((w) => w.bodyFat != null).map((w) => ({ date: w.date, v: w.bodyFat! })),
-      ...scans.filter((s) => s.bodyFatPct != null).map((s) => ({ date: s.date, v: s.bodyFatPct! })),
-    ].sort((a, b) => b.date.localeCompare(a.date))
-    return entries[0]?.v ?? null
-  }, [weights, scans])
+  const month = now.getMonth(), year = now.getFullYear()
+  const weekKey = toISO(startOfWeek(now))
 
   const addQuick = () => {
     const t = quick.trim()
@@ -127,297 +146,224 @@ export default function Home() {
     setQuick('')
   }
 
-  // Completion is tracked per-day; a fresh day starts everything unchecked.
+  // ---- Non-negotiables (home.nonneg) ----
+  const [nonNegs, setNonNegs] = useStore<NonNeg[]>('home.nonneg', [])
+  const [nnToday, setNnToday] = useStore<{ date: string; done: string[] }>('home.nonneg.today', { date: '', done: [] })
+  const [nnDraft, setNnDraft] = useState('')
+  const [nnView, setNnView] = useState<Scope>('week')
+  const [nnEdit, setNnEdit] = useState(false)
+
   const nnDone = nnToday.date === today ? nnToday.done : []
-  const nnTimes = nnToday.date === today ? (nnToday.times ?? {}) : {}
-  const fmtTime = (ts?: number) => ts ? new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : ''
-  const isWeekend = [0, 6].includes(new Date().getDay())
+  const isWeekend = [0, 6].includes(now.getDay())
   const scopeOf = (n: NonNeg): Scope => n.scope ?? 'all'
   const appliesToday = (n: NonNeg) => scopeOf(n) === 'all' || scopeOf(n) === (isWeekend ? 'weekend' : 'week')
-  const scopeForView: Record<typeof nnView, Scope> = { today: isWeekend ? 'weekend' : 'week', week: 'week', weekend: 'weekend', all: 'all' }
-  const visibleNonNegs = nonNegs.filter((n) => {
-    if (nnView === 'today') return appliesToday(n)
-    if (nnView === 'all') return true
-    return scopeOf(n) === nnView || scopeOf(n) === 'all'
-  })
   const todayList = nonNegs.filter(appliesToday)
   const nnCompleted = todayList.filter((n) => nnDone.includes(n.id)).length
+  const nnPct = todayList.length ? Math.round((nnCompleted / todayList.length) * 100) : 0
+  const nnAllDone = todayList.length > 0 && nnCompleted === todayList.length
+  const nnOrdered = [...todayList.filter((n) => nnDone.includes(n.id)), ...todayList.filter((n) => !nnDone.includes(n.id))]
+  const firstOpenId = todayList.find((n) => !nnDone.includes(n.id))?.id
   const toggleNonNeg = (id: string) => {
-    const isDone = nnDone.includes(id)
-    const done = isDone ? nnDone.filter((x) => x !== id) : [...nnDone, id]
-    const times = { ...nnTimes }
-    if (isDone) delete times[id]; else times[id] = Date.now()
-    setNnToday({ date: today, done, times })
+    const done = nnDone.includes(id) ? nnDone.filter((x) => x !== id) : [...nnDone, id]
+    setNnToday({ date: today, done })
   }
+  const editList = nonNegs.filter((n) => scopeOf(n) === nnView)
   const addNonNeg = () => {
     const t = nnDraft.trim()
     if (!t) return
-    setNonNegs((prev) => [...prev, { id: uid('nn'), text: t, scope: scopeForView[nnView] }])
+    setNonNegs((prev) => [...prev, { id: uid('nn'), text: t, scope: nnView }])
     setNnDraft('')
   }
   const removeNonNeg = (id: string) => {
     setNonNegs((prev) => prev.filter((n) => n.id !== id))
-    if (nnDone.includes(id)) { const times = { ...nnTimes }; delete times[id]; setNnToday({ date: today, done: nnDone.filter((x) => x !== id), times }) }
+    if (nnDone.includes(id)) setNnToday({ date: today, done: nnDone.filter((x) => x !== id) })
   }
-  // Today view is split: what's still open (left) vs. what's done (right).
-  const nnUpNext = todayList.filter((n) => !nnDone.includes(n.id))
-  const nnDoneList = todayList.filter((n) => nnDone.includes(n.id)).sort((a, b) => (nnTimes[a.id] ?? 0) - (nnTimes[b.id] ?? 0))
-  const nnPct = todayList.length ? Math.round((nnCompleted / todayList.length) * 100) : 0
-  const nnAllDone = todayList.length > 0 && nnCompleted === todayList.length
-  const shareNonNegs = async () => {
-    const lines = todayList.map((n) => `${nnDone.includes(n.id) ? '✅' : '⬜️'} ${n.text}`).join('\n')
-    const text = `Non-negotiables — ${nnCompleted}/${todayList.length} done today\n${lines}`
-    try {
-      if (navigator.share) { await navigator.share({ title: 'My non-negotiables', text }); return }
-      await navigator.clipboard.writeText(text)
-      setShared(true); setTimeout(() => setShared(false), 1800)
-    } catch { /* share cancelled or unavailable */ }
-  }
+
+  // ---- Business (work.work) & Home (work.home) priorities ----
+  const bizItems = openBoardItems(normBoard(workBoard), weekKey, 5)
+  const homeTaskItems = openBoardItems(normBoard(homeBoard), weekKey, 5)
+  const completeBoardItem = (setB: (fn: (p: WBoard) => WBoard) => void, id: string) => setB((prev) => {
+    const b = normBoard(prev)
+    const mark = (arr?: WItem[]) => (arr ?? []).map((i) => i.id === id ? { ...i, done: true, completedAt: Date.now() } : i)
+    const weeks: WBoard['weeks'] = {}
+    for (const [wk, days] of Object.entries(b.weeks)) { const nd: Record<string, WItem[]> = {}; for (const [d, items] of Object.entries(days)) nd[d] = mark(items); weeks[wk] = nd }
+    return { backlog: mark(b.backlog), weeks }
+  })
+  const addBoardTask = (setB: (fn: (p: WBoard) => WBoard) => void, text: string) => setB((prev) => {
+    const b = normBoard(prev)
+    return { ...b, backlog: [...b.backlog, { id: uid('w'), text: text.trim(), done: false }] }
+  })
+
+  // ---- Upcoming bills (pay.bills / pay.cells) ----
+  const upcomingBills = useMemo(
+    () => bills
+      .filter((b) => cells[`${year}:${b.id}:${month}`] === undefined)
+      .sort((a, b) => (a.dueDay ?? 99) - (b.dueDay ?? 99)),
+    [bills, cells, year, month],
+  )
+
+  const initials = (profile.name || 'R').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
     <div className="fade-up">
-      <div className="mb-7 flex items-center gap-4">
-        {profile.photo && <img src={profile.photo} alt="" className="h-14 w-14 rounded-full object-cover shrink-0" />}
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{dateLabel}</p>
           <h1 className="text-[32px] font-semibold leading-tight mt-1" style={{ color: 'var(--color-text)' }}>
             {greeting()}, {(profile.name || 'Rolando').split(' ')[0]} 👋
           </h1>
         </div>
+        <div className="flex items-center gap-2 shrink-0 pt-1">
+          <Link to="/notifications" className="h-10 w-10 rounded-full grid place-items-center" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-muted)' }} aria-label="Notifications">
+            <IconBell width={19} height={19} />
+          </Link>
+          <Link to="/settings" className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+            {profile.photo
+              ? <img src={profile.photo} alt="" className="h-8 w-8 rounded-full object-cover" />
+              : <span className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>{initials}</span>}
+            <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{(profile.name || 'Rolando').split(' ')[0]}</span>
+          </Link>
+        </div>
       </div>
 
       {/* Quick add */}
-      <Card className="p-3 mb-6 flex gap-2">
+      <Card className="p-3 mb-8 flex gap-2">
         <Input value={quick} onChange={(e) => setQuick(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addQuick() }} placeholder="Quick add a task for today…" />
         <Button onClick={addQuick}><IconPlus width={16} height={16} /> Add</Button>
       </Card>
 
-      {/* Daily non-negotiables — the handful of things that must get done, by day type. */}
-      <Card className="p-5 mb-6">
-        <h2 className="font-bold text-lg flex items-center gap-2 mb-3" style={{ color: 'var(--color-text)' }}>
-          <IconCheck width={18} height={18} /> Non-negotiables
-        </h2>
-
-        {/* Progress ring — turns green when the day is complete; shareable */}
-        {todayList.length > 0 && (
-          <div className="flex items-center gap-4 mb-4 p-3 rounded-xl" style={{ background: nnAllDone ? 'color-mix(in srgb, #16a34a 12%, var(--color-bg))' : 'var(--color-bg)', border: nnAllDone ? '1px solid color-mix(in srgb, #16a34a 40%, transparent)' : '1px solid transparent' }}>
-            <ProgressRing pct={nnPct} done={nnAllDone} />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold" style={{ color: nnAllDone ? '#16a34a' : 'var(--color-text)' }}>
-                {nnAllDone ? 'All done — game strong! 💪' : `${nnCompleted} of ${todayList.length} done today`}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
-                {nnAllDone ? 'Every non-negotiable checked off.' : 'Keep going — check them off below.'}
-              </p>
-            </div>
-            <Button variant="outline" onClick={shareNonNegs}>{shared ? 'Copied!' : 'Share'}</Button>
+      {/* Today's Main Focus */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2.5">
+          <span style={{ color: 'var(--color-accent)' }}><IconTarget /></span>
+          <div>
+            <h2 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>Today's Main Focus</h2>
+            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Your top priorities across the 3 areas that drive your day.</p>
           </div>
-        )}
-
-        {/* View tabs: today vs each set */}
-        <div className="inline-flex rounded-xl p-1 mb-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
-          {([['today', 'Today'], ['week', 'Weekdays'], ['weekend', 'Weekends'], ['all', 'Every day']] as const).map(([v, label]) => (
-            <button
-              key={v}
-              onClick={() => setNnView(v)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
-              style={{ background: nnView === v ? 'var(--color-accent)' : 'transparent', color: nnView === v ? 'var(--color-on-accent)' : 'var(--color-muted)' }}
-            >
-              {label}
-            </button>
-          ))}
         </div>
+        <button onClick={() => setNnEdit(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl shrink-0" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+          <IconSlider /> Customize
+        </button>
+      </div>
 
-        {nnView === 'today' ? (
-          todayList.length === 0 ? (
-            <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>Nothing set for today. Add one below or check the Weekdays / Weekends tabs.</p>
+      <div className="grid lg:grid-cols-3 gap-5 mb-6">
+        {/* Non-negotiables */}
+        <FocusCard accent="var(--color-accent)" icon={<IconCheck width={22} height={22} />} title="Non-negotiables" onViewAll={() => setNnEdit(true)} footerLabel="Manage non-negotiables" onFooter={() => setNnEdit(true)}>
+          {todayList.length === 0 ? (
+            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>None set for today. Tap Customize to add your daily non-negotiables.</p>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-5 mb-3">
-              {/* Up next — what's still on you today */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--color-muted)' }}>Up next</h3>
-                  <span className="text-[11px] font-semibold" style={{ color: 'var(--color-muted)' }}>{nnUpNext.length} left</span>
+            <>
+              <div className="flex items-center gap-4 mb-4 p-3 rounded-xl" style={{ background: nnAllDone ? 'color-mix(in srgb, #16a34a 12%, var(--color-bg))' : 'var(--color-bg)' }}>
+                <ProgressRing pct={nnPct} done={nnAllDone} size={54} />
+                <div>
+                  <p className="font-semibold text-sm" style={{ color: nnAllDone ? '#16a34a' : 'var(--color-text)' }}>{nnAllDone ? 'All done — game strong! 💪' : `${nnCompleted} of ${todayList.length} done today`}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{nnAllDone ? 'Every non-negotiable checked.' : 'Keep going — check them off below.'}</p>
                 </div>
-                {nnUpNext.length === 0 ? (
-                  <p className="text-sm py-3 px-3 rounded-xl text-center" style={{ background: 'color-mix(in srgb, #16a34a 10%, var(--color-bg))', color: '#15803d' }}>All checked off — game strong! 💪</p>
-                ) : (
-                  <ul className="flex flex-col gap-1.5">
-                    {nnUpNext.map((n, idx) => (
-                      <li key={n.id} className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2"
-                        style={idx === 0
-                          ? { background: 'color-mix(in srgb, var(--color-accent) 9%, var(--color-bg))', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }
-                          : { border: '1px solid transparent' }}>
-                        <button onClick={() => toggleNonNeg(n.id)} className="h-5 w-5 rounded-md grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: 'transparent' }} aria-label="Mark done" />
-                        <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{n.text}</span>
-                        {idx === 0 && <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full shrink-0" style={{ color: 'var(--color-accent)', background: 'var(--color-surface)', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }}>Next up</span>}
-                        <button onClick={() => confirmDelete({ label: `“${n.text}”`, detail: 'This non-negotiable will be removed.', onConfirm: () => removeNonNeg(n.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove"><IconTrash width={15} height={15} /></button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
+              <ul className="flex flex-col gap-2.5">
+                {nnOrdered.map((n) => {
+                  const done = nnDone.includes(n.id)
+                  return (
+                    <li key={n.id} className="flex items-center gap-3 text-sm">
+                      <button onClick={() => toggleNonNeg(n.id)} className="h-5 w-5 rounded-md grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: done ? 'var(--color-accent)' : 'transparent' }} aria-label={done ? 'Mark not done' : 'Mark done'}>
+                        {done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
+                      </button>
+                      <span className="flex-1" style={{ color: 'var(--color-text)', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.5 : 1 }}>{n.text}</span>
+                      {!done && n.id === firstOpenId && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: 'var(--color-accent)', background: 'var(--color-surface)', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }}>Next up</span>}
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+        </FocusCard>
 
-              {/* Done today — a running record of the day, with the time you finished */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--color-muted)' }}>Done today</h3>
-                  <span className="text-[11px] font-semibold tnum px-1.5 rounded-full" style={{ background: nnDoneList.length ? 'color-mix(in srgb, #16a34a 16%, var(--color-bg))' : 'var(--color-bg)', color: nnDoneList.length ? '#15803d' : 'var(--color-muted)' }}>{nnDoneList.length}</span>
-                </div>
-                {nnDoneList.length === 0 ? (
-                  <p className="text-sm py-4 px-3 rounded-xl text-center" style={{ background: 'var(--color-bg)', border: '1px dashed var(--color-border)', color: 'var(--color-muted)' }}>Check one off and it lands here — your proof of a day well spent.</p>
-                ) : (
-                  <ul className="flex flex-col gap-1.5">
-                    {nnDoneList.map((n) => (
-                      <li key={n.id} className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2" style={{ background: 'color-mix(in srgb, #16a34a 10%, var(--color-bg))', border: '1px solid color-mix(in srgb, #16a34a 28%, transparent)' }}>
-                        <button onClick={() => toggleNonNeg(n.id)} className="h-5 w-5 rounded-md grid place-items-center shrink-0" style={{ border: '2px solid #16a34a', background: '#16a34a' }} aria-label="Mark not done">
-                          <IconCheck width={12} height={12} style={{ color: '#fff' }} />
-                        </button>
-                        <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{n.text}</span>
-                        <span className="text-xs font-semibold tnum shrink-0" style={{ color: '#15803d' }}>{fmtTime(nnTimes[n.id])}</span>
-                        <button onClick={() => confirmDelete({ label: `“${n.text}”`, detail: 'This non-negotiable will be removed.', onConfirm: () => removeNonNeg(n.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove"><IconTrash width={14} height={14} /></button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )
-        ) : visibleNonNegs.length === 0 ? (
-          <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>None here yet — add one below. They reset each morning.</p>
+        {/* Business priorities → Work tasks */}
+        <FocusCard accent="#7c3aed" icon={<IconBriefcase />} title="Business priorities" viewAllTo="/work-tasks" footerLabel="Open full tab" footerTo="/work-tasks">
+          {bizItems.length === 0 ? (
+            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>No open work tasks this week. Add one below.</p>
+          ) : (
+            <ul className="flex flex-col gap-3 mb-3">
+              {bizItems.map((it) => <BoardRow key={it.id} item={it} accent="#7c3aed" onComplete={() => completeBoardItem(setWorkBoard, it.id)} />)}
+            </ul>
+          )}
+          <div className="pt-2" style={{ borderTop: bizItems.length ? '1px solid var(--color-border)' : 'none' }}>
+            <AddRow accent="#7c3aed" placeholder="Add a business task" onAdd={(t) => addBoardTask(setWorkBoard, t)} />
+          </div>
+        </FocusCard>
+
+        {/* Home priorities → Home tasks */}
+        <FocusCard accent="#16a34a" icon={<IconHome width={22} height={22} />} title="Home priorities" viewAllTo="/home-tasks" footerLabel="Open full tab" footerTo="/home-tasks">
+          {homeTaskItems.length === 0 ? (
+            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>No open home tasks this week. Add one below.</p>
+          ) : (
+            <ul className="flex flex-col gap-3 mb-3">
+              {homeTaskItems.map((it) => <BoardRow key={it.id} item={it} accent="#16a34a" onComplete={() => completeBoardItem(setHomeBoard, it.id)} />)}
+            </ul>
+          )}
+          <div className="pt-2" style={{ borderTop: homeTaskItems.length ? '1px solid var(--color-border)' : 'none' }}>
+            <AddRow accent="#16a34a" placeholder="Add a home task" onAdd={(t) => addBoardTask(setHomeBoard, t)} />
+          </div>
+        </FocusCard>
+      </div>
+
+      {/* Upcoming bills */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconPayments width={20} height={20} /> Upcoming bills</h2>
+          <Link to="/finances" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>View all →</Link>
+        </div>
+        {upcomingBills.length === 0 ? (
+          <p className="text-sm py-4 text-center" style={{ color: 'var(--color-muted)' }}>{bills.length === 0 ? 'Add bills in Finances to see them here.' : 'All bills handled this month. 🎉'}</p>
         ) : (
-          <ul className="flex flex-col gap-1.5 mb-3">
-            {visibleNonNegs.map((n) => {
-              const done = nnDone.includes(n.id)
-              return (
-                <li key={n.id} className="group flex items-center gap-2.5">
-                  <button
-                    onClick={() => toggleNonNeg(n.id)}
-                    className="h-5 w-5 rounded-md grid place-items-center shrink-0 transition"
-                    style={{ border: '2px solid var(--color-accent)', background: done ? 'var(--color-accent)' : 'transparent' }}
-                    aria-label={done ? 'Mark not done' : 'Mark done'}
-                  >
-                    {done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
-                  </button>
-                  <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.5 : 1 }}>
-                    {n.text}
-                  </span>
-                  {scopeOf(n) !== (nnView as Scope) && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{SCOPE_LABEL[scopeOf(n)]}</span>
-                  )}
-                  <button onClick={() => confirmDelete({ label: `“${n.text}”`, detail: 'This non-negotiable will be removed.', onConfirm: () => removeNonNeg(n.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove">
-                    <IconTrash width={15} height={15} />
-                  </button>
-                </li>
-              )
-            })}
+          <ul className="flex flex-col">
+            {upcomingBills.slice(0, 6).map((b, i) => (
+              <li key={b.id} className="flex items-center gap-3 py-2.5 text-sm" style={{ borderTop: i === 0 ? 'none' : '1px solid var(--color-border)' }}>
+                <span className="text-sm font-semibold w-16 shrink-0 tnum" style={{ color: 'var(--color-accent)' }}>{b.dueDay ? `${monthShort} ${b.dueDay}` : '—'}</span>
+                <span className="flex-1 truncate" style={{ color: 'var(--color-text)' }}>{b.name}</span>
+                <span className="font-semibold tnum shrink-0" style={{ color: 'var(--color-text)' }}>{money(b.amount)}</span>
+              </li>
+            ))}
           </ul>
         )}
-
-        <div className="flex gap-2">
-          <Input value={nnDraft} onChange={(e) => setNnDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addNonNeg() }} placeholder={`Add to ${nnView === 'today' ? (isWeekend ? 'Weekends' : 'Weekdays') : SCOPE_LABEL[scopeForView[nnView]]}…`} />
-          <Button variant="outline" onClick={addNonNeg}><IconPlus width={16} height={16} /> Add</Button>
-        </div>
+        <Link to="/finances" className="mt-4 block text-center py-2.5 rounded-xl text-sm font-semibold" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>Manage bills &amp; finances →</Link>
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Today */}
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconTasks width={18} height={18} /> Today</h2>
-            <Link to="/home-tasks" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open week →</Link>
-          </div>
-          {todayItems.length === 0 ? (
-            <p className="text-sm py-6 text-center" style={{ color: 'var(--color-muted)' }}>Nothing scheduled today. Enjoy! ✨</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {todayItems.map((it, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-sm">
-                  {it.id ? (
-                    <button onClick={() => completeTask(it.id!)} className="h-4 w-4 rounded grid place-items-center shrink-0 transition" style={{ border: '2px solid var(--color-accent)' }} aria-label="Complete task" />
-                  ) : (
-                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent)', opacity: it.done ? 0.4 : 1 }} />
-                  )}
-                  <span className="flex-1" style={{ color: 'var(--color-text)', textDecoration: it.done ? 'line-through' : 'none', opacity: it.done ? 0.5 : 1 }}>{it.text}</span>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{it.tag}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        {/* Upcoming bills — date + amount */}
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconPayments width={18} height={18} /> Upcoming bills</h2>
-            <Link to="/finances" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open →</Link>
-          </div>
-          {upcomingBills.length === 0 ? (
-            <p className="text-sm py-6 text-center" style={{ color: 'var(--color-muted)' }}>{bills.length === 0 ? 'Add bills in Finances to see them here.' : 'Nothing due this month.'}</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {upcomingBills.slice(0, 6).map((b) => (
-                <li key={b.id} className="flex items-center gap-2.5 text-sm">
-                  <span className="text-xs font-semibold w-14 shrink-0 tnum" style={{ color: 'var(--color-accent)' }}>{b.dueDay ? `${monthShort} ${b.dueDay}` : '—'}</span>
-                  <span className="flex-1 truncate" style={{ color: 'var(--color-text)' }}>{b.name}</span>
-                  <span className="font-semibold tnum shrink-0" style={{ color: 'var(--color-text)' }}>{money(b.amount)}</span>
-                </li>
-              ))}
-              {upcomingBills.length > 6 && <li className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>+{upcomingBills.length - 6} more</li>}
-            </ul>
-          )}
-        </Card>
-
-        {/* Coming up */}
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconBell width={18} height={18} /> Coming up</h2>
-            <Link to="/notifications" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>All →</Link>
-          </div>
-          {coming.length === 0 ? (
-            <p className="text-sm py-6 text-center" style={{ color: 'var(--color-muted)' }}>Nothing in the next 7 days.</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {coming.map((c, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-sm">
-                  <span className="text-xs font-semibold w-16 shrink-0" style={{ color: 'var(--color-accent)' }}>{c.days === 1 ? 'Tomorrow' : `${c.days} days`}</span>
-                  <span className="flex-1" style={{ color: 'var(--color-text)' }}>{c.text}</span>
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{c.tag}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        {/* Health + calendar quick */}
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconHealth width={18} height={18} /> Health</h2>
-            <Link to="/health" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open →</Link>
-          </div>
-          {latestWeight || latestBodyFat != null ? (
-            <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
-              {latestWeight && (
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{latestWeight.value}</span>
-                  <span className="text-sm" style={{ color: 'var(--color-muted)' }}>lbs · {(() => { const d = parseDate(latestWeight.date); return d ? formatDayShort(d) : latestWeight.date })()}</span>
-                </div>
-              )}
-              {latestBodyFat != null && (
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{latestBodyFat}%</span>
-                  <span className="text-sm" style={{ color: 'var(--color-muted)' }}>body fat</span>
-                </div>
-              )}
+      {/* Customize non-negotiables modal */}
+      {nnEdit && (
+        <>
+          <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setNnEdit(false)} />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[92%] max-w-lg max-h-[90vh] overflow-y-auto p-5 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)' }}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Non-negotiables</h3>
+              <button onClick={() => setNnEdit(false)} className="text-lg" style={{ color: 'var(--color-muted)' }} aria-label="Close">✕</button>
             </div>
-          ) : (
-            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Log a weight or upload a DEXA scan to see it here.</p>
-          )}
-          <Link to="/calendar" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>
-            <IconCalendar width={16} height={16} /> Open calendar
-          </Link>
-        </Card>
-      </div>
+            <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>Set the must-dos for each kind of day. They reset every morning.</p>
+            <div className="inline-flex rounded-xl p-1 mb-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+              {(['week', 'weekend', 'all'] as Scope[]).map((v) => (
+                <button key={v} onClick={() => setNnView(v)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition" style={{ background: nnView === v ? 'var(--color-accent)' : 'transparent', color: nnView === v ? 'var(--color-on-accent)' : 'var(--color-muted)' }}>{SCOPE_LABEL[v]}</button>
+              ))}
+            </div>
+            {editList.length === 0 ? (
+              <p className="text-sm mb-3 py-2" style={{ color: 'var(--color-muted)' }}>None in {SCOPE_LABEL[nnView]} yet — add one below.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5 mb-3">
+                {editList.map((n) => (
+                  <li key={n.id} className="group flex items-center gap-2.5 py-1.5 px-2 rounded-lg" style={{ background: 'var(--color-bg)' }}>
+                    <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{n.text}</span>
+                    <button onClick={() => confirmDelete({ label: `“${n.text}”`, detail: 'This non-negotiable will be removed.', onConfirm: () => removeNonNeg(n.id) })} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove"><IconTrash width={15} height={15} /></button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <Input value={nnDraft} onChange={(e) => setNnDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addNonNeg() }} placeholder={`Add to ${SCOPE_LABEL[nnView]}…`} />
+              <Button onClick={addNonNeg}><IconPlus width={16} height={16} /> Add</Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
