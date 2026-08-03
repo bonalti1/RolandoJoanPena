@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Card, PageHeader, Input, Button } from '../components/ui'
 import { IconPlus, IconTrash, IconCheck } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { startOfWeek, addDays, toISO, todayISO, isoWeek, formatWeekRange } from '../lib/dates'
 import { COMPANIES, companyById, type CompanyId } from '../lib/companies'
+import { money } from '../lib/format'
+
+type Bill = { id: string; name: string; amount: number; dueDay?: number }
+const ordinalDay = (n: number) => { const s = ['th', 'st', 'nd', 'rd']; const v = n % 100; return `${n}${s[(v - 20) % 10] || s[v] || s[0]}` }
 
 type Cat = 'Task' | 'Misc' | 'Legal'
 type Priority = 'Low' | 'Medium' | 'High'
@@ -99,9 +104,25 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const [masterAdding, setMasterAdding] = useState(false)
   const [masterDraft, setMasterDraft] = useState('')
   const [masterCat, setMasterCat] = useState<Cat>('Task')
-  const [catFilter, setCatFilter] = useState<'All' | Cat>('All')
+  const [catFilter, setCatFilter] = useState<'All' | Cat | 'Bills'>('All')
   const [rolledNote, setRolledNote] = useState(0)
   const [focusDay, setFocusDay] = useState<string | null>(null)
+
+  // Bills come straight from Finances so paying them can live as a to-do here.
+  const [bills] = useStore<Bill[]>('pay.bills', [])
+  const [payCells, setPayCells] = useStore<Record<string, number>>('pay.cells', {})
+  const nowDate = new Date()
+  const billKey = (id: string) => `${nowDate.getFullYear()}:${id}:${nowDate.getMonth()}`
+  const billPaid = (id: string) => payCells[billKey(id)] !== undefined
+  const toggleBillPaid = (b: Bill) => setPayCells((prev) => {
+    const next = { ...prev }; const k = billKey(b.id)
+    if (next[k] !== undefined) delete next[k]; else next[k] = b.amount || 0
+    return next
+  })
+  const sortedBills = [...bills].sort((a, b) => (a.dueDay ?? 99) - (b.dueDay ?? 99))
+  const billsUnpaid = sortedBills.filter((b) => !billPaid(b.id))
+  const billsDue = billsUnpaid.reduce((s, b) => s + (b.amount || 0), 0)
+  const monthName = nowDate.toLocaleDateString(undefined, { month: 'long' })
 
   // Company support (Work board only)
   const [companyFilter, setCompanyFilter] = useState<'all' | CompanyId>('all')
@@ -419,14 +440,19 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
           </div>
         )}
 
-        {/* Category filters */}
+        {/* Category filters (+ a Bills tab on the Home board) */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           {(['All', ...CATS] as const).map((c) => (
             <button key={c} onClick={() => setCatFilter(c)} className="text-xs font-semibold px-3 py-1 rounded-full transition" style={{ background: catFilter === c ? 'var(--color-accent)' : 'var(--color-bg)', color: catFilter === c ? 'var(--color-on-accent)' : 'var(--color-muted)', border: '1px solid var(--color-border)' }}>{c}</button>
           ))}
+          {!isWork && (
+            <button onClick={() => setCatFilter('Bills')} className="text-xs font-semibold px-3 py-1 rounded-full transition flex items-center gap-1.5" style={{ background: catFilter === 'Bills' ? 'var(--color-accent)' : 'var(--color-bg)', color: catFilter === 'Bills' ? 'var(--color-on-accent)' : 'var(--color-muted)', border: '1px solid var(--color-border)' }}>
+              Bills{billsUnpaid.length > 0 && <span className="text-[10px] tnum px-1 rounded-full" style={{ background: catFilter === 'Bills' ? 'var(--color-on-accent)' : 'var(--color-accent)', color: catFilter === 'Bills' ? 'var(--color-accent)' : 'var(--color-on-accent)' }}>{billsUnpaid.length}</span>}
+            </button>
+          )}
         </div>
 
-        {!isWork && masterAdding && (
+        {!isWork && masterAdding && catFilter !== 'Bills' && (
           <div className="flex gap-2 mb-3 flex-wrap">
             <input autoFocus value={masterDraft} onChange={(e) => setMasterDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitMaster(); if (e.key === 'Escape') setMasterAdding(false) }} placeholder="New task…" className="flex-1 min-w-[160px] rounded-lg px-3 py-2 text-sm outline-none" style={fieldStyle} />
             <select value={masterCat} onChange={(e) => setMasterCat(e.target.value as Cat)} className="rounded-lg px-2 py-2 text-sm outline-none" style={fieldStyle}>{CATS.map((c) => <option key={c}>{c}</option>)}</select>
@@ -434,7 +460,39 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
           </div>
         )}
 
-        {masterItems.length === 0 ? (
+        {catFilter === 'Bills' ? (
+          <div>
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+              <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Bills due in {monthName} — check one off when you pay it.</p>
+              {billsUnpaid.length > 0 && <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{money(billsDue)} <span style={{ color: 'var(--color-muted)' }}>left · {billsUnpaid.length} unpaid</span></span>}
+            </div>
+            {sortedBills.length === 0 ? (
+              <p className="text-sm py-4 text-center" style={{ color: 'var(--color-muted)' }}>No bills yet. Add them in Finances → Bills.</p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {sortedBills.map((b) => {
+                  const paid = billPaid(b.id)
+                  const overdue = !paid && b.dueDay != null && b.dueDay < nowDate.getDate()
+                  return (
+                    <li key={b.id} className="flex items-center gap-2.5 rounded-lg px-2 py-2" style={{ background: 'var(--color-bg)' }}>
+                      <button onClick={() => toggleBillPaid(b)} className="h-4 w-4 rounded grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: paid ? 'var(--color-accent)' : 'transparent' }} aria-label={paid ? 'Mark unpaid' : 'Mark paid'}>
+                        {paid && <IconCheck width={11} height={11} style={{ color: 'var(--color-on-accent)' }} />}
+                      </button>
+                      <span className="flex-1 min-w-0 truncate text-sm" style={{ color: 'var(--color-text)', textDecoration: paid ? 'line-through' : 'none', opacity: paid ? 0.5 : 1 }}>Pay {b.name}</span>
+                      {b.dueDay != null && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: overdue ? 'color-mix(in srgb, #c0504d 16%, var(--color-surface))' : 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))', color: overdue ? '#c0504d' : 'var(--color-accent)' }}>
+                          {overdue ? 'Overdue · ' : ''}Due {ordinalDay(b.dueDay)}
+                        </span>
+                      )}
+                      <span className="text-sm font-semibold tnum shrink-0" style={{ color: 'var(--color-text)', opacity: paid ? 0.5 : 1 }}>{money(b.amount)}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            <Link to="/finances" className="inline-block text-xs font-semibold mt-3" style={{ color: 'var(--color-accent)' }}>Manage bills in Finances →</Link>
+          </div>
+        ) : masterItems.length === 0 ? (
           <p className="text-sm py-4 text-center" style={{ color: 'var(--color-muted)' }}>
             {companyEmpty ? `No tasks for ${selCompany?.name} yet. Add a task to get started.` : weekTotal - weekDone + board.backlog.filter((i) => !i.done).length === 0 ? 'Nothing here yet. Add a task to get started.' : 'No tasks match these filters.'}
           </p>
