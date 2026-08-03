@@ -25,6 +25,26 @@ function greeting(): string {
   return 'Good evening'
 }
 
+/** Circular completion ring — accent while in progress, green when finished. */
+function ProgressRing({ pct, done, size = 58 }: { pct: number; done: boolean; size?: number }) {
+  const stroke = 6
+  const r = (size - stroke) / 2
+  const circ = 2 * Math.PI * r
+  const color = done ? '#16a34a' : 'var(--color-accent)'
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border)" strokeWidth={stroke} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
+        strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: 'stroke-dashoffset 0.5s ease, stroke 0.3s ease' }}
+      />
+      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fontSize={size * 0.27} fontWeight="700" fill={done ? '#16a34a' : 'var(--color-text)'}>{pct}%</text>
+    </svg>
+  )
+}
+
 export default function Home() {
   const [profile] = useStore<{ name: string; photo?: string }>('profile', { name: 'Rolando Joan' })
   const [tasks, setTasks] = useStore<Task[]>('tasks.master', [])
@@ -42,6 +62,7 @@ export default function Home() {
   const [nnToday, setNnToday] = useStore<{ date: string; done: string[] }>('home.nonneg.today', { date: '', done: [] })
   const [nnDraft, setNnDraft] = useState('')
   const [nnView, setNnView] = useState<'today' | 'week' | 'weekend' | 'all'>('today')
+  const [shared, setShared] = useState(false)
 
   const today = todayISO()
   const now = new Date()
@@ -125,6 +146,17 @@ export default function Home() {
     setNonNegs((prev) => prev.filter((n) => n.id !== id))
     if (nnDone.includes(id)) setNnToday({ date: today, done: nnDone.filter((x) => x !== id) })
   }
+  const nnPct = todayList.length ? Math.round((nnCompleted / todayList.length) * 100) : 0
+  const nnAllDone = todayList.length > 0 && nnCompleted === todayList.length
+  const shareNonNegs = async () => {
+    const lines = todayList.map((n) => `${nnDone.includes(n.id) ? '✅' : '⬜️'} ${n.text}`).join('\n')
+    const text = `Non-negotiables — ${nnCompleted}/${todayList.length} done today\n${lines}`
+    try {
+      if (navigator.share) { await navigator.share({ title: 'My non-negotiables', text }); return }
+      await navigator.clipboard.writeText(text)
+      setShared(true); setTimeout(() => setShared(false), 1800)
+    } catch { /* share cancelled or unavailable */ }
+  }
 
   return (
     <div className="fade-up">
@@ -146,16 +178,25 @@ export default function Home() {
 
       {/* Daily non-negotiables — the handful of things that must get done, by day type. */}
       <Card className="p-5 mb-6">
-        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-          <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-            <IconCheck width={18} height={18} /> Non-negotiables
-          </h2>
-          {todayList.length > 0 && (
-            <span className="text-sm font-semibold tnum" style={{ color: nnCompleted === todayList.length ? 'var(--color-accent)' : 'var(--color-muted)' }}>
-              {nnCompleted}/{todayList.length} today
-            </span>
-          )}
-        </div>
+        <h2 className="font-bold text-lg flex items-center gap-2 mb-3" style={{ color: 'var(--color-text)' }}>
+          <IconCheck width={18} height={18} /> Non-negotiables
+        </h2>
+
+        {/* Progress ring — turns green when the day is complete; shareable */}
+        {todayList.length > 0 && (
+          <div className="flex items-center gap-4 mb-4 p-3 rounded-xl" style={{ background: nnAllDone ? 'color-mix(in srgb, #16a34a 12%, var(--color-bg))' : 'var(--color-bg)', border: nnAllDone ? '1px solid color-mix(in srgb, #16a34a 40%, transparent)' : '1px solid transparent' }}>
+            <ProgressRing pct={nnPct} done={nnAllDone} />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold" style={{ color: nnAllDone ? '#16a34a' : 'var(--color-text)' }}>
+                {nnAllDone ? 'All done — game strong! 💪' : `${nnCompleted} of ${todayList.length} done today`}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
+                {nnAllDone ? 'Every non-negotiable checked off.' : 'Keep going — check them off below.'}
+              </p>
+            </div>
+            <Button variant="outline" onClick={shareNonNegs}>{shared ? 'Copied!' : 'Share'}</Button>
+          </div>
+        )}
 
         {/* View tabs: today vs each set */}
         <div className="inline-flex rounded-xl p-1 mb-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>

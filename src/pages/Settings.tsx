@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, PageHeader, Button, Input } from '../components/ui'
-import { useTheme, PRESETS, type Theme } from '../lib/theme'
+import { useTheme, PRESETS, DEFAULT_PRESET, type Theme } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { CURRENCIES } from '../lib/format'
 
@@ -170,7 +170,7 @@ export default function Settings() {
               </label>
             ))}
           </div>
-          <Button variant="outline" className="mt-5" onClick={() => applyPreset('Charcoal')}>Reset to default</Button>
+          <Button variant="outline" className="mt-5" onClick={() => applyPreset(DEFAULT_PRESET)}>Reset to default</Button>
         </Card>
       </div>
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import { IconMenu } from './components/icons'
+import { Logo } from './components/Logo'
 import Home from './pages/Home'
 import Tasks from './pages/Tasks'
 import WorkList from './pages/WorkList'
@@ -49,7 +50,7 @@ export default function App() {
           <button onClick={() => setMobileOpen(true)} aria-label="Menu" style={{ color: 'var(--color-text)' }}>
             <IconMenu width={24} height={24} />
           </button>
-          <span className="font-signature text-2xl leading-none" style={{ color: 'var(--color-text)' }}>Rolando Joan</span>
+          <Logo height={24} />
           <span className="ml-auto text-sm tnum font-medium" style={{ color: 'var(--color-muted)' }}>{time}</span>
         </div>
 

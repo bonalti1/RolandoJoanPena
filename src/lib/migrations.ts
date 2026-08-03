@@ -13,7 +13,7 @@ import { PRESETS, DEFAULT_PRESET, type Theme } from './theme'
 
 const PREFIX = 'jess:'
 const VERSION_KEY = 'migrations.version'
-const CURRENT = 4
+const CURRENT = 5
 
 const LEGACY_ACCENTS = new Set(['#b9a8ff', '#8b7fb8', '#e8b4be', '#9d8df1'])
 const LEGACY_DEFAULT_NAMES = new Set(['Jessica', 'Jessica Peña', 'Rolando'])
@@ -125,6 +125,15 @@ export function runMigrations(): void {
     const goals = (read<{ id?: string }[]>('journal.goals') ?? []).filter((g) => !(g.id && legacy.has(g.id)))
     const has = goals.some((g) => SEED_GOALS.some((s) => s.id === g.id))
     write('journal.goals', has ? goals : [...goals, ...SEED_GOALS])
+  }
+
+  // v5 — upgrade the old charcoal-grey default to the new Azure default. Only
+  // touches browsers still on that exact default, never a chosen custom theme.
+  if (version < 5) {
+    const theme = read<Theme>('theme')
+    if (theme && theme.accent && theme.accent.toLowerCase() === '#4b5563') {
+      write('theme', PRESETS[DEFAULT_PRESET])
+    }
   }
 
   write(VERSION_KEY, CURRENT)

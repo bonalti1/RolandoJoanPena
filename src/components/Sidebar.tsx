@@ -5,6 +5,7 @@ import {
   IconHealth, IconFamily, IconJournal, IconBell, IconSettings,
 } from './icons'
 import { useStore } from '../lib/store'
+import { Logo } from './Logo'
 
 const MENU = [
   { to: '/home', label: 'Home', Icon: IconHome },
@@ -74,7 +75,6 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const ampm = now.getHours() < 12 ? 'AM' : 'PM'
   const weekday = now.toLocaleDateString([], { weekday: 'long' })
   const monthDay = now.toLocaleDateString([], { month: 'long', day: 'numeric' })
-  const [first, ...rest] = (profile.name || 'Rolando Joan').split(' ')
 
   return (
     <aside
@@ -96,8 +96,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      <div className="font-signature leading-[0.95] mt-3 mb-4 select-none px-1" style={{ fontSize: rest.length ? '36px' : '40px' }}>
-        {first}{rest.length > 0 && <><br /><span style={{ marginLeft: '0.4em' }}>{rest.join(' ')}</span></>}
+      <div className="mt-3 mb-4 px-1">
+        <Logo height={56} />
       </div>
 
       {/* Nav fills the remaining height: Menu spreads evenly, Preferences anchored at the bottom. */}

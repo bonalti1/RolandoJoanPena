@@ -239,55 +239,54 @@ export default function Journal() {
         subtitle="Record a thought — it's transcribed, summarized and saved by month. Your goals live alongside it."
       />
 
-      {/* Composer */}
-      <Card className="p-5 mb-6">
-        <div className="flex items-center gap-4 flex-wrap">
+      {/* Composer — kept compact so goals & entries stay in view */}
+      <Card className="p-4 mb-6">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={recording ? stopRecording : startRecording}
-            className="h-14 w-14 rounded-full grid place-items-center shrink-0 transition active:scale-95"
+            className="h-10 w-10 rounded-full grid place-items-center shrink-0 transition active:scale-95"
             style={{
               background: recording ? '#c0504d' : 'var(--color-accent)',
               color: recording ? '#ffffff' : 'var(--color-on-accent)',
-              boxShadow: recording ? '0 0 0 6px color-mix(in srgb, #c0504d 22%, transparent)' : 'var(--shadow-md)',
+              boxShadow: recording ? '0 0 0 5px color-mix(in srgb, #c0504d 22%, transparent)' : 'var(--shadow-sm)',
             }}
             aria-label={recording ? 'Stop recording' : 'Start recording'}
           >
-            {recording ? <span className="h-4 w-4 rounded-sm" style={{ background: '#fff' }} /> : <IconMic width={24} height={24} />}
+            {recording ? <span className="h-3 w-3 rounded-sm" style={{ background: '#fff' }} /> : <IconMic width={18} height={18} />}
           </button>
           <div className="min-w-0">
-            <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
+            <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
               {recording ? `Recording · ${fmtClock(elapsed)}` : hasDraftAudio ? `Recorded · ${fmtClock(elapsed)}` : 'Tap to record'}
             </p>
-            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
               {recording
                 ? (SPEECH_SUPPORTED ? 'Listening and transcribing…' : 'Recording audio…')
-                : SPEECH_SUPPORTED ? 'Your voice is transcribed live. You can also just type below.' : 'Live transcription isn’t supported here — record audio and/or type your entry.'}
+                : SPEECH_SUPPORTED ? 'Transcribed live — or just type below.' : 'Type your entry (live transcription isn’t supported here).'}
             </p>
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            {(text || title || hasDraftAudio) && !recording && (
+              <Button variant="ghost" onClick={clearDraft}>Clear</Button>
+            )}
+            <Button onClick={save} disabled={!canSave}><IconCheck width={16} height={16} /> Save</Button>
           </div>
         </div>
 
-        {error && <p className="text-sm mt-3" style={{ color: '#c0504d' }}>{error}</p>}
+        {error && <p className="text-sm mt-2" style={{ color: '#c0504d' }}>{error}</p>}
 
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-3 flex flex-col gap-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (optional)" />
           <div>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              rows={5}
+              rows={3}
               placeholder="What's on your mind? Speak or type…"
               className="rounded-xl px-3 py-2 text-sm outline-none w-full resize-y"
               style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
             />
             {interim && <p className="text-sm mt-1 px-1 italic" style={{ color: 'var(--color-muted)' }}>{interim}</p>}
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 mt-3">
-          <Button onClick={save} disabled={!canSave}><IconCheck width={16} height={16} /> Save entry</Button>
-          {(text || title || hasDraftAudio) && !recording && (
-            <Button variant="ghost" onClick={clearDraft}>Clear</Button>
-          )}
         </div>
       </Card>
 
