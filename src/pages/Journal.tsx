@@ -78,7 +78,7 @@ function AudioPlayer({ id }: { id: string }) {
     }).catch(() => alive && setMissing(true))
     return () => { alive = false; if (objUrl) URL.revokeObjectURL(objUrl) }
   }, [id])
-  if (missing) return <span className="text-xs" style={{ color: 'var(--color-muted)' }}>🎤 Recording saved on the device it was made on</span>
+  if (missing) return <span className="text-xs" style={{ color: 'var(--color-muted)' }}>🎤 Recording isn’t available on this device yet</span>
   if (!url) return <span className="text-xs" style={{ color: 'var(--color-muted)' }}>Loading audio…</span>
   return <audio src={url} controls preload="metadata" className="h-9 w-full max-w-sm" />
 }

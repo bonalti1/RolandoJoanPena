@@ -43,6 +43,8 @@ function localKeys(): string[] {
 }
 
 let userId: string | null = null
+/** The signed-in user's id, used to scope their private files in Storage. */
+export function currentUserId(): string | null { return userId }
 const pending = new Map<string, unknown>()
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 

@@ -72,12 +72,40 @@ You can see the status and sign out any time under **Settings → Cloud backup**
 
 ---
 
+## 7. (Optional) Sync journal voice recordings across devices
+
+Text, titles, dates and summaries already sync. To also sync the **audio
+recordings** themselves (so a note recorded on your phone plays back on your
+computer), run this once in **SQL Editor → New query → Run**:
+
+```sql
+-- Private bucket for journal voice recordings
+insert into storage.buckets (id, name, public)
+values ('journal-audio', 'journal-audio', false)
+on conflict (id) do nothing;
+
+-- Each person can read/write only files inside their own user-id folder
+create policy "own audio read"   on storage.objects for select to authenticated
+  using (bucket_id = 'journal-audio' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "own audio insert" on storage.objects for insert to authenticated
+  with check (bucket_id = 'journal-audio' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "own audio update" on storage.objects for update to authenticated
+  using (bucket_id = 'journal-audio' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "own audio delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'journal-audio' and (storage.foldername(name))[1] = auth.uid()::text);
+```
+
+No Netlify change is needed — it uses the same keys. From then on, new
+recordings upload automatically, and opening an entry on another device pulls
+the audio down and caches it. (Recordings made before this was set up only
+exist on the device they were made on.)
+
+---
+
 ### Notes
 - **What syncs:** all your tasks, non-negotiables, bills, bank, health numbers,
-  DEXA values, family info, journal text & summaries, goals, settings, and any
-  photos/attachments saved in the app.
-- **Not yet synced:** raw journal *audio recordings* and uploaded *scan files*
-  still live on the device that made them (these are large binary files). Ask me
-  to add file syncing and I'll wire them into Supabase Storage next.
+  DEXA values, family info, journal text & summaries, goals, settings, any
+  photos/attachments saved in the app — and, once step 7 is done, journal
+  voice recordings.
 - **Free tier** is plenty for this — a personal dashboard uses a tiny fraction
-  of the included database and bandwidth.
+  of the included database, storage and bandwidth.
