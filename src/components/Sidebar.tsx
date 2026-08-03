@@ -84,19 +84,17 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         borderRight: '1px solid color-mix(in srgb, var(--color-sidebar-text) 8%, transparent)',
       }}
     >
-      <div className="px-1 flex items-center gap-3">
-        {showPhoto && <img src={profile.photo} alt="" className="h-11 w-11 rounded-full object-cover shrink-0" style={{ border: '2px solid color-mix(in srgb, var(--color-accent) 60%, transparent)' }} />}
-        <div className="min-w-0">
-          <div className="flex items-baseline gap-1.5 tnum">
-            <span className="text-[26px] leading-none font-light tracking-tight">{hour}:{minute}</span>
-            <span className="text-xs font-medium opacity-60">{ampm}</span>
-          </div>
-          <div className="text-[11px] mt-0.5 opacity-55 tracking-wide">{weekday}, {monthDay}</div>
+      <div className="flex flex-col items-center text-center">
+        {showPhoto && <img src={profile.photo} alt="" className="h-11 w-11 rounded-full object-cover mb-2" style={{ border: '2px solid color-mix(in srgb, var(--color-accent) 60%, transparent)' }} />}
+        <div className="flex items-baseline gap-1.5 tnum justify-center">
+          <span className="text-[26px] leading-none font-light tracking-tight">{hour}:{minute}</span>
+          <span className="text-xs font-medium opacity-60">{ampm}</span>
         </div>
+        <div className="text-[11px] mt-0.5 opacity-55 tracking-wide">{weekday}, {monthDay}</div>
       </div>
 
-      <div className="mt-3 mb-4 flex justify-center">
-        <Logo height={60} />
+      <div className="mt-4 mb-5 flex justify-center">
+        <Logo height={64} />
       </div>
 
       {/* Nav fills the remaining height: Menu spreads evenly, Preferences anchored at the bottom. */}

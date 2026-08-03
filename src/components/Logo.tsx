@@ -1,18 +1,32 @@
 /**
- * Brand logo — Rolando's JP monogram. Uses the real artwork at public/logo.png,
- * shown as a rounded tile so its light background reads as a crisp app-style
- * badge on the dark sidebar and anywhere else.
+ * JP monogram — rendered as crisp transparent vector text so it sits directly
+ * on any background (no baked-in tile). The J takes the surrounding text color
+ * (white on the dark sidebar, dark on the light mobile bar); the P is brand
+ * blue. On Apple devices the Didot face gives it that elegant fashion-house look.
+ *
+ * To use an exact image instead, export a *transparent* PNG to public/logo.png
+ * and swap this for an <img src="/logo.png" />.
  */
+const BRAND_BLUE = '#2f6fed'
+
 export function Logo({ height = 56, title = 'JP' }: { height?: number; title?: string }) {
-  const radius = Math.round(height * 0.22)
   return (
-    <img
-      src="/logo.png"
-      alt={title}
-      width={height}
-      height={height}
-      style={{ width: height, height, borderRadius: radius, display: 'block', objectFit: 'cover', userSelect: 'none' }}
-      draggable={false}
-    />
+    <div
+      role="img"
+      aria-label={title}
+      style={{
+        fontFamily: "Didot, 'Bodoni 72', 'Playfair Display', Georgia, 'Times New Roman', serif",
+        fontSize: height,
+        lineHeight: 1,
+        letterSpacing: '-0.04em',
+        display: 'inline-flex',
+        alignItems: 'baseline',
+        userSelect: 'none',
+        fontWeight: 500,
+      }}
+    >
+      <span style={{ color: 'currentColor' }}>J</span>
+      <span style={{ color: BRAND_BLUE, marginLeft: '-0.05em' }}>P</span>
+    </div>
   )
 }
