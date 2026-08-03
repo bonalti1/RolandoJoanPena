@@ -245,7 +245,7 @@ export default function Home() {
                       <button onClick={() => toggleNonNeg(n.id)} className="h-5 w-5 rounded-md grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: done ? 'var(--color-accent)' : 'transparent' }} aria-label={done ? 'Mark not done' : 'Mark done'}>
                         {done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
                       </button>
-                      <span className="flex-1" style={{ color: 'var(--color-text)', textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.5 : 1 }}>{n.text}</span>
+                      <span className="flex-1" style={{ color: done ? 'var(--color-muted)' : 'var(--color-text)' }}>{n.text}</span>
                       {!done && n.id === firstOpenId && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: 'var(--color-accent)', background: 'var(--color-surface)', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }}>Next up</span>}
                     </li>
                   )
