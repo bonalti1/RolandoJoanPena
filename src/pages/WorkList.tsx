@@ -124,8 +124,8 @@ function Bucket({
   )
 }
 
-export default function WorkList() {
-  const [tab, setTab] = useState<Tab>('Home')
+export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
+  const [tab, setTab] = useState<Tab>(fixedBoard ?? 'Home')
   const [homeRaw, setHome] = useStore<Board>('work.home', { backlog: [], weeks: {} })
   const [workRaw, setWork] = useStore<Board>('work.work', { backlog: [], weeks: {} })
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
@@ -212,7 +212,7 @@ export default function WorkList() {
   return (
     <div onDragEnd={() => { setDrag(null); setOverBucket(null) }}>
       <PageHeader
-        title="Work list"
+        title={fixedBoard ? `${fixedBoard} tasks` : 'Work list'}
         subtitle="Plan the week by date. Drag tasks from Unscheduled onto any day."
         action={
           <div className="flex items-center gap-1.5">
@@ -227,18 +227,20 @@ export default function WorkList() {
       />
 
       <div className="flex flex-wrap items-center gap-2 mb-6">
-        <div className="inline-flex rounded-xl p-1" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className="px-6 py-2 rounded-lg text-sm font-semibold transition-all"
-              style={{ background: tab === t ? 'var(--color-accent)' : 'transparent', color: tab === t ? 'var(--color-on-accent)' : 'var(--color-muted)' }}
-            >
-              {t === 'Home' ? 'Home tasks' : 'Work tasks'}
-            </button>
-          ))}
-        </div>
+        {!fixedBoard && (
+          <div className="inline-flex rounded-xl p-1" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
+            {TABS.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className="px-6 py-2 rounded-lg text-sm font-semibold transition-all"
+                style={{ background: tab === t ? 'var(--color-accent)' : 'transparent', color: tab === t ? 'var(--color-on-accent)' : 'var(--color-muted)' }}
+              >
+                {t === 'Home' ? 'Home tasks' : 'Work tasks'}
+              </button>
+            ))}
+          </div>
+        )}
         {!isThisWeek && (
           <Button variant="outline" onClick={() => setWeekStart(startOfWeek(new Date()))}>This week</Button>
         )}

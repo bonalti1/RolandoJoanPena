@@ -4,7 +4,6 @@ import Sidebar from './components/Sidebar'
 import { IconMenu } from './components/icons'
 import { Logo } from './components/Logo'
 import Home from './pages/Home'
-import Tasks from './pages/Tasks'
 import WorkList from './pages/WorkList'
 import Payments from './pages/Payments'
 import Bank from './pages/Bank'
@@ -58,8 +57,10 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/work" element={<WorkList />} />
+            <Route path="/home-tasks" element={<WorkList fixedBoard="Home" />} />
+            <Route path="/work-tasks" element={<WorkList fixedBoard="Work" />} />
+            <Route path="/tasks" element={<Navigate to="/home-tasks" replace />} />
+            <Route path="/work" element={<Navigate to="/work-tasks" replace />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/bank" element={<Bank />} />
             <Route path="/calendar" element={<Calendar />} />

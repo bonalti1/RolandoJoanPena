@@ -70,15 +70,15 @@ export default function Home() {
 
   // Today's agenda: due tasks + planner + events + appointments dated today.
   const todayItems = useMemo(() => {
-    const out: { text: string; tag: string; done?: boolean }[] = []
-    tasks.filter((t) => t.due === today && !t.done).forEach((t) => out.push({ text: t.text, tag: 'Task' }))
+    const out: { text: string; tag: string; done?: boolean; id?: string }[] = []
+    tasks.filter((t) => t.due === today && !t.done).forEach((t) => out.push({ text: t.text, tag: 'Task', id: t.id }))
     taskAgenda().filter((a) => a.date === today && (a.source === 'Home' || a.source === 'Work')).forEach((a) => out.push({ text: a.title, tag: a.source, done: a.done }))
     events.filter((e) => e.date === today).forEach((e) => out.push({ text: e.title, tag: 'Event' }))
     appts.filter((a) => a.date === today).forEach((a) => out.push({ text: `${a.who} — ${a.what}`, tag: 'Appt' }))
     return out
   }, [tasks, events, appts, today])
 
-  const overdue = useMemo(() => tasks.filter((t) => !t.done && t.due && (daysUntil(t.due) ?? 0) < 0), [tasks])
+  const completeTask = (id: string) => setTasks((prev) => prev.map((t) => t.id === id ? { ...t, done: true } : t))
 
   // This month's bills.
   const month = now.getMonth(), year = now.getFullYear()
@@ -258,20 +258,19 @@ export default function Home() {
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-lg flex items-center gap-2" style={{ color: 'var(--color-text)' }}><IconTasks width={18} height={18} /> Today</h2>
-            <Link to="/work" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open week →</Link>
+            <Link to="/home-tasks" className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Open week →</Link>
           </div>
-          {overdue.length > 0 && (
-            <Link to="/tasks" className="block text-sm font-semibold mb-2 px-3 py-2 rounded-lg" style={{ background: 'color-mix(in srgb, #d97a7a 14%, transparent)', color: '#c25b5b' }}>
-              ⚠ {overdue.length} overdue task{overdue.length === 1 ? '' : 's'}
-            </Link>
-          )}
           {todayItems.length === 0 ? (
             <p className="text-sm py-6 text-center" style={{ color: 'var(--color-muted)' }}>Nothing scheduled today. Enjoy! ✨</p>
           ) : (
             <ul className="flex flex-col gap-1.5">
               {todayItems.map((it, i) => (
                 <li key={i} className="flex items-center gap-2.5 text-sm">
-                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent)', opacity: it.done ? 0.4 : 1 }} />
+                  {it.id ? (
+                    <button onClick={() => completeTask(it.id!)} className="h-4 w-4 rounded grid place-items-center shrink-0 transition" style={{ border: '2px solid var(--color-accent)' }} aria-label="Complete task" />
+                  ) : (
+                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent)', opacity: it.done ? 0.4 : 1 }} />
+                  )}
                   <span className="flex-1" style={{ color: 'var(--color-text)', textDecoration: it.done ? 'line-through' : 'none', opacity: it.done ? 0.5 : 1 }}>{it.text}</span>
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{it.tag}</span>
                 </li>

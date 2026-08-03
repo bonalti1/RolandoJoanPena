@@ -9,8 +9,8 @@ import { Logo } from './Logo'
 
 const MENU = [
   { to: '/home', label: 'Home', Icon: IconHome },
-  { to: '/tasks', label: 'Tasks', Icon: IconTasks },
-  { to: '/work', label: 'Work list', Icon: IconWork },
+  { to: '/home-tasks', label: 'Home tasks', Icon: IconTasks },
+  { to: '/work-tasks', label: 'Work tasks', Icon: IconWork },
   { to: '/payments', label: 'Payments', Icon: IconPayments },
   { to: '/bank', label: 'Bank', Icon: IconBank },
   { to: '/calendar', label: 'Calendar', Icon: IconCalendar },
