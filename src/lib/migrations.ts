@@ -13,7 +13,7 @@ import { PRESETS, DEFAULT_PRESET, type Theme } from './theme'
 
 const PREFIX = 'jess:'
 const VERSION_KEY = 'migrations.version'
-const CURRENT = 3
+const CURRENT = 4
 
 const LEGACY_ACCENTS = new Set(['#b9a8ff', '#8b7fb8', '#e8b4be', '#9d8df1'])
 const LEGACY_DEFAULT_NAMES = new Set(['Jessica', 'Jessica Peña', 'Rolando'])
@@ -45,10 +45,27 @@ const SEED_NONNEG = [
   { id: 'nn_wend_plan', text: 'Plan the week ahead', scope: 'weekend' },
 ]
 
+// Goals grouped by category (Health, Business, Family, Non-negotiables).
 const SEED_GOALS = [
-  '12% body fat', '$100K / month', '$1M+ / month', '10 homes / month',
-  'Grow the company', 'Build the team', 'Family time', 'San Francisco', 'Monterrey',
-].map((text, i) => ({ id: `goal_${i}`, text, done: false }))
+  { id: 'g_h_bodyfat', text: '12% body fat', category: 'Health' },
+  { id: 'g_h_train', text: 'Train / exercise consistently', category: 'Health' },
+  { id: 'g_h_muscle', text: 'Build muscle, drop fat', category: 'Health' },
+  { id: 'g_b_100k', text: '$100K / month', category: 'Business' },
+  { id: 'g_b_1m', text: '$1M+ / month (long-term)', category: 'Business' },
+  { id: 'g_b_10homes', text: '10 homes / month', category: 'Business' },
+  { id: 'g_b_grow', text: 'Grow the company', category: 'Business' },
+  { id: 'g_b_team', text: 'Build the team', category: 'Business' },
+  { id: 'g_f_time', text: 'Daily present time with Noah & Natalia', category: 'Family' },
+  { id: 'g_f_school', text: 'Own the school mornings & evenings', category: 'Family' },
+  { id: 'g_f_trips', text: 'Family trips & adventures', category: 'Family' },
+  { id: 'g_n_sleep', text: 'Sleep 7+ hours', category: 'Non-negotiables' },
+  { id: 'g_n_deep', text: 'Deep work daily', category: 'Non-negotiables' },
+  { id: 'g_n_needle', text: 'Move the needle daily', category: 'Non-negotiables' },
+  { id: 'g_n_home', text: 'One home task daily', category: 'Non-negotiables' },
+].map((g) => ({ ...g, done: false }))
+
+// The original flat goal ids (v2 seed) that v4 replaces with the grouped set.
+const LEGACY_GOAL_IDS = Array.from({ length: 9 }, (_, i) => `goal_${i}`)
 
 const SEED_KIDS = [
   { id: 'kid_noe', name: 'Noah', relation: 'Son', birthday: '2017-11-07' },
@@ -99,6 +116,15 @@ export function runMigrations(): void {
       return m
     })
     if (changed) write('family.members', updated)
+  }
+
+  // v4 — replace the original flat goals with the categorized set, keeping any
+  // goals the user added themselves.
+  if (version < 4) {
+    const legacy = new Set(LEGACY_GOAL_IDS)
+    const goals = (read<{ id?: string }[]>('journal.goals') ?? []).filter((g) => !(g.id && legacy.has(g.id)))
+    const has = goals.some((g) => SEED_GOALS.some((s) => s.id === g.id))
+    write('journal.goals', has ? goals : [...goals, ...SEED_GOALS])
   }
 
   write(VERSION_KEY, CURRENT)

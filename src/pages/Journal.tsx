@@ -19,7 +19,8 @@ type Entry = {
   hasAudio: boolean
   durationMs: number
 }
-type Goal = { id: string; text: string; done: boolean }
+type Goal = { id: string; text: string; done: boolean; category?: string }
+const GOAL_CATEGORIES = ['Health', 'Business', 'Family', 'Non-negotiables']
 
 // ---- Minimal typing for the Web Speech API (not in the TS DOM lib) ----------
 interface SRAlt { transcript: string }
@@ -209,9 +210,14 @@ export default function Journal() {
 
   const [goals, setGoals] = useStore<Goal[]>('journal.goals', [])
   const [goalDraft, setGoalDraft] = useState('')
-  const addGoal = () => { const t = goalDraft.trim(); if (!t) return; setGoals((p) => [...p, { id: uid('goal'), text: t, done: false }]); setGoalDraft('') }
+  const [goalCat, setGoalCat] = useState(GOAL_CATEGORIES[0])
+  const addGoal = () => { const t = goalDraft.trim(); if (!t) return; setGoals((p) => [...p, { id: uid('goal'), text: t, done: false, category: goalCat }]); setGoalDraft('') }
   const toggleGoal = (id: string) => setGoals((p) => p.map((g) => g.id === id ? { ...g, done: !g.done } : g))
   const removeGoal = (id: string) => setGoals((p) => p.filter((g) => g.id !== id))
+  const goalGroups = [
+    ...GOAL_CATEGORIES.map((cat) => ({ cat, items: goals.filter((g) => (g.category ?? '') === cat) })),
+    { cat: 'Other', items: goals.filter((g) => !GOAL_CATEGORIES.includes(g.category ?? '')) },
+  ].filter((grp) => grp.items.length > 0)
 
   // Group entries by month, then by day, so a finished month reads as a chapter.
   const months: { month: string; days: { day: string; items: Entry[] }[] }[] = []
@@ -291,29 +297,43 @@ export default function Journal() {
           <Card className="p-5 lg:sticky lg:top-4">
             <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Goals</h2>
             <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>What you're building toward.</p>
-            {goals.length > 0 && (
-              <ul className="flex flex-col gap-1.5 mb-3">
-                {goals.map((g) => (
-                  <li key={g.id} className="group flex items-center gap-2.5">
-                    <button
-                      onClick={() => toggleGoal(g.id)}
-                      className="h-5 w-5 rounded-md grid place-items-center shrink-0 transition"
-                      style={{ border: '2px solid var(--color-accent)', background: g.done ? 'var(--color-accent)' : 'transparent' }}
-                      aria-label={g.done ? 'Mark not achieved' : 'Mark achieved'}
-                    >
-                      {g.done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
-                    </button>
-                    <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: g.done ? 'line-through' : 'none', opacity: g.done ? 0.5 : 1 }}>{g.text}</span>
-                    <button onClick={() => removeGoal(g.id)} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove goal">
-                      <IconTrash width={15} height={15} />
-                    </button>
-                  </li>
+            {goalGroups.length === 0 ? (
+              <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>Add your first goal below.</p>
+            ) : (
+              <div className="flex flex-col gap-4 mb-4">
+                {goalGroups.map((grp) => (
+                  <div key={grp.cat}>
+                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-1.5" style={{ color: 'var(--color-muted)' }}>{grp.cat}</h3>
+                    <ul className="flex flex-col gap-1.5">
+                      {grp.items.map((g) => (
+                        <li key={g.id} className="group flex items-center gap-2.5">
+                          <button
+                            onClick={() => toggleGoal(g.id)}
+                            className="h-5 w-5 rounded-md grid place-items-center shrink-0 transition"
+                            style={{ border: '2px solid var(--color-accent)', background: g.done ? 'var(--color-accent)' : 'transparent' }}
+                            aria-label={g.done ? 'Mark not achieved' : 'Mark achieved'}
+                          >
+                            {g.done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
+                          </button>
+                          <span className="flex-1 text-sm" style={{ color: 'var(--color-text)', textDecoration: g.done ? 'line-through' : 'none', opacity: g.done ? 0.5 : 1 }}>{g.text}</span>
+                          <button onClick={() => removeGoal(g.id)} className="opacity-0 group-hover:opacity-60 transition" style={{ color: 'var(--color-muted)' }} aria-label="Remove goal">
+                            <IconTrash width={15} height={15} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
-            <div className="flex gap-2">
-              <Input value={goalDraft} onChange={(e) => setGoalDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addGoal() }} placeholder="Add a goal…" />
-              <Button variant="outline" onClick={addGoal}><IconPlus width={16} height={16} /></Button>
+            <div className="flex flex-col gap-2">
+              <select value={goalCat} onChange={(e) => setGoalCat(e.target.value)} className="rounded-xl px-3 py-2 text-sm outline-none" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+                {GOAL_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+              <div className="flex gap-2">
+                <Input value={goalDraft} onChange={(e) => setGoalDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addGoal() }} placeholder={`Add a ${goalCat} goal…`} />
+                <Button variant="outline" onClick={addGoal}><IconPlus width={16} height={16} /></Button>
+              </div>
             </div>
           </Card>
         </div>
