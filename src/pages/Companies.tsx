@@ -404,20 +404,6 @@ export default function Companies() {
             <Section title="Overview">
               <TextArea value={r.description} onChange={(v) => set({ description: v })} rows={2} placeholder="What this department owns…" />
             </Section>
-            <div className="grid sm:grid-cols-3 gap-3 mb-5">
-              <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
-                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Status</p>
-                <div className="mt-1.5"><StatusSelect value={r.status} onChange={(s) => set({ status: s })} compact /></div>
-              </div>
-              <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
-                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Quarterly cost</p>
-                <div className="flex items-baseline gap-1 mt-1"><span className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>$</span><input type="number" value={r.cost || ''} placeholder="0" onChange={(e) => set({ cost: parseFloat(e.target.value) || 0 })} className="w-24 bg-transparent outline-none text-xl font-bold tnum" style={{ color: 'var(--color-text)' }} /></div>
-              </div>
-              <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
-                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Headcount</p>
-                <input type="number" value={r.headcount || ''} placeholder="0" onChange={(e) => set({ headcount: parseFloat(e.target.value) || 0 })} className="w-16 bg-transparent outline-none text-xl font-bold tnum mt-1" style={{ color: 'var(--color-text)' }} />
-              </div>
-            </div>
 
             <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} onChange={(items) => set({ bottlenecks: items })} /></Section>
             <Section title="Problems"><ListEditor items={r.problems} onChange={(items) => set({ problems: items })} /></Section>
