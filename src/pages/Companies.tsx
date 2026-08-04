@@ -52,7 +52,6 @@ const currentQuarter = () => { const d = new Date(); return `${d.getFullYear()}-
 const quarterLabel = (q: string) => q.replace('-', ' ')
 const nextQuarter = (q: string) => { const [y, qq] = q.split('-Q').map(Number); return qq === 4 ? `${y + 1}-Q1` : `${y}-Q${qq + 1}` }
 const fieldStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
-const metricColor = (pct: number) => (pct >= 70 ? '#22c55e' : pct >= 40 ? '#eab308' : '#ef4444')
 const initials = (name: string) => (name || '').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '+'
 
 /** Downscale/center-crop any image blob to a small square JPEG data URL for avatars. */
@@ -144,22 +143,6 @@ function StatusSelect({ value, onChange, compact }: { value?: Status; onChange: 
         </>
       )}
     </>
-  )
-}
-
-function MetricBar({ label, value, max, suffix, onChange }: { label: string; value: number; max: number; suffix: string; onChange: (v: number) => void }) {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100))
-  return (
-    <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
-      <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{label}</p>
-      <div className="flex items-baseline gap-1 mt-0.5">
-        <input type="number" value={value || ''} placeholder="0" onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className="w-14 bg-transparent outline-none text-xl font-bold tnum" style={{ color: 'var(--color-text)' }} />
-        <span className="text-sm" style={{ color: 'var(--color-muted)' }}>{suffix}</span>
-      </div>
-      <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: 'var(--color-surface)' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: metricColor(pct), transition: 'width .3s' }} />
-      </div>
-    </div>
   )
 }
 
@@ -390,14 +373,6 @@ export default function Companies() {
                     <input type="number" value={r.headcount || ''} placeholder="0" onChange={(e) => set({ headcount: parseFloat(e.target.value) || 0 })} className="w-16 bg-transparent outline-none text-xl font-bold tnum mt-1" style={{ color: 'var(--color-text)' }} />
                   </div>
                 </div>
-                <Section title="Performance snapshot">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <MetricBar label="Goal progress" value={r.metrics?.goal ?? 0} max={100} suffix="%" onChange={(v) => set({ metrics: { ...r.metrics, goal: v } })} />
-                    <MetricBar label="On-time tasks" value={r.metrics?.onTime ?? 0} max={100} suffix="%" onChange={(v) => set({ metrics: { ...r.metrics, onTime: v } })} />
-                    <MetricBar label="Quality score" value={r.metrics?.quality ?? 0} max={5} suffix="/5" onChange={(v) => set({ metrics: { ...r.metrics, quality: v } })} />
-                    <MetricBar label="Satisfaction" value={r.metrics?.satisfaction ?? 0} max={5} suffix="/5" onChange={(v) => set({ metrics: { ...r.metrics, satisfaction: v } })} />
-                  </div>
-                </Section>
                 <Section title="Quick summary">
                   <TextArea value={r.summary} onChange={(v) => set({ summary: v })} rows={3} placeholder="Key takeaways this quarter…" />
                 </Section>
