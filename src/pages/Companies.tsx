@@ -67,7 +67,7 @@ const STATUS_META: Record<Status, { dot: string; label: string }> = {
 const STATUS_ORDER: Status[] = ['green', 'yellow', 'red']
 const LEVELS: Level[] = ['High', 'Med', 'Low']
 const levelColor: Record<Level, string> = { High: '#dc2626', Med: '#f59e0b', Low: '#ca8a04' }
-const TABS = ['Overview', 'SOP', 'Costs', 'Bottlenecks', 'Problems', 'Goals', 'Notes'] as const
+const TABS = ['Overview', 'Bottlenecks', 'Problems', 'Goals'] as const
 type Tab = typeof TABS[number]
 
 const currentQuarter = () => { const d = new Date(); return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}` }
@@ -452,13 +452,6 @@ export default function Companies() {
               </div>
             )}
 
-            {tab === 'SOP' && <Section title="Standard operating procedure"><TextArea value={r.sop} onChange={(v) => set({ sop: v })} rows={12} placeholder="How this department runs — step by step…" /></Section>}
-            {tab === 'Costs' && (
-              <div>
-                <Section title="Quarterly cost"><div className="flex items-baseline gap-1"><span className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>$</span><input type="number" value={r.cost || ''} placeholder="0" onChange={(e) => set({ cost: parseFloat(e.target.value) || 0 })} className="w-32 bg-transparent outline-none text-2xl font-bold tnum" style={{ color: 'var(--color-text)' }} /></div></Section>
-                <Section title="Cost notes"><TextArea value={r.costsNotes} onChange={(v) => set({ costsNotes: v })} rows={8} placeholder="Tools, salaries, ad spend, vendors…" /></Section>
-              </div>
-            )}
             {tab === 'Bottlenecks' && <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} onChange={(items) => set({ bottlenecks: items })} /></Section>}
             {tab === 'Problems' && <Section title="Problems"><ListEditor items={r.problems} onChange={(items) => set({ problems: items })} /></Section>}
             {tab === 'Goals' && (
@@ -470,7 +463,6 @@ export default function Companies() {
                 </Section>
               </div>
             )}
-            {tab === 'Notes' && <Section title="Notes"><TextArea value={r.notes} onChange={(v) => set({ notes: v })} rows={12} placeholder="Anything else about this department…" /></Section>}
           </Card>
         )}
 
