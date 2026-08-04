@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d2545" />
+  <title>South Texas Builders — Your Dream Home Starts Here</title>
+  <meta name="description" content="100% custom homes built with family values, in-house expertise, and a proven process — right here in the Rio Grande Valley. Est. 1992." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #0d2545;
+      --navy-deep: #081830;
+      --navy-mid: #0f1f3d;
+      --red: #c8102e;
+      --gold: #C49A3C;
+      --cream: #f7f4ee;
+      --cream-2: #f5f0e8;
+      --ink: #1a1a1a;
+      --serif: "Cormorant Garamond", Georgia, serif;
+      --sans: "DM Sans", -apple-system, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--sans); color: var(--ink); background: var(--cream); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; }
+
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    /* ---------- Top bar ---------- */
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(13, 37, 69, .97); backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(196, 154, 60, .35);
+    }
+    .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 24px; max-width: 1120px; margin: 0 auto; }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    /* The STB logo file is navy-on-white with wide padding, so it sits in a
+       white chip and gets zoom-cropped to stay legible on the navy bar. */
+    .logo-chip { width: 46px; height: 46px; background: #fff; border-radius: 6px; overflow: hidden; position: relative; flex-shrink: 0; }
+    .logo-chip img { position: absolute; width: 160%; height: 160%; top: 50%; left: 50%; transform: translate(-50%, -50%); object-fit: contain; }
+    .topbar-name { color: #fff; font-family: var(--serif); font-weight: 600; font-size: 19px; letter-spacing: .04em; line-height: 1.15; }
+    .topbar-tag { display: block; color: var(--gold); font-family: var(--sans); font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; font-weight: 500; }
+    .topbar-right { display: flex; align-items: center; gap: 18px; }
+    .topbar-phone { color: rgba(255,255,255,.85); text-decoration: none; font-size: 14.5px; font-weight: 500; white-space: nowrap; }
+    .topbar-phone:hover { color: #fff; }
+    .btn {
+      display: inline-block; text-decoration: none; text-align: center;
+      font-family: var(--sans); font-weight: 600; letter-spacing: .05em;
+      border-radius: 4px; transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+      cursor: pointer; border: none;
+    }
+    .btn-red { background: var(--red); color: #fff; padding: 11px 26px; font-size: 14.5px; box-shadow: 0 4px 14px rgba(200,16,46,.35); }
+    .btn-red:hover { background: #de1534; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(200,16,46,.45); }
+    .btn-lg { padding: 16px 40px; font-size: 16px; }
+    .btn-gold-line { border: 1px solid var(--gold); color: var(--gold); padding: 15px 36px; font-size: 15px; background: transparent; }
+    .btn-gold-line:hover { background: rgba(196,154,60,.12); }
+
+    /* ---------- Hero + VSL ---------- */
+    .hero {
+      background:
+        radial-gradient(1200px 600px at 70% -10%, rgba(196,154,60,.14), transparent 60%),
+        linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+      color: #fff; text-align: center;
+      padding: 60px 24px 88px;
+      position: relative; overflow: hidden;
+    }
+    .hero-kicker {
+      display: inline-flex; align-items: center; gap: 10px;
+      color: var(--gold); font-size: 12.5px; letter-spacing: .26em; text-transform: uppercase; font-weight: 600;
+      margin-bottom: 22px;
+    }
+    .hero-kicker::before, .hero-kicker::after { content: ""; width: 34px; height: 1px; background: rgba(196,154,60,.6); }
+    .hero h1 {
+      font-family: var(--serif); font-weight: 600; font-size: clamp(38px, 6vw, 64px);
+      line-height: 1.08; letter-spacing: .01em; max-width: 800px; margin: 0 auto;
+    }
+    .hero h1 em { font-style: italic; color: var(--gold); }
+    .red-bar { width: 72px; height: 4px; background: var(--red); margin: 26px auto; }
+    .hero-sub { max-width: 620px; margin: 0 auto 40px; color: rgba(255,255,255,.8); font-size: 17.5px; font-weight: 300; }
+
+    .vsl {
+      max-width: 860px; margin: 0 auto;
+      border-radius: 10px; overflow: hidden;
+      border: 1px solid rgba(196,154,60,.5);
+      box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 6px rgba(255,255,255,.04);
+      position: relative; aspect-ratio: 16 / 9; background: #000;
+    }
+    .vsl iframe, .vsl video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .vsl-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .82; }
+    .vsl-cover {
+      position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      background: linear-gradient(180deg, rgba(8,24,48,.25) 0%, rgba(8,24,48,.72) 100%);
+      cursor: pointer; border: 0; width: 100%; color: #fff; font-family: var(--sans);
+    }
+    .vsl-play {
+      width: 92px; height: 92px; border-radius: 50%;
+      background: var(--red); display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 10px 34px rgba(200,16,46,.55), 0 0 0 10px rgba(200,16,46,.22);
+      transition: transform .2s ease;
+    }
+    .vsl-cover:hover .vsl-play { transform: scale(1.07); }
+    .vsl-play svg { margin-left: 6px; }
+    .vsl-cover-label { font-size: 13px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: rgba(255,255,255,.92); text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+
+    .hero-badges { display: flex; align-items: stretch; justify-content: center; gap: 0; margin-top: 44px; flex-wrap: wrap; }
+    .hero-badge { padding: 0 34px; text-align: center; }
+    .hero-badge + .hero-badge { border-left: 1px solid rgba(255,255,255,.18); }
+    .hero-badge-num { display: block; font-family: var(--serif); font-size: 34px; font-weight: 600; color: var(--gold); line-height: 1.1; }
+    .hero-badge-label { display: block; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.65); margin-top: 4px; }
+
+    /* ---------- Section scaffolding ---------- */
+    section { padding: 84px 0; }
+    .kicker { color: var(--red); font-size: 12.5px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; margin-bottom: 14px; }
+    .sec-title { font-family: var(--serif); font-weight: 600; font-size: clamp(30px, 4.4vw, 44px); line-height: 1.12; color: var(--navy); }
+    .sec-sub { color: #55606f; max-width: 640px; margin-top: 14px; font-size: 16.5px; }
+    .sec-head { margin-bottom: 44px; }
+    .sec-head.center { text-align: center; }
+    .sec-head.center .sec-sub { margin-left: auto; margin-right: auto; }
+
+    /* ---------- Client closes ---------- */
+    .closes { background: var(--cream); }
+    .closes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+    .close-card {
+      background: #fff; border-radius: 8px; overflow: hidden;
+      box-shadow: 0 6px 22px rgba(13,37,69,.08); border: 1px solid rgba(13,37,69,.06);
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .close-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(13,37,69,.14); }
+    .close-card-img { aspect-ratio: 4 / 3; overflow: hidden; position: relative; }
+    .close-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
+    .close-card:hover .close-card-img img { transform: scale(1.045); }
+    .close-badge {
+      position: absolute; top: 12px; left: 12px;
+      background: var(--red); color: #fff; font-size: 10.5px; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase; padding: 5px 11px; border-radius: 3px;
+    }
+    .close-card-body { padding: 16px 18px 18px; }
+    .close-card-body p { font-size: 14.5px; font-weight: 600; color: var(--navy); line-height: 1.4; }
+
+    /* ---------- Homes ---------- */
+    .homes { background: var(--navy); color: #fff; }
+    .homes .sec-title { color: #fff; }
+    .homes .kicker { color: var(--gold); }
+    .homes .sec-sub { color: rgba(255,255,255,.72); }
+    .homes-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 210px; gap: 14px; }
+    .home-tile { border-radius: 8px; overflow: hidden; position: relative; }
+    .home-tile img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease; }
+    .home-tile:hover img { transform: scale(1.05); }
+    .home-tile::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(180deg, transparent 55%, rgba(8,24,48,.55) 100%);
+      pointer-events: none;
+    }
+    .home-tile--wide { grid-column: span 2; }
+    .home-tile--tall { grid-row: span 2; }
+    .homes-cta { text-align: center; margin-top: 44px; }
+
+    /* ---------- Team ---------- */
+    .team { background: var(--cream-2); }
+    .founders {
+      display: grid; grid-template-columns: 420px 1fr; gap: 48px; align-items: center;
+      margin-bottom: 64px;
+    }
+    .founders-photo-wrap { position: relative; }
+    .founders-photo { border-radius: 8px; box-shadow: 0 20px 50px rgba(13,37,69,.22); width: 100%; }
+    .founders-est {
+      position: absolute; left: 18px; bottom: 18px;
+      background: var(--navy); color: var(--gold); font-size: 12px; font-weight: 600;
+      letter-spacing: .12em; text-transform: uppercase; padding: 8px 14px; border-radius: 4px;
+      border: 1px solid rgba(196,154,60,.5);
+    }
+    .founders-body .sec-title { margin-bottom: 16px; }
+    .founders-body p { color: #4a5462; font-size: 16.5px; margin-bottom: 14px; }
+    .team-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+    .team-card { text-align: center; }
+    .team-photo-wrap {
+      border-radius: 8px; overflow: hidden; aspect-ratio: 1 / 1.12; margin-bottom: 14px;
+      box-shadow: 0 8px 24px rgba(13,37,69,.12); position: relative;
+    }
+    .team-photo-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: top center; transition: transform .3s ease; }
+    .team-card:hover .team-photo-wrap img { transform: scale(1.04); }
+    .team-photo-wrap::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 1px rgba(13,37,69,.08); border-radius: 8px; }
+    .team-name { font-family: var(--serif); font-weight: 700; font-size: 19px; color: var(--navy); line-height: 1.2; }
+    .team-role { font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--red); font-weight: 600; margin-top: 3px; }
+
+    /* ---------- Final CTA ---------- */
+    .cta {
+      background:
+        radial-gradient(900px 480px at 50% 120%, rgba(200,16,46,.22), transparent 65%),
+        linear-gradient(180deg, var(--navy-deep), var(--navy-mid));
+      color: #fff; text-align: center; padding: 96px 24px;
+    }
+    .cta h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(32px, 5vw, 52px); line-height: 1.1; max-width: 760px; margin: 0 auto; }
+    .cta h2 em { font-style: italic; color: var(--gold); }
+    .cta p { color: rgba(255,255,255,.78); max-width: 560px; margin: 22px auto 38px; font-size: 17px; }
+    .cta-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .cta-phone { margin-top: 26px; font-size: 15px; color: rgba(255,255,255,.65); }
+    .cta-phone a { color: var(--gold); text-decoration: none; font-weight: 600; }
+
+    /* ---------- Footer ---------- */
+    footer { background: var(--navy-deep); color: rgba(255,255,255,.55); border-top: 1px solid rgba(196,154,60,.25); padding: 34px 24px; }
+    .footer-inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+    .footer-brand { display: flex; align-items: center; gap: 12px; }
+    .footer-brand-name { font-family: var(--serif); color: #fff; font-size: 17px; font-weight: 600; }
+    .footer-brand-sub { display: block; font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+    .footer-meta { font-size: 13px; text-align: right; }
+    .footer-meta a { color: rgba(255,255,255,.75); text-decoration: none; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 900px) {
+      .closes-grid { grid-template-columns: repeat(2, 1fr); }
+      .homes-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 190px; }
+      .team-grid { grid-template-columns: repeat(2, 1fr); }
+      .founders { grid-template-columns: 1fr; gap: 30px; }
+      .founders-photo-wrap { max-width: 460px; }
+      section { padding: 64px 0; }
+    }
+    @media (max-width: 560px) {
+      .topbar-phone { display: none; }
+      .topbar-tag { display: none; }
+      .topbar-name { font-size: 16px; white-space: nowrap; }
+      .topbar-inner { padding: 10px 14px; gap: 10px; }
+      .btn-red { padding: 10px 16px; font-size: 13px; }
+      .closes-grid { grid-template-columns: 1fr; }
+      .homes-grid { grid-template-columns: 1fr; grid-auto-rows: 220px; }
+      .home-tile--wide { grid-column: span 1; }
+      .home-tile--tall { grid-row: span 1; }
+      .hero { padding: 44px 16px 64px; }
+      .hero-badge { padding: 0 18px; }
+      .hero-badge-num { font-size: 26px; }
+      .vsl-play { width: 72px; height: 72px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="#top">
+        <span class="logo-chip"><img src="/images/brand/stb-logo.png" alt="South Texas Builders logo" /></span>
+        <span class="topbar-name">South Texas Builders
+          <span class="topbar-tag">Your Dream Home Starts Here</span>
+        </span>
+      </a>
+      <div class="topbar-right">
+        <a class="topbar-phone" href="tel:+19565946936">(956) 594-6936</a>
+        <a class="btn btn-red" href="#contact">Schedule a Consultation</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ HERO + VSL ============ -->
+  <section class="hero" id="top">
+    <p class="hero-kicker">Est. 1992 · Rio Grande Valley, TX</p>
+    <h1>Your Dream Home. <em>Your Way.</em></h1>
+    <div class="red-bar"></div>
+    <p class="hero-sub">100% custom homes built with family values, in-house expertise, and a proven process — right here in the Rio Grande Valley.</p>
+
+    <div class="vsl" id="vsl">
+      <img class="vsl-poster" src="/images/homes/hero-home.jpg" alt="Custom STB home in McAllen, TX" />
+      <button class="vsl-cover" id="vslPlayBtn" aria-label="Play video">
+        <span class="vsl-play">
+          <svg width="30" height="34" viewBox="0 0 30 34" fill="none"><path d="M28.5 15.27a2 2 0 0 1 0 3.46L3.5 33.16A2 2 0 0 1 .5 31.43V2.57A2 2 0 0 1 3.5.84l25 14.43Z" fill="#fff"/></svg>
+        </span>
+        <span class="vsl-cover-label">Watch: How We Build Your Home</span>
+      </button>
+    </div>
+
+    <div class="hero-badges">
+      <div class="hero-badge">
+        <span class="hero-badge-num">33+</span>
+        <span class="hero-badge-label">Years in RGV</span>
+      </div>
+      <div class="hero-badge">
+        <span class="hero-badge-num">2nd</span>
+        <span class="hero-badge-label">Generation Builder</span>
+      </div>
+      <div class="hero-badge">
+        <span class="hero-badge-num">100%</span>
+        <span class="hero-badge-label">Custom Homes</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CLIENT CLOSES ============ -->
+  <section class="closes" id="closings">
+    <div class="wrap">
+      <div class="sec-head center">
+        <p class="kicker">Real Families · Real Closings</p>
+        <h2 class="sec-title">Families Who Just Said Yes to Their Dream Home</h2>
+        <p class="sec-sub">Every week, more RGV families sign with South Texas Builders and break ground on a home built around their life — not somebody else's floor plan.</p>
+      </div>
+      <div class="closes-grid">
+        <div class="close-card">
+          <div class="close-card-img"><span class="close-badge">Just Signed</span><img src="/images/clients/client-1.jpg" alt="The Chavez Family signing with South Texas Builders" loading="lazy" /></div>
+          <div class="close-card-body"><p>The Chavez Family — Just Signed &amp; Breaking Ground</p></div>
+        </div>
+        <div class="close-card">
+          <div class="close-card-img"><span class="close-badge">Contract Signed</span><img src="/images/clients/client-2.jpg" alt="Happy STB family at contract signing" loading="lazy" /></div>
+          <div class="close-card-body"><p>Another Happy STB Family — Contract Signed</p></div>
+        </div>
+        <div class="close-card">
+          <div class="close-card-img"><span class="close-badge">Breaking Ground</span><img src="/images/clients/client-3.jpg" alt="The García Family breaking ground celebration" loading="lazy" /></div>
+          <div class="close-card-body"><p>The García Family — Breaking Ground Celebration</p></div>
+        </div>
+        <div class="close-card">
+          <div class="close-card-img"><span class="close-badge">New Clients</span><img src="/images/clients/client-4.jpg" alt="New STB clients starting their dream home journey" loading="lazy" /></div>
+          <div class="close-card-body"><p>New STB Clients — Dream Home Journey Begins</p></div>
+        </div>
+        <div class="close-card">
+          <div class="close-card-img"><span class="close-badge">Just Signed</span><img src="/images/clients/client-5.jpg" alt="The Gomez Family signing with South Texas Builders" loading="lazy" /></div>
+          <div class="close-card-body"><p>The Gomez Family — Just Signed &amp; Breaking Ground</p></div>
+        </div>
+        <div class="close-card">
+          <div class="close-card-img"><span class="close-badge">Welcome to STB</span><img src="/images/clients/client-6.jpg" alt="STB family celebrating their new home contract" loading="lazy" /></div>
+          <div class="close-card-body"><p>One More Family Home — Welcome to the STB Familia</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOMES ============ -->
+  <section class="homes" id="homes">
+    <div class="wrap">
+      <div class="sec-head center">
+        <p class="kicker">The Work Speaks for Itself</p>
+        <h2 class="sec-title">Homes We've Built Across the Valley</h2>
+        <p class="sec-sub">From modern farmhouse to contemporary — every home is designed from scratch with the family who will live in it.</p>
+      </div>
+      <div class="homes-grid">
+        <div class="home-tile home-tile--wide home-tile--tall"><img src="/images/homes/hero-home.jpg" alt="Custom STB home — McAllen, TX, completed 2024" loading="lazy" /></div>
+        <div class="home-tile"><img src="/images/homes/house-01.jpg" alt="Custom home built by South Texas Builders" loading="lazy" /></div>
+        <div class="home-tile"><img src="/images/homes/house-02.jpg" alt="Custom home built by South Texas Builders" loading="lazy" /></div>
+        <div class="home-tile"><img src="/images/homes/house-03.jpg" alt="Custom home built by South Texas Builders" loading="lazy" /></div>
+        <div class="home-tile"><img src="/images/homes/house-04.jpg" alt="Custom home built by South Texas Builders" loading="lazy" /></div>
+        <div class="home-tile home-tile--wide"><img src="/images/homes/house-05.jpg" alt="Custom home built by South Texas Builders" loading="lazy" /></div>
+        <div class="home-tile"><img src="/images/homes/house-06.jpg" alt="Custom home built by South Texas Builders" loading="lazy" /></div>
+        <div class="home-tile"><img src="/images/homes/house-07.jpg" alt="Custom home built by South Texas Builders" loading="lazy" /></div>
+      </div>
+      <div class="homes-cta">
+        <a class="btn btn-red btn-lg" href="#contact">Start Designing Yours</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TEAM ============ -->
+  <section class="team" id="team">
+    <div class="wrap">
+      <div class="founders">
+        <div class="founders-photo-wrap">
+          <img class="founders-photo" src="/images/brand/founders.jpg" alt="Israel and Javier Gonzalez, founders of South Texas Builders" loading="lazy" />
+          <span class="founders-est">Est. 1992 · RGV, TX</span>
+        </div>
+        <div class="founders-body">
+          <p class="kicker">A Family Business, Building for Families</p>
+          <h2 class="sec-title">Meet the Builders Behind Every Home</h2>
+          <p>South Texas Builders is a second-generation, family-owned builder led by Israel &amp; Javier Gonzalez. For over three decades, our in-house team has walked families through every step — from the first blueprint session to closing day and keys in hand.</p>
+          <p>No middlemen. No surprises. Just one team, assigned to your home from day one until move-in.</p>
+        </div>
+      </div>
+      <div class="team-grid">
+        <div class="team-card">
+          <div class="team-photo-wrap"><img src="/images/team/javier-gonzalez.jpg" alt="Javier González" loading="lazy" /></div>
+          <p class="team-name">Javier González</p>
+          <p class="team-role">Construction Manager</p>
+        </div>
+        <div class="team-card">
+          <div class="team-photo-wrap"><img src="/images/team/rael-gonzalez.png" alt="Israel Gonzalez" loading="lazy" /></div>
+          <p class="team-name">Israel Gonzalez</p>
+          <p class="team-role">Project Manager</p>
+        </div>
+        <div class="team-card">
+          <div class="team-photo-wrap"><img src="/images/team/rolando-pena.jpg" alt="Rolando Peña" loading="lazy" /></div>
+          <p class="team-name">Rolando Peña</p>
+          <p class="team-role">Director of Operations</p>
+        </div>
+        <div class="team-card">
+          <div class="team-photo-wrap"><img src="/images/team/graciela-leal.jpg" alt="Graciela Leal" loading="lazy" /></div>
+          <p class="team-name">Graciela Leal</p>
+          <p class="team-role">Sales Manager</p>
+        </div>
+        <div class="team-card">
+          <div class="team-photo-wrap"><img src="/images/team/cristo-calderon.jpg" alt="Cristo Calderón" loading="lazy" /></div>
+          <p class="team-name">Cristo Calderón</p>
+          <p class="team-role">Finance Manager</p>
+        </div>
+        <div class="team-card">
+          <div class="team-photo-wrap"><img src="/images/team/claudia-garza.jpg" alt="Claudia Garza" loading="lazy" /></div>
+          <p class="team-name">Claudia Garza</p>
+          <p class="team-role">Construction Advisor</p>
+        </div>
+        <div class="team-card">
+          <div class="team-photo-wrap"><img src="/images/team/nadia-benavides.jpg" alt="Nadia Benavides" loading="lazy" /></div>
+          <p class="team-name">Nadia Benavides</p>
+          <p class="team-role">Transaction Coordinator</p>
+        </div>
+        <div class="team-card">
+          <div class="team-photo-wrap"><img src="/images/team/yamir-gonzalez.jpg" alt="Yamir González" loading="lazy" /></div>
+          <p class="team-name">Yamir González</p>
+          <p class="team-role">Marketing Director</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL CTA ============ -->
+  <section class="cta" id="contact">
+    <h2>Ready to Build a Home That's <em>100% Yours?</em></h2>
+    <p>Sit down with our team for a free consultation. Bring your ideas — we'll bring 33+ years of building experience in the Rio Grande Valley.</p>
+    <div class="cta-buttons">
+      <a class="btn btn-red btn-lg" href="tel:+19565946936">Call (956) 594-6936</a>
+      <a class="btn btn-gold-line" href="sms:+19565946936">Text Us to Get Started</a>
+    </div>
+    <p class="cta-phone">Prefer email? Reach out and we'll schedule your blueprint session.</p>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="logo-chip"><img src="/images/brand/stb-logo.png" alt="South Texas Builders logo" /></span>
+        <span class="footer-brand-name">South Texas Builders
+          <span class="footer-brand-sub">Est. 1992 · Rio Grande Valley, TX</span>
+        </span>
+      </div>
+      <div class="footer-meta">
+        <a href="tel:+19565946936">(956) 594-6936</a><br />
+        © <span id="year"></span> South Texas Builders. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ============================================================
+    //  VSL SETUP — paste your video link here.
+    //  Works with any of these formats:
+    //   • YouTube:  "https://www.youtube.com/watch?v=XXXXXXXX"  (or youtu.be / embed links)
+    //   • Vimeo:    "https://vimeo.com/123456789"
+    //   • Direct file: "/video/vsl.mp4"  (drop the file in a /video folder)
+    //  Leave it as "" until the video is ready — the play button
+    //  will show a friendly "coming soon" note instead of breaking.
+    // ============================================================
+    var VSL_URL = "";
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    document.getElementById("vslPlayBtn").addEventListener("click", function () {
+      var box = document.getElementById("vsl");
+      if (!VSL_URL) {
+        var label = box.querySelector(".vsl-cover-label");
+        label.textContent = "Video coming soon — call (956) 594-6936 to talk to us today";
+        return;
+      }
+      var embed = toEmbed(VSL_URL);
+      box.innerHTML = "";
+      if (embed.kind === "iframe") {
+        var f = document.createElement("iframe");
+        f.src = embed.src;
+        f.allow = "autoplay; fullscreen; picture-in-picture";
+        f.allowFullscreen = true;
+        box.appendChild(f);
+      } else {
+        var v = document.createElement("video");
+        v.src = embed.src;
+        v.controls = true;
+        v.autoplay = true;
+        v.playsInline = true;
+        box.appendChild(v);
+      }
+    });
+
+    function toEmbed(url) {
+      var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
+      if (yt) return { kind: "iframe", src: "https://www.youtube.com/embed/" + yt[1] + "?autoplay=1&rel=0" };
+      var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+      if (vm) return { kind: "iframe", src: "https://player.vimeo.com/video/" + vm[1] + "?autoplay=1" };
+      return { kind: "video", src: url };
+    }
+  </script>
+</body>
+</html>
