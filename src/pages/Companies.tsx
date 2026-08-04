@@ -207,7 +207,12 @@ const TextArea = (p: { value?: string; onChange: (v: string) => void; placeholde
 export default function Companies() {
   const { toast } = useToast()
   const confirmDelete = useConfirmDelete()
-  const [depts, setDepts] = useStore<Dept[]>('companies.depts', SEED_DEPTS)
+  // Departments are per-company (deleting one from a company no longer affects
+  // the others). `companies.depts` was the old shared list — kept only to
+  // migrate/restore from.
+  const [deptsByCompany, setDeptsByCompany] = useStore<Record<string, Dept[]>>('companies.deptsByCompany', {})
+  const [legacyDepts] = useStore<Dept[]>('companies.depts', SEED_DEPTS)
+  const [deptsMigrated, setDeptsMigrated] = useStore<number>('companies.deptsMigrated', 0)
   const [reviews, setReviews] = useStore<Record<string, Review>>('companies.reviews', {})
   const [quarters, setQuarters] = useStore<string[]>('companies.quarters', [currentQuarter()])
   const [savedAt, setSavedAt] = useStore<number>('companies.savedAt', 0)
@@ -222,6 +227,47 @@ export default function Companies() {
   const [newDept, setNewDept] = useState('')
   const [, setTick] = useState(0)
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t) }, [])
+
+  // The department list for a given company (falls back to the original set).
+  const deptsFor = (co: CompanyId): Dept[] => deptsByCompany[co] ?? SEED_DEPTS
+  const depts = selected ? deptsFor(selected) : SEED_DEPTS
+  const setDepts = (updater: (prev: Dept[]) => Dept[]) => {
+    if (!selected) return
+    setDeptsByCompany((prev) => ({ ...prev, [selected]: updater(prev[selected] ?? SEED_DEPTS) }))
+  }
+
+  // One-time restore: give every company its own department list, seeded with
+  // all the original departments. Reviews are keyed by the stable department id
+  // (d0…d13), so restoring a previously-deleted department reconnects the data
+  // that was saved under it. Any custom-added departments and renames are kept.
+  const DEPTS_MIGRATION = 1
+  useEffect(() => {
+    if (deptsMigrated >= DEPTS_MIGRATION) return
+    const base = legacyDepts && legacyDepts.length ? legacyDepts : SEED_DEPTS
+    const byId = Object.fromEntries(base.map((d) => [d.id, d]))
+    const restored: Dept[] = [
+      ...SEED_DEPTS.map((s) => byId[s.id] ?? s),                                  // all originals (renames kept)
+      ...base.filter((d) => !SEED_DEPTS.some((s) => s.id === d.id)),             // custom additions
+    ]
+    setDeptsByCompany((prev) => {
+      const next = { ...prev }
+      for (const c of COMPANIES) {
+        const existing = next[c.id]
+        if (!existing || existing.length === 0) {
+          next[c.id] = restored.map((d) => ({ ...d }))
+        } else {
+          const have = new Set(existing.map((d) => d.id))
+          const merged = [...existing]
+          for (const s of SEED_DEPTS) if (!have.has(s.id)) merged.push({ ...s })
+          next[c.id] = merged
+        }
+      }
+      return next
+    })
+    setDeptsMigrated(DEPTS_MIGRATION)
+    setSavedAt(Date.now())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deptsMigrated])
 
   // Seed the starting roster once per company (only fills empty fields).
   useEffect(() => {
@@ -269,7 +315,7 @@ export default function Companies() {
   }
   const counts = (co: CompanyId, q: string) => {
     const c = { green: 0, yellow: 0, red: 0 }
-    for (const d of depts) { const s = getReview(co, q, d.id).status; if (s) c[s]++ }
+    for (const d of deptsFor(co)) { const s = getReview(co, q, d.id).status; if (s) c[s]++ }
     return c
   }
   // A new quarter inherits the roster (lead, team, photos, headcount) so you
