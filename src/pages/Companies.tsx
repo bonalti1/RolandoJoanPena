@@ -266,11 +266,40 @@ export default function Companies() {
     for (const d of depts) { const s = getReview(co, q, d.id).status; if (s) c[s]++ }
     return c
   }
+  // A new quarter inherits the roster (lead, team, photos, headcount) so you
+  // never re-upload people — but the assessment (status, feedback, bottlenecks,
+  // problems, goals, summary) starts blank so each quarter is a fresh evaluation
+  // you can compare against the last.
+  const carryOver = (r: Review): Review => {
+    const out: Review = {}
+    if (r.description) out.description = r.description
+    if (r.leadName) out.leadName = r.leadName
+    if (r.leadRole) out.leadRole = r.leadRole
+    if (r.leadPhoto) out.leadPhoto = r.leadPhoto
+    if (r.headcount) out.headcount = r.headcount
+    if (r.cost) out.cost = r.cost
+    if (r.team && r.team.length) out.team = r.team.map((m) => ({ id: uid('m'), name: m.name, role: m.role, photo: m.photo }))
+    return out
+  }
   const addQuarter = () => {
     const latest = sortedQuarters[0] ?? currentQuarter()
     const q = nextQuarter(latest)
-    if (!quarters.includes(q)) setQuarters((prev) => [...prev, q])
+    if (quarters.includes(q)) { setQuarter(q); return }
+    if (selected) {
+      let carried = false
+      setReviews((prev) => {
+        const next = { ...prev }
+        for (const d of depts) {
+          const src = prev[key(selected, latest, d.id)]
+          if (src) { next[key(selected, q, d.id)] = carryOver(src); carried = true }
+        }
+        return next
+      })
+      if (carried) toast(`Carried the team & leads over from ${quarterLabel(latest)}`)
+    }
+    setQuarters((prev) => [...prev, q])
     setQuarter(q)
+    setSavedAt(Date.now())
   }
   const addDept = () => { const n = newDept.trim(); if (!n) return; const id = uid('d'); setDepts((prev) => [...prev, { id, name: n }]); setNewDept(''); setDeptSel(id); setSavedAt(Date.now()) }
 
