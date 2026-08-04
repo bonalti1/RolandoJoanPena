@@ -67,8 +67,6 @@ const STATUS_META: Record<Status, { dot: string; label: string }> = {
 const STATUS_ORDER: Status[] = ['green', 'yellow', 'red']
 const LEVELS: Level[] = ['High', 'Med', 'Low']
 const levelColor: Record<Level, string> = { High: '#dc2626', Med: '#f59e0b', Low: '#ca8a04' }
-const TABS = ['Overview', 'Bottlenecks', 'Problems', 'Goals'] as const
-type Tab = typeof TABS[number]
 
 const currentQuarter = () => { const d = new Date(); return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}` }
 const quarterLabel = (q: string) => q.replace('-', ' ')
@@ -213,7 +211,6 @@ export default function Companies() {
   const [selected, setSelected] = useState<CompanyId | null>(null)
   const [quarter, setQuarter] = useState<string>(quarters[0] ?? currentQuarter())
   const [deptSel, setDeptSel] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('Overview')
   const [search, setSearch] = useState('')
   const [editDepts, setEditDepts] = useState(false)
   const [newDept, setNewDept] = useState('')
@@ -297,7 +294,7 @@ export default function Companies() {
             const cnt = counts(c.id, quarter)
             return (
               <Card key={c.id} className="p-5 cursor-pointer transition hover:scale-[1.01]">
-                <button onClick={() => { setSelected(c.id); setDeptSel(depts[0]?.id ?? null); setTab('Overview') }} className="w-full text-left">
+                <button onClick={() => { setSelected(c.id); setDeptSel(depts[0]?.id ?? null) }} className="w-full text-left">
                   <img src={c.logo} alt={c.name} className="object-contain mb-3" style={{ height: 40, width: 'auto', maxWidth: 160 }} draggable={false} />
                   <div className="font-bold" style={{ color: 'var(--color-text)' }}>{c.name}</div>
                   <div className="flex items-center gap-3 mt-2 text-sm">
@@ -326,9 +323,6 @@ export default function Companies() {
   const r: Review = dept ? getReview(selected, quarter, dept.id) : {}
   const set = (patch: Review) => { if (dept) setReview(dept.id, patch) }
   const leadFirst = (r.leadName || '').split(' ')[0]
-
-  const topBottlenecks = (r.bottlenecks ?? []).filter((b) => b.text.trim()).slice(0, 3)
-  const topProblems = (r.problems ?? []).filter((b) => b.text.trim()).slice(0, 3)
 
   return (
     <div>
@@ -370,7 +364,7 @@ export default function Companies() {
               const active = d.id === activeId
               return (
                 <li key={d.id}>
-                  <button onClick={() => { setDeptSel(d.id); setTab('Overview') }} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-sm" style={{ background: active ? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface))' : 'transparent', color: 'var(--color-text)', fontWeight: active ? 600 : 450 }}>
+                  <button onClick={() => setDeptSel(d.id)} className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-sm" style={{ background: active ? 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface))' : 'transparent', color: 'var(--color-text)', fontWeight: active ? 600 : 450 }}>
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ background: st ? STATUS_META[st].dot : 'var(--color-border)' }} />
                     <span className="flex-1 truncate">{d.name}</span>
                     <span className="text-xs shrink-0" style={{ color: 'var(--color-muted)' }}>›</span>
@@ -407,62 +401,36 @@ export default function Companies() {
               <h2 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>{dept.name}</h2>
               <div className="w-[160px]"><StatusSelect value={r.status} onChange={(s) => set({ status: s })} /></div>
             </div>
-            <div className="flex gap-1 overflow-x-auto pb-2 mb-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
-              {TABS.map((t) => (
-                <button key={t} onClick={() => setTab(t)} className="px-3 py-1.5 text-sm font-semibold shrink-0 rounded-t-lg" style={{ color: tab === t ? 'var(--color-accent)' : 'var(--color-muted)', borderBottom: tab === t ? '2px solid var(--color-accent)' : '2px solid transparent' }}>{t}</button>
-              ))}
+            <Section title="Overview">
+              <TextArea value={r.description} onChange={(v) => set({ description: v })} rows={2} placeholder="What this department owns…" />
+            </Section>
+            <div className="grid sm:grid-cols-3 gap-3 mb-5">
+              <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
+                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Status</p>
+                <div className="mt-1.5"><StatusSelect value={r.status} onChange={(s) => set({ status: s })} compact /></div>
+              </div>
+              <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
+                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Quarterly cost</p>
+                <div className="flex items-baseline gap-1 mt-1"><span className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>$</span><input type="number" value={r.cost || ''} placeholder="0" onChange={(e) => set({ cost: parseFloat(e.target.value) || 0 })} className="w-24 bg-transparent outline-none text-xl font-bold tnum" style={{ color: 'var(--color-text)' }} /></div>
+              </div>
+              <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
+                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Headcount</p>
+                <input type="number" value={r.headcount || ''} placeholder="0" onChange={(e) => set({ headcount: parseFloat(e.target.value) || 0 })} className="w-16 bg-transparent outline-none text-xl font-bold tnum mt-1" style={{ color: 'var(--color-text)' }} />
+              </div>
             </div>
 
-            {tab === 'Overview' && (
-              <div>
-                <Section title="Overview">
-                  <TextArea value={r.description} onChange={(v) => set({ description: v })} rows={2} placeholder="What this department owns…" />
-                </Section>
-                <div className="grid sm:grid-cols-3 gap-3 mb-5">
-                  <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
-                    <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Status</p>
-                    <div className="mt-1.5"><StatusSelect value={r.status} onChange={(s) => set({ status: s })} compact /></div>
-                  </div>
-                  <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
-                    <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Quarterly cost</p>
-                    <div className="flex items-baseline gap-1 mt-1"><span className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>$</span><input type="number" value={r.cost || ''} placeholder="0" onChange={(e) => set({ cost: parseFloat(e.target.value) || 0 })} className="w-24 bg-transparent outline-none text-xl font-bold tnum" style={{ color: 'var(--color-text)' }} /></div>
-                  </div>
-                  <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
-                    <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Headcount</p>
-                    <input type="number" value={r.headcount || ''} placeholder="0" onChange={(e) => set({ headcount: parseFloat(e.target.value) || 0 })} className="w-16 bg-transparent outline-none text-xl font-bold tnum mt-1" style={{ color: 'var(--color-text)' }} />
-                  </div>
-                </div>
-                <Section title="Quick summary">
-                  <TextArea value={r.summary} onChange={(v) => set({ summary: v })} rows={3} placeholder="Key takeaways this quarter…" />
-                </Section>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
-                    <div className="flex items-center justify-between mb-2"><h4 className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Top bottlenecks</h4><button onClick={() => setTab('Bottlenecks')} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Edit →</button></div>
-                    {topBottlenecks.length === 0 ? <p className="text-sm" style={{ color: 'var(--color-muted)' }}>None logged.</p> : topBottlenecks.map((b, i) => (
-                      <div key={b.id} className="flex items-center gap-2 text-sm py-1"><span className="tnum w-4" style={{ color: 'var(--color-muted)' }}>{i + 1}</span><span className="flex-1 truncate" style={{ color: 'var(--color-text)' }}>{b.text}</span>{b.level && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: `color-mix(in srgb, ${levelColor[b.level]} 16%, var(--color-surface))`, color: levelColor[b.level] }}>{b.level}</span>}</div>
-                    ))}
-                  </div>
-                  <div className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)' }}>
-                    <div className="flex items-center justify-between mb-2"><h4 className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Top problems</h4><button onClick={() => setTab('Problems')} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Edit →</button></div>
-                    {topProblems.length === 0 ? <p className="text-sm" style={{ color: 'var(--color-muted)' }}>None logged.</p> : topProblems.map((b, i) => (
-                      <div key={b.id} className="flex items-center gap-2 text-sm py-1"><span className="tnum w-4" style={{ color: 'var(--color-muted)' }}>{i + 1}</span><span className="flex-1 truncate" style={{ color: 'var(--color-text)' }}>{b.text}</span>{b.level && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: `color-mix(in srgb, ${levelColor[b.level]} 16%, var(--color-surface))`, color: levelColor[b.level] }}>{b.level}</span>}</div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} onChange={(items) => set({ bottlenecks: items })} /></Section>
+            <Section title="Problems"><ListEditor items={r.problems} onChange={(items) => set({ problems: items })} /></Section>
 
-            {tab === 'Bottlenecks' && <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} onChange={(items) => set({ bottlenecks: items })} /></Section>}
-            {tab === 'Problems' && <Section title="Problems"><ListEditor items={r.problems} onChange={(items) => set({ problems: items })} /></Section>}
-            {tab === 'Goals' && (
-              <div>
-                <Section title="Goals for the quarter"><TextArea value={r.goals} onChange={(v) => set({ goals: v })} rows={8} placeholder="What this department must achieve…" /></Section>
-                <Section title="What we're fixing">
-                  <TextArea value={r.fixing} onChange={(v) => set({ fixing: v })} rows={3} placeholder="The plan to fix what's broken…" />
-                  {(r.fixing ?? '').trim() && <Button className="mt-2" onClick={() => turnIntoTask(dept.name, r.fixing ?? '')}><IconPlus width={15} height={15} /> Turn into a Work task</Button>}
-                </Section>
-              </div>
-            )}
+            <Section title="Goals for the quarter"><TextArea value={r.goals} onChange={(v) => set({ goals: v })} rows={6} placeholder="What this department must achieve…" /></Section>
+            <Section title="What we're fixing">
+              <TextArea value={r.fixing} onChange={(v) => set({ fixing: v })} rows={3} placeholder="The plan to fix what's broken…" />
+              {(r.fixing ?? '').trim() && <Button className="mt-2" onClick={() => turnIntoTask(dept.name, r.fixing ?? '')}><IconPlus width={15} height={15} /> Turn into a Work task</Button>}
+            </Section>
+
+            <Section title="Quick summary">
+              <TextArea value={r.summary} onChange={(v) => set({ summary: v })} rows={3} placeholder="Key takeaways this quarter…" />
+            </Section>
           </Card>
         )}
 
