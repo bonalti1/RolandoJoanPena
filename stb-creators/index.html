@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0d2545" />
+  <title>Claim Your $3,000 in Credits — South Texas Builders</title>
+  <meta name="description" content="You were sent here for a reason: claim $1,500 toward your blueprints plus a $1,500 upgrade credit of your choice with South Texas Builders. Rio Grande Valley, TX." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #0d2545;
+      --navy-deep: #081830;
+      --navy-mid: #0f1f3d;
+      --red: #c8102e;
+      --gold: #C49A3C;
+      --cream: #f7f4ee;
+      --cream-2: #f5f0e8;
+      --ink: #1a1a1a;
+      --serif: "Cormorant Garamond", Georgia, serif;
+      --sans: "DM Sans", -apple-system, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--sans); color: var(--ink); background: var(--cream); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; }
+    .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+    /* ---------- Top bar ---------- */
+    .topbar { position: sticky; top: 0; z-index: 50; background: rgba(13,37,69,.97); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(196,154,60,.35); }
+    .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 24px; max-width: 1060px; margin: 0 auto; }
+    .topbar-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .logo-chip { width: 46px; height: 46px; background: #fff; border-radius: 6px; overflow: hidden; position: relative; flex-shrink: 0; }
+    .logo-chip img { position: absolute; width: 160%; height: 160%; top: 50%; left: 50%; transform: translate(-50%, -50%); object-fit: contain; }
+    .topbar-name { color: #fff; font-family: var(--serif); font-weight: 600; font-size: 19px; letter-spacing: .04em; line-height: 1.15; }
+    .topbar-tag { display: block; color: var(--gold); font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; font-weight: 500; font-family: var(--sans); }
+    .btn { display: inline-block; text-decoration: none; text-align: center; font-family: var(--sans); font-weight: 700; letter-spacing: .04em; border-radius: 6px; transition: transform .15s ease, box-shadow .15s ease, background .15s ease; cursor: pointer; border: none; }
+    .btn-red { background: var(--red); color: #fff; padding: 11px 24px; font-size: 14.5px; box-shadow: 0 4px 14px rgba(200,16,46,.35); }
+    .btn-red:hover { background: #de1534; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(200,16,46,.45); }
+    .btn-lg { padding: 17px 42px; font-size: 17px; }
+    .btn-gold-line { border: 1px solid var(--gold); color: var(--gold); padding: 14px 32px; font-size: 15px; background: transparent; }
+    .btn-gold-line:hover { background: rgba(196,154,60,.12); }
+
+    /* ---------- Hero: creator VSL ---------- */
+    .hero {
+      background:
+        radial-gradient(1100px 560px at 70% -10%, rgba(196,154,60,.14), transparent 60%),
+        linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+      color: #fff; text-align: center; padding: 52px 24px 76px;
+    }
+    .sent-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(196,154,60,.14); border: 1px solid rgba(196,154,60,.5);
+      color: var(--gold); font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+      padding: 8px 18px; border-radius: 100px; margin-bottom: 22px;
+    }
+    .hero h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(32px, 5.4vw, 54px); line-height: 1.1; max-width: 760px; margin: 0 auto; }
+    .hero h1 em { font-style: italic; color: var(--gold); }
+    .red-bar { width: 72px; height: 4px; background: var(--red); margin: 24px auto; }
+    .hero-sub { max-width: 560px; margin: 0 auto 38px; color: rgba(255,255,255,.8); font-size: 17px; font-weight: 300; }
+
+    /* Vertical (9:16) phone-shaped VSL player */
+    .vsl {
+      width: min(380px, 88vw); margin: 0 auto; aspect-ratio: 9 / 16;
+      border-radius: 22px; overflow: hidden; position: relative; background: #000;
+      border: 1px solid rgba(196,154,60,.55);
+      box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 7px rgba(255,255,255,.05);
+    }
+    .vsl iframe, .vsl video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .vsl-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .8; }
+    .vsl-cover {
+      position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      background: linear-gradient(180deg, rgba(8,24,48,.25) 0%, rgba(8,24,48,.75) 100%);
+      cursor: pointer; border: 0; width: 100%; color: #fff; font-family: var(--sans); padding: 0 20px;
+    }
+    .vsl-play {
+      width: 84px; height: 84px; border-radius: 50%; background: var(--red);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 10px 34px rgba(200,16,46,.55), 0 0 0 10px rgba(200,16,46,.22);
+      transition: transform .2s ease;
+    }
+    .vsl-cover:hover .vsl-play { transform: scale(1.07); }
+    .vsl-play svg { margin-left: 6px; }
+    .vsl-cover-label { font-size: 12.5px; letter-spacing: .2em; text-transform: uppercase; font-weight: 600; color: rgba(255,255,255,.92); text-shadow: 0 2px 8px rgba(0,0,0,.5); line-height: 1.7; }
+    .hero-arrow { margin: 34px auto 0; color: var(--gold); font-size: 13px; letter-spacing: .2em; text-transform: uppercase; font-weight: 600; }
+    .hero-arrow::after { content: "↓"; display: block; font-size: 26px; margin-top: 6px; animation: bob 1.6s ease-in-out infinite; }
+    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
+
+    /* ---------- Offer ---------- */
+    .offer { background: var(--cream); padding: 76px 0 68px; }
+    .offer-head { text-align: center; margin-bottom: 40px; }
+    .kicker { color: var(--red); font-size: 12.5px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; margin-bottom: 14px; }
+    .sec-title { font-family: var(--serif); font-weight: 600; font-size: clamp(30px, 4.4vw, 44px); line-height: 1.12; color: var(--navy); }
+    .offer-total {
+      display: inline-block; margin-top: 18px; background: var(--navy); color: var(--gold);
+      font-family: var(--serif); font-size: 22px; font-weight: 700; padding: 10px 28px; border-radius: 100px;
+      border: 1px solid rgba(196,154,60,.5);
+    }
+    .offer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; max-width: 780px; margin: 0 auto; }
+    .offer-card {
+      background: #fff; border-radius: 10px; padding: 34px 30px; text-align: center;
+      border: 1px solid rgba(13,37,69,.08); box-shadow: 0 8px 26px rgba(13,37,69,.09); position: relative; overflow: hidden;
+    }
+    .offer-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--red); }
+    .offer-amount { font-family: var(--serif); font-size: 52px; font-weight: 700; color: var(--navy); line-height: 1; }
+    .offer-label { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--red); font-weight: 700; margin: 10px 0 12px; }
+    .offer-desc { color: #55606f; font-size: 15px; }
+    .offer-fine { text-align: center; color: #8a93a0; font-size: 13px; margin-top: 26px; }
+
+    /* ---------- Claim form ---------- */
+    .claim { background: linear-gradient(180deg, var(--navy) 0%, var(--navy-mid) 100%); padding: 80px 0; color: #fff; }
+    .claim-inner { max-width: 560px; margin: 0 auto; }
+    .claim-head { text-align: center; margin-bottom: 34px; }
+    .claim-head .kicker { color: var(--gold); }
+    .claim-head h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(28px, 4vw, 38px); line-height: 1.15; }
+    .claim-head p { color: rgba(255,255,255,.72); margin-top: 12px; font-size: 15.5px; }
+    .claim-card { background: #fff; border-radius: 12px; padding: 34px 32px; color: var(--ink); box-shadow: 0 24px 60px rgba(0,0,0,.4); }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--navy); margin-bottom: 7px; }
+    .field input, .field select {
+      width: 100%; padding: 13px 14px; font-family: var(--sans); font-size: 16px; color: var(--ink);
+      border: 1.5px solid #d7dbe2; border-radius: 6px; background: #fbfaf7; outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease; appearance: none;
+    }
+    .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230d2545' stroke-width='2' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+    .field input:focus, .field select:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(13,37,69,.12); }
+    .claim-btn { width: 100%; margin-top: 6px; }
+    .claim-note { text-align: center; font-size: 13px; color: #8a93a0; margin-top: 14px; }
+    .claim-success { text-align: center; padding: 26px 6px 10px; display: none; }
+    .claim-success-icon { width: 64px; height: 64px; border-radius: 50%; background: #1a5c2e; margin: 0 auto 18px; display: flex; align-items: center; justify-content: center; }
+    .claim-success h3 { font-family: var(--serif); font-size: 27px; color: var(--navy); margin-bottom: 10px; }
+    .claim-success p { color: #55606f; font-size: 15.5px; }
+    .claim-call { text-align: center; margin-top: 30px; }
+    .claim-call p { color: rgba(255,255,255,.6); font-size: 14px; margin-bottom: 12px; }
+
+    /* ---------- Trust strip ---------- */
+    .trust { background: var(--cream-2); padding: 72px 0; }
+    .trust-head { text-align: center; margin-bottom: 38px; }
+    .trust-head .sec-sub { color: #55606f; max-width: 620px; margin: 14px auto 0; font-size: 16px; }
+    .trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 18px; }
+    .trust-tile { border-radius: 8px; overflow: hidden; aspect-ratio: 4 / 3; position: relative; box-shadow: 0 6px 20px rgba(13,37,69,.1); }
+    .trust-tile img { width: 100%; height: 100%; object-fit: cover; }
+    .trust-badge { position: absolute; top: 10px; left: 10px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 4px 10px; border-radius: 3px; }
+    .trust-homes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .trust-homes .trust-tile { aspect-ratio: 4 / 3; }
+    .trust-stats { display: flex; justify-content: center; gap: 0; margin-top: 40px; flex-wrap: wrap; }
+    .trust-stat { padding: 0 34px; text-align: center; }
+    .trust-stat + .trust-stat { border-left: 1px solid rgba(13,37,69,.15); }
+    .trust-stat-num { display: block; font-family: var(--serif); font-size: 32px; font-weight: 700; color: var(--navy); line-height: 1.1; }
+    .trust-stat-label { display: block; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: #8a93a0; margin-top: 4px; }
+
+    /* ---------- Footer ---------- */
+    footer { background: var(--navy-deep); color: rgba(255,255,255,.55); border-top: 1px solid rgba(196,154,60,.25); padding: 32px 24px; }
+    .footer-inner { max-width: 1060px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+    .footer-brand { display: flex; align-items: center; gap: 12px; }
+    .footer-brand-name { font-family: var(--serif); color: #fff; font-size: 17px; font-weight: 600; }
+    .footer-brand-sub { display: block; font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-family: var(--sans); }
+    .footer-meta { font-size: 13px; text-align: right; }
+    .footer-meta a { color: rgba(255,255,255,.75); text-decoration: none; }
+
+    /* ---------- Sticky mobile claim bar ---------- */
+    .sticky-cta {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      background: rgba(13,37,69,.97); backdrop-filter: blur(8px);
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+      border-top: 1px solid rgba(196,154,60,.4); display: none;
+    }
+    .sticky-cta .btn { width: 100%; }
+
+    @media (max-width: 760px) {
+      .offer-grid { grid-template-columns: 1fr; }
+      .trust-grid { grid-template-columns: 1fr; }
+      .trust-homes { grid-template-columns: repeat(2, 1fr); }
+      .topbar-tag { display: none; }
+      .topbar-name { font-size: 16px; white-space: nowrap; }
+      .topbar-inner { padding: 10px 14px; }
+      .topbar .btn-red { padding: 10px 16px; font-size: 13px; }
+      .sticky-cta { display: block; }
+      body { padding-bottom: 74px; }
+      .hero { padding: 40px 16px 60px; }
+      .trust-stat { padding: 0 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="#top">
+        <span class="logo-chip"><img src="/images/brand/stb-logo.png" alt="South Texas Builders logo" /></span>
+        <span class="topbar-name">South Texas Builders
+          <span class="topbar-tag">Your Dream Home Starts Here</span>
+        </span>
+      </a>
+      <a class="btn btn-red" href="#claim">Claim $3,000</a>
+    </div>
+  </header>
+
+  <!-- ============ HERO: CREATOR VSL ============ -->
+  <section class="hero" id="top">
+    <p class="sent-chip" id="sentChip">A Message For You</p>
+    <h1>You Were Sent Here <em>For a Reason.</em></h1>
+    <div class="red-bar"></div>
+    <p class="hero-sub" id="heroSub">Watch this quick video, then claim $3,000 in build credits with South Texas Builders — the RGV's family-owned custom home builder since 1992.</p>
+
+    <div class="vsl" id="vsl">
+      <img class="vsl-poster" src="/images/homes/hero-home.jpg" alt="Custom South Texas Builders home" />
+      <button class="vsl-cover" id="vslPlayBtn" aria-label="Play video">
+        <span class="vsl-play">
+          <svg width="28" height="32" viewBox="0 0 30 34" fill="none"><path d="M28.5 15.27a2 2 0 0 1 0 3.46L3.5 33.16A2 2 0 0 1 .5 31.43V2.57A2 2 0 0 1 3.5.84l25 14.43Z" fill="#fff"/></svg>
+        </span>
+        <span class="vsl-cover-label" id="vslLabel">Tap to Watch</span>
+      </button>
+    </div>
+
+    <p class="hero-arrow">Your $3,000 is below</p>
+  </section>
+
+  <!-- ============ OFFER ============ -->
+  <section class="offer" id="offer">
+    <div class="wrap">
+      <div class="offer-head">
+        <p class="kicker">Exclusive Creator Offer</p>
+        <h2 class="sec-title">Here's What You Get When You Build With STB</h2>
+        <span class="offer-total">$3,000 Total Value — Yours When You Claim Below</span>
+      </div>
+      <div class="offer-grid">
+        <div class="offer-card">
+          <p class="offer-amount">$1,500</p>
+          <p class="offer-label">Toward Your Blueprints</p>
+          <p class="offer-desc">Sit down with our in-house drafting team and design your home from scratch — $1,500 of it is on us.</p>
+        </div>
+        <div class="offer-card">
+          <p class="offer-amount">$1,500</p>
+          <p class="offer-label">Upgrade of Your Choice</p>
+          <p class="offer-desc">Put it toward whatever you want — kitchen upgrades, tray ceilings, front door, you decide.</p>
+        </div>
+      </div>
+      <p class="offer-fine">Credits are applied to your build at contract signing. One offer per household, Rio Grande Valley area.</p>
+    </div>
+  </section>
+
+  <!-- ============ CLAIM FORM ============ -->
+  <section class="claim" id="claim">
+    <div class="claim-inner wrap">
+      <div class="claim-head">
+        <p class="kicker">Claim Your Credits</p>
+        <h2>Lock In Your $3,000</h2>
+        <p>Takes 30 seconds. Somebody from the team will contact you to set up your free consultation.</p>
+      </div>
+
+      <div class="claim-card">
+        <form name="creator-claim" id="claimForm" method="POST" action="/" data-netlify="true" netlify-honeypot="bot-field">
+          <input type="hidden" name="form-name" value="creator-claim" />
+          <input type="hidden" name="creator" id="creatorField" value="direct" />
+          <p style="display:none"><label>Don't fill this out: <input name="bot-field" /></label></p>
+
+          <div class="field">
+            <label for="f-name">Full Name</label>
+            <input id="f-name" name="name" type="text" autocomplete="name" placeholder="Your full name" required />
+          </div>
+          <div class="field">
+            <label for="f-phone">Phone Number</label>
+            <input id="f-phone" name="phone" type="tel" autocomplete="tel" placeholder="(956) 000-0000" required />
+          </div>
+          <div class="field">
+            <label for="f-credit">Credit Score (Your Best Guess)</label>
+            <select id="f-credit" name="credit" required>
+              <option value="" disabled selected>Select a range</option>
+              <option>720 or higher</option>
+              <option>680 – 719</option>
+              <option>640 – 679</option>
+              <option>600 – 639</option>
+              <option>Below 600</option>
+              <option>Not sure</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-income">Yearly Income (Household)</label>
+            <select id="f-income" name="income" required>
+              <option value="" disabled selected>Select a range</option>
+              <option>Under $50,000</option>
+              <option>$50,000 – $75,000</option>
+              <option>$75,000 – $100,000</option>
+              <option>$100,000 – $150,000</option>
+              <option>Over $150,000</option>
+            </select>
+          </div>
+          <button class="btn btn-red btn-lg claim-btn" type="submit" id="claimSubmit">Claim My $3,000 →</button>
+          <p class="claim-note">No commitment. No credit pull. Somebody from the team will contact you.</p>
+        </form>
+
+        <div class="claim-success" id="claimSuccess">
+          <div class="claim-success-icon">
+            <svg width="30" height="24" viewBox="0 0 30 24" fill="none"><path d="M2 12.5 11 21.5 28 2.5" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>You're In! 🎉</h3>
+          <p>Your $3,000 in credits is reserved. Somebody from the South Texas Builders team will contact you shortly to set up your free consultation.</p>
+        </div>
+      </div>
+
+      <div class="claim-call">
+        <p>Prefer to talk to a real person right now?</p>
+        <a class="btn btn-gold-line" href="tel:+19565946936">📞 If You Prefer to Call, Tap Here — (956) 594-6936</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TRUST ============ -->
+  <section class="trust">
+    <div class="wrap">
+      <div class="trust-head">
+        <p class="kicker">Real Builder · Real Families</p>
+        <h2 class="sec-title">Families Are Signing Every Week</h2>
+        <p class="sec-sub">South Texas Builders is a second-generation, family-owned builder — building 100% custom homes in the Rio Grande Valley since 1992.</p>
+      </div>
+      <div class="trust-grid">
+        <div class="trust-tile"><span class="trust-badge">Just Signed</span><img src="/images/clients/client-1.jpg" alt="The Chavez Family — just signed with South Texas Builders" loading="lazy" /></div>
+        <div class="trust-tile"><span class="trust-badge">Breaking Ground</span><img src="/images/clients/client-3.jpg" alt="The García Family — breaking ground celebration" loading="lazy" /></div>
+        <div class="trust-tile"><span class="trust-badge">Just Signed</span><img src="/images/clients/client-5.jpg" alt="The Gomez Family — just signed with South Texas Builders" loading="lazy" /></div>
+      </div>
+      <div class="trust-homes">
+        <div class="trust-tile"><img src="/images/homes/hero-home.jpg" alt="Custom STB home in McAllen, TX" loading="lazy" /></div>
+        <div class="trust-tile"><img src="/images/homes/house-01.jpg" alt="Custom home by South Texas Builders" loading="lazy" /></div>
+        <div class="trust-tile"><img src="/images/homes/house-04.jpg" alt="Custom home by South Texas Builders" loading="lazy" /></div>
+        <div class="trust-tile"><img src="/images/homes/house-06.jpg" alt="Custom home by South Texas Builders" loading="lazy" /></div>
+      </div>
+      <div class="trust-stats">
+        <div class="trust-stat"><span class="trust-stat-num">33+</span><span class="trust-stat-label">Years in RGV</span></div>
+        <div class="trust-stat"><span class="trust-stat-num">2nd</span><span class="trust-stat-label">Generation Builder</span></div>
+        <div class="trust-stat"><span class="trust-stat-num">100%</span><span class="trust-stat-label">Custom Homes</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="logo-chip"><img src="/images/brand/stb-logo.png" alt="South Texas Builders logo" /></span>
+        <span class="footer-brand-name">South Texas Builders
+          <span class="footer-brand-sub">Est. 1992 · Rio Grande Valley, TX</span>
+        </span>
+      </div>
+      <div class="footer-meta">
+        <a href="tel:+19565946936">(956) 594-6936</a><br />
+        © <span id="year"></span> South Texas Builders. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <!-- Sticky claim bar (mobile) -->
+  <div class="sticky-cta" id="stickyCta">
+    <a class="btn btn-red" href="#claim">Claim My $3,000 →</a>
+  </div>
+
+  <script src="/creators.js"></script>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // ---------- Creator personalization ----------
+    // Links look like  yoursite.com/c/juan  (or  yoursite.com/?c=juan )
+    var slug = (location.pathname.match(/^\/c\/([\w-]+)/) || [])[1]
+            || new URLSearchParams(location.search).get("c")
+            || "";
+    slug = slug.toLowerCase();
+    var creator = (window.CREATORS && window.CREATORS[slug]) || window.CREATOR_DEFAULT || { name: "", video: "" };
+
+    document.getElementById("creatorField").value = slug || "direct";
+    if (creator.name) {
+      document.getElementById("sentChip").textContent = creator.name + " Sent You 👋";
+      document.getElementById("vslLabel").textContent = "Tap to Watch " + creator.name + "'s Message";
+      document.getElementById("heroSub").textContent =
+        "Watch " + creator.name + "'s quick message, then claim $3,000 in build credits with South Texas Builders — the RGV's family-owned custom home builder since 1992.";
+    }
+
+    // ---------- VSL player (vertical) ----------
+    document.getElementById("vslPlayBtn").addEventListener("click", function () {
+      var box = document.getElementById("vsl");
+      if (!creator.video) {
+        document.getElementById("vslLabel").textContent =
+          "Video coming soon — your $3,000 offer below is live. Or call (956) 594-6936";
+        return;
+      }
+      var embed = toEmbed(creator.video);
+      box.innerHTML = "";
+      if (embed.kind === "iframe") {
+        var f = document.createElement("iframe");
+        f.src = embed.src;
+        f.allow = "autoplay; fullscreen; picture-in-picture";
+        f.allowFullscreen = true;
+        box.appendChild(f);
+      } else {
+        var v = document.createElement("video");
+        v.src = embed.src;
+        v.controls = true; v.autoplay = true; v.playsInline = true;
+        box.appendChild(v);
+      }
+    });
+
+    function toEmbed(url) {
+      var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
+      if (yt) return { kind: "iframe", src: "https://www.youtube.com/embed/" + yt[1] + "?autoplay=1&rel=0" };
+      var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+      if (vm) return { kind: "iframe", src: "https://player.vimeo.com/video/" + vm[1] + "?autoplay=1" };
+      return { kind: "video", src: url };
+    }
+
+    // ---------- Form submit (Netlify Forms, no page reload) ----------
+    document.getElementById("claimForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var form = e.target;
+      var btn = document.getElementById("claimSubmit");
+      btn.disabled = true;
+      btn.textContent = "Reserving your credits…";
+      var body = new URLSearchParams(new FormData(form)).toString();
+      fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body
+      }).then(function (res) {
+        if (!res.ok) throw new Error("submit failed");
+        form.style.display = "none";
+        document.getElementById("claimSuccess").style.display = "block";
+        var sticky = document.getElementById("stickyCta");
+        if (sticky) sticky.style.display = "none";
+      }).catch(function () {
+        btn.disabled = false;
+        btn.textContent = "Claim My $3,000 →";
+        alert("Something went wrong sending your info. Please try again, or call us at (956) 594-6936.");
+      });
+    });
+  </script>
+</body>
+</html>
