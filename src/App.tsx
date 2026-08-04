@@ -54,7 +54,7 @@ export default function App() {
           <span className="ml-auto text-sm tnum font-medium" style={{ color: 'var(--color-muted)' }}>{time}</span>
         </div>
 
-        <div key={location.pathname} className={`${/^\/(home-tasks|work-tasks)/.test(location.pathname) ? 'max-w-[100rem]' : 'max-w-6xl'} mx-auto px-5 sm:px-6 md:px-10 py-6 md:py-8`}>
+        <div key={location.pathname} className={`${/^\/(home-tasks|work-tasks|companies)/.test(location.pathname) ? 'max-w-[100rem]' : 'max-w-6xl'} mx-auto px-5 sm:px-6 md:px-10 py-6 md:py-8`}>
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
