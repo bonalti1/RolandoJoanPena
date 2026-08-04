@@ -13,10 +13,12 @@ import { PRESETS, DEFAULT_PRESET, type Theme } from './theme'
 
 const PREFIX = 'jess:'
 const VERSION_KEY = 'migrations.version'
-const CURRENT = 6
+const CURRENT = 7
 
 // v6 remaps the old task categories onto the new set (Task / Misc / Legal).
 const CAT_REMAP: Record<string, string> = { Home: 'Task', Work: 'Task', Errands: 'Task', Someday: 'Misc' }
+// v7 renames the "Misc" category to "Home improvement".
+const CAT_REMAP_V7: Record<string, string> = { Misc: 'Home improvement' }
 
 const LEGACY_ACCENTS = new Set(['#b9a8ff', '#8b7fb8', '#e8b4be', '#9d8df1'])
 const LEGACY_DEFAULT_NAMES = new Set(['Jessica', 'Jessica Peña', 'Rolando'])
@@ -139,11 +141,9 @@ export function runMigrations(): void {
     }
   }
 
-  // v6 — the Home-tasks / Work-tasks categories became Task / Misc / Legal.
-  // Remap any tasks still tagged with an old category so filters keep working.
-  if (version < 6) {
-    const remapItem = (it: { cat?: string }) =>
-      it.cat && CAT_REMAP[it.cat] ? { ...it, cat: CAT_REMAP[it.cat] } : it
+  // Remap task categories across both planner boards using the given table.
+  const remapBoardCats = (table: Record<string, string>) => {
+    const remapItem = (it: { cat?: string }) => (it.cat && table[it.cat] ? { ...it, cat: table[it.cat] } : it)
     for (const boardKey of ['work.home', 'work.work']) {
       const board = read<{ backlog?: { cat?: string }[]; weeks?: Record<string, Record<string, { cat?: string }[]>> }>(boardKey)
       if (!board) continue
@@ -156,6 +156,11 @@ export function runMigrations(): void {
       write(boardKey, { ...board, backlog, weeks })
     }
   }
+
+  // v6 — the Home-tasks / Work-tasks categories became Task / Misc / Legal.
+  if (version < 6) remapBoardCats(CAT_REMAP)
+  // v7 — "Misc" renamed to "Home improvement".
+  if (version < 7) remapBoardCats(CAT_REMAP_V7)
 
   write(VERSION_KEY, CURRENT)
 }

@@ -11,7 +11,7 @@ import { money } from '../lib/format'
 type Bill = { id: string; name: string; amount: number; dueDay?: number }
 const ordinalDay = (n: number) => { const s = ['th', 'st', 'nd', 'rd']; const v = n % 100; return `${n}${s[(v - 20) % 10] || s[v] || s[0]}` }
 
-type Cat = 'Task' | 'Misc' | 'Legal'
+type Cat = 'Task' | 'Home improvement' | 'Legal'
 type Priority = 'Low' | 'Medium' | 'High'
 type Item = { id: string; text: string; done: boolean; completedAt?: number; cat?: Cat; notes?: string; time?: string; company?: CompanyId; desc?: string; due?: string; priority?: Priority; urgent?: boolean }
 const URGENT = '#dc2626'
@@ -22,7 +22,7 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 const DAY_SHORT: Record<string, string> = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' }
 const BACKLOG = 'Unscheduled'
 type Tab = 'Home' | 'Work'
-const CATS: Cat[] = ['Task', 'Misc', 'Legal']
+const CATS: Cat[] = ['Task', 'Home improvement', 'Legal']
 const PRIORITIES: Priority[] = ['Low', 'Medium', 'High']
 const DRAG_MIME = 'application/x-jess-task'
 const fieldStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
