@@ -37,6 +37,26 @@ const SEED_DEPTS: Dept[] = [
   'Scheduling / selections', 'QC / Runner', 'Accountant',
 ].map((name, i) => ({ id: `d${i}`, name }))
 
+// One-time starting roster for South Texas Builders (names/roles only — photos
+// get added in-app). Matched to departments by name; only fills empty leads.
+const SEED_LEADS: Partial<Record<CompanyId, Record<string, { name: string; role: string }>>> = {
+  stb: {
+    'Appointment setter': { name: 'Graciela Leal', role: 'Appointment Setter Lead' },
+    'Drafting': { name: 'Leeroy Flores', role: 'Drafting Team Lead' },
+    'Scheduling / selections': { name: 'Ramiro Lerma', role: 'Scheduling Lead' },
+    'Permits, draws & payroll': { name: 'Orlando Pena', role: 'Permits & Payroll Lead' },
+    'T/C': { name: 'Nadia Benavides', role: 'T/C Lead' },
+  },
+}
+const SEED_TEAM: Partial<Record<CompanyId, Record<string, { name: string; role: string }[]>>> = {
+  stb: {
+    'Mortgage': [
+      { name: 'Andres Richarte', role: 'Mortgage Collaborator' },
+      { name: 'Claudia Garza', role: 'Mortgage Collaborator' },
+    ],
+  },
+}
+
 const STATUS_META: Record<Status, { dot: string; label: string }> = {
   green: { dot: '#22c55e', label: 'On track' },
   yellow: { dot: '#eab308', label: 'Needs work' },
@@ -187,6 +207,7 @@ export default function Companies() {
   const [savedAt, setSavedAt] = useStore<number>('companies.savedAt', 0)
   const [, setWorkBoard] = useStore<WorkBoard>('work.work', { backlog: [], weeks: {} })
 
+  const [seeded, setSeeded] = useStore<Record<string, boolean>>('companies.seeded', {})
   const [selected, setSelected] = useState<CompanyId | null>(null)
   const [quarter, setQuarter] = useState<string>(quarters[0] ?? currentQuarter())
   const [deptSel, setDeptSel] = useState<string | null>(null)
@@ -196,6 +217,31 @@ export default function Companies() {
   const [newDept, setNewDept] = useState('')
   const [, setTick] = useState(0)
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t) }, [])
+
+  // Seed the starting roster once per company (only fills empty leads/teams).
+  useEffect(() => {
+    if (!selected || seeded[selected]) return
+    const leads = SEED_LEADS[selected]
+    const teams = SEED_TEAM[selected]
+    if (!leads && !teams) return
+    setReviews((prev) => {
+      const next = { ...prev }
+      for (const d of depts) {
+        const k = `${selected}|${quarter}|${d.id}`
+        const cur = next[k] ?? {}
+        const lead = leads?.[d.name]
+        const team = teams?.[d.name]
+        let patched = cur
+        if (lead && !cur.leadName) patched = { ...patched, leadName: lead.name, leadRole: lead.role }
+        if (team && (!cur.team || cur.team.length === 0)) patched = { ...patched, team: team.map((m) => ({ id: uid('m'), name: m.name, role: m.role })) }
+        if (patched !== cur) next[k] = patched
+      }
+      return next
+    })
+    setSeeded((prev) => ({ ...prev, [selected]: true }))
+    setSavedAt(Date.now())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
 
   const sortedQuarters = useMemo(() => [...quarters].sort((a, b) => b.localeCompare(a)), [quarters])
   const key = (co: CompanyId, q: string, d: string) => `${co}|${q}|${d}`
