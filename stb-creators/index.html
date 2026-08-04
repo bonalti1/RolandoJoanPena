@@ -140,6 +140,9 @@
     /* ---------- Trust strip ---------- */
     .trust { background: var(--cream-2); padding: 72px 0; }
     .trust-head { text-align: center; margin-bottom: 38px; }
+    .trust-brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; }
+    .trust-brand .logo-chip { box-shadow: 0 4px 14px rgba(13,37,69,.15); }
+    .trust-brand-name { font-family: var(--serif); font-weight: 700; font-size: 22px; color: var(--navy); }
     .trust-head .sec-sub { color: #55606f; max-width: 620px; margin: 14px auto 0; font-size: 16px; }
     .trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 18px; }
     .trust-tile { border-radius: 8px; overflow: hidden; aspect-ratio: 4 / 3; position: relative; box-shadow: 0 6px 20px rgba(13,37,69,.1); }
@@ -188,25 +191,20 @@
 </head>
 <body>
 
-  <!-- ============ TOP BAR ============ -->
+  <!-- ============ TOP BAR (creator's page — no company branding up top) ============ -->
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="topbar-brand" href="#top">
-        <span class="logo-chip"><img src="/images/brand/stb-logo.png" alt="South Texas Builders logo" /></span>
-        <span class="topbar-name">South Texas Builders
-          <span class="topbar-tag">Your Dream Home Starts Here</span>
-        </span>
-      </a>
+      <span class="topbar-name" id="topbarName">👋 Hey, thanks for coming</span>
       <a class="btn btn-red" href="#claim">Claim $3,000</a>
     </div>
   </header>
 
   <!-- ============ HERO: CREATOR VSL ============ -->
   <section class="hero" id="top">
-    <p class="sent-chip" id="sentChip">A Message For You</p>
-    <h1>You Were Sent Here <em>For a Reason.</em></h1>
+    <p class="sent-chip" id="sentChip">👋 Hey, It's Me</p>
+    <h1 id="heroTitle">This Is the Builder <em>I Told You About.</em></h1>
     <div class="red-bar"></div>
-    <p class="hero-sub" id="heroSub">Watch this quick video, then claim $3,000 in build credits with South Texas Builders — the RGV's family-owned custom home builder since 1992.</p>
+    <p class="hero-sub" id="heroSub">Watch my quick message — then grab the $3,000 in build credits I got for you.</p>
 
     <div class="vsl" id="vsl">
       <img class="vsl-poster" src="/images/homes/hero-home.jpg" alt="Custom South Texas Builders home" />
@@ -214,26 +212,26 @@
         <span class="vsl-play">
           <svg width="28" height="32" viewBox="0 0 30 34" fill="none"><path d="M28.5 15.27a2 2 0 0 1 0 3.46L3.5 33.16A2 2 0 0 1 .5 31.43V2.57A2 2 0 0 1 3.5.84l25 14.43Z" fill="#fff"/></svg>
         </span>
-        <span class="vsl-cover-label" id="vslLabel">Tap to Watch</span>
+        <span class="vsl-cover-label" id="vslLabel">Tap to Watch My Message</span>
       </button>
     </div>
 
-    <p class="hero-arrow">Your $3,000 is below</p>
+    <p class="hero-arrow">The $3,000 I mentioned is right below</p>
   </section>
 
   <!-- ============ OFFER ============ -->
   <section class="offer" id="offer">
     <div class="wrap">
       <div class="offer-head">
-        <p class="kicker">Exclusive Creator Offer</p>
-        <h2 class="sec-title">Here's What You Get When You Build With STB</h2>
+        <p class="kicker">The Deal I Got You</p>
+        <h2 class="sec-title" id="offerTitle">Here's What You Get When You Build</h2>
         <span class="offer-total">$3,000 Total Value — Yours When You Claim Below</span>
       </div>
       <div class="offer-grid">
         <div class="offer-card">
           <p class="offer-amount">$1,500</p>
           <p class="offer-label">Toward Your Blueprints</p>
-          <p class="offer-desc">Sit down with our in-house drafting team and design your home from scratch — $1,500 of it is on us.</p>
+          <p class="offer-desc">Sit down with their in-house drafting team and design your home from scratch — $1,500 of it is covered.</p>
         </div>
         <div class="offer-card">
           <p class="offer-amount">$1,500</p>
@@ -315,9 +313,13 @@
   <section class="trust">
     <div class="wrap">
       <div class="trust-head">
-        <p class="kicker">Real Builder · Real Families</p>
+        <p class="kicker">A Little About the Builder</p>
+        <div class="trust-brand">
+          <span class="logo-chip"><img src="/images/brand/stb-logo.png" alt="South Texas Builders logo" /></span>
+          <span class="trust-brand-name">South Texas Builders</span>
+        </div>
         <h2 class="sec-title">Families Are Signing Every Week</h2>
-        <p class="sec-sub">South Texas Builders is a second-generation, family-owned builder — building 100% custom homes in the Rio Grande Valley since 1992.</p>
+        <p class="sec-sub">South Texas Builders is a second-generation, family-owned builder — building 100% custom homes in the Rio Grande Valley since 1992. Questions? Call <a href="tel:+19565946936" style="color: var(--navy); font-weight: 700;">(956) 594-6936</a>.</p>
       </div>
       <div class="trust-grid">
         <div class="trust-tile"><span class="trust-badge">Just Signed</span><img src="/images/clients/client-1.jpg" alt="The Chavez Family — just signed with South Texas Builders" loading="lazy" /></div>
@@ -373,10 +375,11 @@
 
     document.getElementById("creatorField").value = slug || "direct";
     if (creator.name) {
-      document.getElementById("sentChip").textContent = creator.name + " Sent You 👋";
-      document.getElementById("vslLabel").textContent = "Tap to Watch " + creator.name + "'s Message";
+      document.getElementById("topbarName").textContent = "👋 Hey, it's " + creator.name;
+      document.getElementById("sentChip").textContent = "👋 Hey, It's " + creator.name;
       document.getElementById("heroSub").textContent =
-        "Watch " + creator.name + "'s quick message, then claim $3,000 in build credits with South Texas Builders — the RGV's family-owned custom home builder since 1992.";
+        "Watch " + creator.name + "'s quick message — then grab the $3,000 in build credits " + creator.name + " got for you.";
+      document.getElementById("offerTitle").textContent = "Here's What " + creator.name + " Got You";
     }
 
     // ---------- VSL player (vertical) ----------
