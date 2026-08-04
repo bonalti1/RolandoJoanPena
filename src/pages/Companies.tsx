@@ -422,13 +422,13 @@ export default function Companies() {
               <input value={newDept} onChange={(e) => setNewDept(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addDept() }} placeholder="Add department…" className="flex-1 min-w-0 rounded-lg px-2 py-1.5 text-sm outline-none" style={fieldStyle} />
               <button onClick={addDept} className="shrink-0 rounded-lg px-2" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}><IconPlus width={15} height={15} /></button>
             </div>
-            <button onClick={() => setEditDepts((v) => !v)} className="text-xs font-semibold text-left px-1" style={{ color: 'var(--color-accent)' }}>{editDepts ? 'Done' : 'Rename / remove'}</button>
+            <button onClick={() => setEditDepts((v) => !v)} className="text-xs font-semibold text-left px-1" style={{ color: 'var(--color-accent)' }}>{editDepts ? 'Done editing' : 'Edit / delete departments'}</button>
             {editDepts && (
               <ul className="flex flex-col gap-1 mt-1">
                 {depts.map((d) => (
-                  <li key={d.id} className="group flex items-center gap-1.5 px-1.5 py-1 rounded-lg" style={{ background: 'var(--color-bg)' }}>
-                    <input value={d.name} onChange={(e) => { setDepts((prev) => prev.map((x) => x.id === d.id ? { ...x, name: e.target.value } : x)); setSavedAt(Date.now()) }} className="flex-1 min-w-0 bg-transparent text-xs outline-none" style={{ color: 'var(--color-text)' }} />
-                    <button onClick={() => confirmDelete({ label: d.name ? `the “${d.name}” department` : 'this department', detail: 'This department and its review will be removed.', onConfirm: () => { setDepts((prev) => prev.filter((x) => x.id !== d.id)); if (activeId === d.id) setDeptSel(null); setSavedAt(Date.now()) } })} className="opacity-0 group-hover:opacity-60 shrink-0" style={{ color: 'var(--color-muted)' }}><IconTrash width={13} height={13} /></button>
+                  <li key={d.id} className="flex items-center gap-1.5 px-1.5 py-1 rounded-lg" style={{ background: 'var(--color-bg)' }}>
+                    <input value={d.name} onChange={(e) => { setDepts((prev) => prev.map((x) => x.id === d.id ? { ...x, name: e.target.value } : x)); setSavedAt(Date.now()) }} placeholder="Department name" className="flex-1 min-w-0 bg-transparent text-xs outline-none" style={{ color: 'var(--color-text)' }} />
+                    <button onClick={() => confirmDelete({ label: d.name ? `the “${d.name}” department` : 'this department', detail: 'This department and its review will be removed.', onConfirm: () => { setDepts((prev) => prev.filter((x) => x.id !== d.id)); if (activeId === d.id) setDeptSel(null); setSavedAt(Date.now()) } })} title="Delete department" aria-label="Delete department" className="shrink-0 rounded-md p-1 transition" style={{ color: '#dc2626', background: 'color-mix(in srgb, #dc2626 12%, var(--color-surface))' }}><IconTrash width={14} height={14} /></button>
                   </li>
                 ))}
               </ul>
@@ -443,7 +443,10 @@ export default function Companies() {
           <Card className="p-5">
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <h2 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>{dept.name}</h2>
-              <div className="w-[160px]"><StatusSelect value={r.status} onChange={(s) => set({ status: s })} /></div>
+              <div className="flex items-center gap-2">
+                <div className="w-[160px]"><StatusSelect value={r.status} onChange={(s) => set({ status: s })} /></div>
+                <button onClick={() => confirmDelete({ label: dept.name ? `the “${dept.name}” department` : 'this department', detail: 'This department and its review will be removed.', onConfirm: () => { setDepts((prev) => prev.filter((x) => x.id !== dept.id)); setDeptSel(null); setSavedAt(Date.now()) } })} title="Delete department" aria-label="Delete department" className="shrink-0 rounded-lg p-2 transition" style={{ color: '#dc2626', background: 'color-mix(in srgb, #dc2626 10%, var(--color-surface))' }}><IconTrash width={16} height={16} /></button>
+              </div>
             </div>
             <Section title="Overview">
               <TextArea value={r.description} onChange={(v) => set({ description: v })} rows={2} placeholder="What this department owns…" />
