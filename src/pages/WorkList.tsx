@@ -72,13 +72,11 @@ function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBa
       <button onClick={onOpen} onMouseEnter={(e) => onHover?.(e, item)} onMouseLeave={onLeave} className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-1.5">
           {item.urgent && !item.done && <span className="shrink-0" style={{ color: URGENT }} title="Urgent"><svg width={12} height={12} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={2} strokeLinejoin="round"><path d="M4 21V4M4 4h11l-1.5 3L15 10H4" /></svg></span>}
-          {c && <CoLogo id={item.company} h={14} />}
+          {c && <CoLogo id={item.company} h={16} />}
           <span className="js-tasktext text-sm truncate" style={{ color: item.urgent && !item.done ? URGENT : 'var(--color-text)', fontWeight: item.urgent && !item.done ? 600 : 400, textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.5 : 1 }}>{item.text}</span>
         </div>
-        {(c || (variant === 'full' && item.cat)) && (
-          <div className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>
-            {c?.name}{c && variant === 'full' && item.cat ? ' · ' : ''}{variant === 'full' && item.cat ? item.cat : ''}
-          </div>
+        {variant === 'full' && item.cat && (
+          <div className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{item.cat}</div>
         )}
         {variant === 'full' && (item.desc || item.notes) && <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{item.desc || item.notes}</div>}
       </button>
