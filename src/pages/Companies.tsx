@@ -39,20 +39,22 @@ const SEED_DEPTS: Dept[] = [
 
 // One-time starting roster for South Texas Builders (names/roles only — photos
 // get added in-app). Matched to departments by name; only fills empty leads.
-const SEED_LEADS: Partial<Record<CompanyId, Record<string, { name: string; role: string }>>> = {
+const SEED_VERSION = 2 // bump to re-run the seed (e.g. after adding photos)
+type SeedPerson = { name: string; role: string; photo?: string }
+const SEED_LEADS: Partial<Record<CompanyId, Record<string, SeedPerson>>> = {
   stb: {
-    'Appointment setter': { name: 'Graciela Leal', role: 'Appointment Setter Lead' },
-    'Drafting': { name: 'Leeroy Flores', role: 'Drafting Team Lead' },
-    'Scheduling / selections': { name: 'Ramiro Lerma', role: 'Scheduling Lead' },
-    'Permits, draws & payroll': { name: 'Orlando Pena', role: 'Permits & Payroll Lead' },
-    'T/C': { name: 'Nadia Benavides', role: 'T/C Lead' },
+    'Appointment setter': { name: 'Graciela Leal', role: 'Appointment Setter Lead', photo: '/team/graciela-leal.jpg' },
+    'Drafting': { name: 'Leeroy Flores', role: 'Drafting Team Lead', photo: '/team/leroy-flores.jpg' },
+    'Scheduling / selections': { name: 'Ramiro Lerma', role: 'Scheduling Lead', photo: '/team/ramiro-lerma.jpg' },
+    'Permits, draws & payroll': { name: 'Orlando Pena', role: 'Permits & Payroll Lead', photo: '/team/orlando-pena.jpg' },
+    'T/C': { name: 'Nadia Benavides', role: 'T/C Lead', photo: '/team/nadia-benavides.jpg' },
   },
 }
-const SEED_TEAM: Partial<Record<CompanyId, Record<string, { name: string; role: string }[]>>> = {
+const SEED_TEAM: Partial<Record<CompanyId, Record<string, SeedPerson[]>>> = {
   stb: {
     'Mortgage': [
-      { name: 'Andres Richarte', role: 'Mortgage Collaborator' },
-      { name: 'Claudia Garza', role: 'Mortgage Collaborator' },
+      { name: 'Andres Richarte', role: 'Mortgage Collaborator', photo: '/team/andres-richarte.jpg' },
+      { name: 'Claudia Garza', role: 'Mortgage Collaborator', photo: '/team/claudia-garza.jpg' },
     ],
   },
 }
@@ -207,7 +209,7 @@ export default function Companies() {
   const [savedAt, setSavedAt] = useStore<number>('companies.savedAt', 0)
   const [, setWorkBoard] = useStore<WorkBoard>('work.work', { backlog: [], weeks: {} })
 
-  const [seeded, setSeeded] = useStore<Record<string, boolean>>('companies.seeded', {})
+  const [seeded, setSeeded] = useStore<Record<string, number>>('companies.seeded', {})
   const [selected, setSelected] = useState<CompanyId | null>(null)
   const [quarter, setQuarter] = useState<string>(quarters[0] ?? currentQuarter())
   const [deptSel, setDeptSel] = useState<string | null>(null)
@@ -218,9 +220,9 @@ export default function Companies() {
   const [, setTick] = useState(0)
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t) }, [])
 
-  // Seed the starting roster once per company (only fills empty leads/teams).
+  // Seed the starting roster once per company (only fills empty fields).
   useEffect(() => {
-    if (!selected || seeded[selected]) return
+    if (!selected || (Number(seeded[selected]) || 0) >= SEED_VERSION) return
     const leads = SEED_LEADS[selected]
     const teams = SEED_TEAM[selected]
     if (!leads && !teams) return
@@ -232,13 +234,24 @@ export default function Companies() {
         const lead = leads?.[d.name]
         const team = teams?.[d.name]
         let patched = cur
-        if (lead && !cur.leadName) patched = { ...patched, leadName: lead.name, leadRole: lead.role }
-        if (team && (!cur.team || cur.team.length === 0)) patched = { ...patched, team: team.map((m) => ({ id: uid('m'), name: m.name, role: m.role })) }
+        if (lead) {
+          if (!cur.leadName) patched = { ...patched, leadName: lead.name, leadRole: lead.role }
+          if (!cur.leadPhoto && lead.photo) patched = { ...patched, leadPhoto: lead.photo }
+        }
+        if (team) {
+          if (!cur.team || cur.team.length === 0) {
+            patched = { ...patched, team: team.map((m) => ({ id: uid('m'), name: m.name, role: m.role, photo: m.photo })) }
+          } else {
+            const byName = Object.fromEntries(team.map((m) => [m.name, m]))
+            const updated = cur.team.map((x) => (!x.photo && byName[x.name]?.photo ? { ...x, photo: byName[x.name].photo } : x))
+            if (updated.some((x, i) => x !== cur.team![i])) patched = { ...patched, team: updated }
+          }
+        }
         if (patched !== cur) next[k] = patched
       }
       return next
     })
-    setSeeded((prev) => ({ ...prev, [selected]: true }))
+    setSeeded((prev) => ({ ...prev, [selected]: SEED_VERSION }))
     setSavedAt(Date.now())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected])
