@@ -328,29 +328,27 @@ export default function Companies() {
           {COMPANIES.map((c) => {
             const cnt = counts(c.id, quarter)
             return (
-              <Card key={c.id} className="p-6 cursor-pointer transition hover:scale-[1.01]">
+              <Card key={c.id} className="p-5 cursor-pointer transition hover:scale-[1.01]">
                 <button onClick={() => { setSelected(c.id); setDeptSel(depts[0]?.id ?? null) }} className="w-full text-left">
-                  <div className="flex items-center gap-4 mb-6">
-                    <img src={c.logo} alt={c.name} className="object-contain shrink-0" style={{ height: 56, width: 'auto', maxWidth: 90 }} draggable={false} />
+                  <div className="flex items-center gap-3 mb-5">
+                    <img src={c.logo} alt={c.name} className="object-contain shrink-0" style={{ height: 44, width: 'auto', maxWidth: 72 }} draggable={false} />
                     <div className="min-w-0">
-                      <div className="text-2xl font-bold leading-tight truncate" style={{ color: 'var(--color-text)' }}>{c.name}</div>
-                      <div className="text-lg" style={{ color: 'var(--color-muted)' }}>{quarterLabel(quarter)}</div>
+                      <div className="text-xl font-bold leading-tight truncate" style={{ color: 'var(--color-text)' }}>{c.name}</div>
+                      <div className="text-base" style={{ color: 'var(--color-muted)' }}>{quarterLabel(quarter)}</div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 mb-5">
+                  <div className="grid grid-cols-3 gap-3 mb-4">
                     {PICKER_TILES.map(({ status, label }) => (
-                      <div key={status} className="flex items-center gap-2.5">
-                        <span className="h-11 w-11 rounded-2xl shrink-0 flex items-center justify-center" style={{ background: `color-mix(in srgb, ${STATUS_META[status].dot} 16%, var(--color-surface))` }}>
-                          <span className="h-3.5 w-3.5 rounded-full" style={{ background: STATUS_META[status].dot }} />
-                        </span>
+                      <div key={status} className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: STATUS_META[status].dot }} />
                         <div className="min-w-0">
-                          <div className="text-2xl font-bold leading-none tnum" style={{ color: STATUS_META[status].dot }}>{cnt[status]}</div>
-                          <div className="text-sm mt-1 truncate" style={{ color: 'var(--color-muted)' }}>{label}</div>
+                          <div className="text-xl font-bold leading-none tnum" style={{ color: STATUS_META[status].dot }}>{cnt[status]}</div>
+                          <div className="text-xs mt-1 truncate" style={{ color: 'var(--color-muted)' }}>{label}</div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <span className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold" style={{ border: '1px solid var(--color-accent)', color: 'var(--color-accent)' }}>Open review →</span>
+                  <span className="inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-sm font-semibold" style={{ border: '1px solid var(--color-accent)', color: 'var(--color-accent)' }}>Open review →</span>
                 </button>
               </Card>
             )
