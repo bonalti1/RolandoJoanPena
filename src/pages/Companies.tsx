@@ -10,14 +10,14 @@ type Dept = { id: string; name: string }
 type Status = 'green' | 'yellow' | 'red'
 type Level = 'High' | 'Med' | 'Low'
 type Rating = 'good' | 'needs' | 'bad'
-type Member = { id: string; name: string; role: string; status?: Status }
+type Member = { id: string; name: string; role: string; status?: Status; photo?: string }
 type ListItem = { id: string; text: string; level?: Level }
 type Metrics = { goal?: number; onTime?: number; quality?: number; satisfaction?: number }
 type Review = {
   status?: Status
   broken?: string; fixing?: string; owner?: string; due?: string; notes?: string
   description?: string
-  leadName?: string; leadRole?: string
+  leadName?: string; leadRole?: string; leadPhoto?: string
   feedback?: Rating; leadNotes?: string
   cost?: number; headcount?: number
   metrics?: Metrics
@@ -53,6 +53,48 @@ const quarterLabel = (q: string) => q.replace('-', ' ')
 const nextQuarter = (q: string) => { const [y, qq] = q.split('-Q').map(Number); return qq === 4 ? `${y + 1}-Q1` : `${y}-Q${qq + 1}` }
 const fieldStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
 const metricColor = (pct: number) => (pct >= 70 ? '#22c55e' : pct >= 40 ? '#eab308' : '#ef4444')
+const initials = (name: string) => (name || '').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '+'
+
+/** Downscale/center-crop any image blob to a small square JPEG data URL for avatars. */
+async function toAvatarDataUrl(blob: Blob): Promise<string> {
+  const bmp = await createImageBitmap(blob)
+  const size = 240
+  const scale = Math.max(size / bmp.width, size / bmp.height)
+  const w = bmp.width * scale, h = bmp.height * scale
+  const canvas = document.createElement('canvas')
+  canvas.width = size; canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(bmp, (size - w) / 2, (size - h) / 2, w, h)
+  bmp.close?.()
+  return canvas.toDataURL('image/jpeg', 0.82)
+}
+
+/** Round avatar you can fill by uploading a saved file or pasting a copied image. */
+function AvatarUpload({ src, name, size, onChange, actions }: { src?: string; name: string; size: number; onChange: (v: string) => void; actions?: boolean }) {
+  const ref = useRef<HTMLInputElement>(null)
+  const handle = async (blob?: Blob | null) => { if (blob && blob.type.startsWith('image/')) onChange(await toAvatarDataUrl(blob)) }
+  const paste = async () => {
+    try {
+      const items = await navigator.clipboard.read()
+      for (const it of items) { const t = it.types.find((x) => x.startsWith('image/')); if (t) { await handle(await it.getType(t)); return } }
+    } catch { /* clipboard blocked — use Upload instead */ }
+  }
+  return (
+    <div className="flex flex-col items-center gap-1 shrink-0">
+      <button onClick={() => ref.current?.click()} className="rounded-full overflow-hidden grid place-items-center" style={{ width: size, height: size, background: src ? 'transparent' : 'var(--color-accent)', color: 'var(--color-on-accent)', border: '1px solid var(--color-border)' }} title="Upload a photo">
+        {src ? <img src={src} alt="" className="w-full h-full object-cover" /> : <span className="font-bold" style={{ fontSize: size * 0.38 }}>{initials(name)}</span>}
+      </button>
+      {actions && (
+        <div className="flex items-center gap-2 text-[11px] font-semibold">
+          <button onClick={() => ref.current?.click()} style={{ color: 'var(--color-accent)' }}>Upload</button>
+          <button onClick={paste} style={{ color: 'var(--color-accent)' }}>Paste</button>
+          {src && <button onClick={() => onChange('')} style={{ color: 'var(--color-muted)' }}>Remove</button>}
+        </div>
+      )}
+      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => { void handle(e.target.files?.[0]); e.currentTarget.value = '' }} />
+    </div>
+  )
+}
 function fmtAgo(ts: number): string {
   if (!ts) return ''
   const s = Math.round((Date.now() - ts) / 1000)
@@ -403,8 +445,13 @@ export default function Companies() {
           <div className="flex flex-col gap-4 xl:sticky xl:top-3">
             <Card className="p-4">
               <h3 className="font-bold mb-3" style={{ color: 'var(--color-text)' }}>Department lead</h3>
-              <Input value={r.leadName ?? ''} onChange={(e) => set({ leadName: e.target.value })} placeholder="Lead name" className="mb-2" />
-              <Input value={r.leadRole ?? ''} onChange={(e) => set({ leadRole: e.target.value })} placeholder="Role (e.g. Content Lead)" />
+              <div className="flex items-start gap-3 mb-2">
+                <AvatarUpload src={r.leadPhoto} name={r.leadName ?? ''} size={56} onChange={(v) => set({ leadPhoto: v || undefined })} actions />
+                <div className="flex-1 min-w-0 flex flex-col gap-2">
+                  <Input value={r.leadName ?? ''} onChange={(e) => set({ leadName: e.target.value })} placeholder="Lead name" />
+                  <Input value={r.leadRole ?? ''} onChange={(e) => set({ leadRole: e.target.value })} placeholder="Role (e.g. Content Lead)" />
+                </div>
+              </div>
               <div className="mt-4">
                 <p className="text-sm mb-2" style={{ color: 'var(--color-muted)' }}>How is {leadFirst || 'the lead'} doing?</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -423,6 +470,7 @@ export default function Companies() {
               <ul className="flex flex-col gap-2">
                 {(r.team ?? []).map((m) => (
                   <li key={m.id} className="group flex items-center gap-2">
+                    <AvatarUpload src={m.photo} name={m.name} size={34} onChange={(v) => set({ team: (r.team ?? []).map((x) => x.id === m.id ? { ...x, photo: v || undefined } : x) })} />
                     <div className="flex-1 min-w-0">
                       <input value={m.name} onChange={(e) => set({ team: (r.team ?? []).map((x) => x.id === m.id ? { ...x, name: e.target.value } : x) })} placeholder="Name" className="w-full bg-transparent text-sm font-medium outline-none" style={{ color: 'var(--color-text)' }} />
                       <input value={m.role} onChange={(e) => set({ team: (r.team ?? []).map((x) => x.id === m.id ? { ...x, role: e.target.value } : x) })} placeholder="Role" className="w-full bg-transparent text-xs outline-none" style={{ color: 'var(--color-muted)' }} />
