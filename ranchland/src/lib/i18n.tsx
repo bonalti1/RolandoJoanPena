@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { type Lang } from './types.ts'
+import { storage } from './storage.ts'
 
 // Every buyer-facing string lives here in both languages. Spanish is a
 // first-class experience, not a translation bolted on later.
@@ -88,8 +89,8 @@ interface I18n {
 const Ctx = createContext<I18n>({ lang: 'en', setLang: () => {}, t: (k) => STRINGS[k].en })
 
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>(() => (localStorage.getItem('rl:lang') as Lang) || 'en')
-  useEffect(() => { localStorage.setItem('rl:lang', lang); document.documentElement.lang = lang }, [lang])
+  const [lang, setLang] = useState<Lang>(() => (storage.get('rl:lang') as Lang) || 'en')
+  useEffect(() => { storage.set('rl:lang', lang); document.documentElement.lang = lang }, [lang])
   const t = (k: StringKey) => STRINGS[k][lang]
   return <Ctx.Provider value={{ lang, setLang, t }}>{children}</Ctx.Provider>
 }

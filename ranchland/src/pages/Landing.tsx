@@ -3,6 +3,7 @@ import { LangToggle, useI18n } from '../lib/i18n.tsx'
 import { lots, ranches } from '../lib/store.ts'
 import { monthlyPayment } from '../lib/amortization.ts'
 import { usd } from '../lib/money.ts'
+import stagUrl from '../assets/stag.png'
 
 export default function Landing() {
   const { t } = useI18n()
@@ -14,7 +15,7 @@ export default function Landing() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', maxWidth: '62rem', margin: '0 auto' }}>
           <LangToggle />
         </div>
-        <img src="/brand/stag.png" alt="" />
+        <img src={stagUrl} alt="" />
         <div className="tag">{t('tagline')}</div>
         <h1>RANCH LAND GROUP</h1>
         <p className="lead">{t('heroLead')}</p>

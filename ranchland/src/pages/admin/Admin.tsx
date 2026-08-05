@@ -5,6 +5,7 @@ import {
   buyers, currentSession, getNoteState, lots, notes, ranches, recordPayment,
   resetDemo, signIn, useStoreVersion,
 } from '../../lib/store.ts'
+import stagUrl from '../../assets/stag.png'
 
 // Admin is Rolando's operating dashboard: portfolio health at a glance,
 // then drill into any note's ledger. English-only by design (internal tool).
@@ -31,7 +32,7 @@ function AdminLogin() {
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '1.5rem' }}>
       <div className="card" style={{ maxWidth: '24rem', width: '100%', textAlign: 'center', padding: '2rem' }}>
-        <img src="/brand/stag.png" alt="" width={56} />
+        <img src={stagUrl} alt="" width={56} />
         <h1 style={{ margin: '0.75rem 0 1.25rem' }}>Ranch Land Admin</h1>
         <button className="btn big" onClick={() => { signIn('admin'); navigate('/admin') }}>
           Enter (demo)

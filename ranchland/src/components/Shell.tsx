@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { LangToggle, useI18n } from '../lib/i18n.tsx'
 import { signOut } from '../lib/store.ts'
 import { isLive } from '../lib/supabase.ts'
+import stagUrl from '../assets/stag.png'
 
 interface NavItem {
   to: string
@@ -23,7 +24,7 @@ export function Shell({ nav, title, sub, actions, children }: {
     <div className="shell">
       <aside className="side">
         <div className="brand">
-          <img src="/brand/stag.png" alt="Ranch Land Group" />
+          <img src={stagUrl} alt="Ranch Land Group" />
           <span className="wordmark">Ranch Land<small>— GROUP —</small></span>
         </div>
         {nav.map((n) => (

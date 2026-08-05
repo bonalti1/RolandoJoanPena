@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { LangToggle, useI18n } from '../../lib/i18n.tsx'
 import { buyers, signIn } from '../../lib/store.ts'
+import stagUrl from '../../assets/stag.png'
 
 // Demo sign-in: pick a sample buyer. Live version swaps this for Supabase
 // magic-link / SMS OTP auth — the session shape stays the same.
@@ -10,7 +11,7 @@ export default function PortalLogin() {
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '1.5rem' }}>
       <div className="card" style={{ maxWidth: '26rem', width: '100%', textAlign: 'center', padding: '2rem' }}>
-        <img src="/brand/stag.png" alt="" width={56} />
+        <img src={stagUrl} alt="" width={56} />
         <h1 style={{ margin: '0.75rem 0 0.25rem' }}>{t('loginTitle')}</h1>
         <p style={{ color: 'var(--muted)' }}>{t('loginLead')}</p>
         <div style={{ display: 'grid', gap: '0.5rem', margin: '1.25rem 0' }}>

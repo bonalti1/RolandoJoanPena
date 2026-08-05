@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { storage } from './storage.ts'
 import { BUYERS, DOCUMENTS, LOTS, NOTES, PAYMENTS, RANCHES } from './demo.ts'
 import { buildSchedule, type ScheduleRow } from './amortization.ts'
 import { type Cents } from './money.ts'
@@ -11,8 +12,8 @@ import { type Note, type Payment } from './types.ts'
 const LS_PAYMENTS = 'rl:extraPayments'
 const LS_SESSION = 'rl:session'
 
-let extraPayments: Payment[] = JSON.parse(localStorage.getItem(LS_PAYMENTS) ?? '[]')
-let session: string | null = localStorage.getItem(LS_SESSION)
+let extraPayments: Payment[] = JSON.parse(storage.get(LS_PAYMENTS) ?? '[]')
+let session: string | null = storage.get(LS_SESSION)
 let version = 0
 const listeners = new Set<() => void>()
 
@@ -30,8 +31,8 @@ export function useStoreVersion() {
 
 // ---------- session ----------
 export function currentSession(): string | null { return session }
-export function signIn(id: string) { session = id; localStorage.setItem(LS_SESSION, id); bump() }
-export function signOut() { session = null; localStorage.removeItem(LS_SESSION); bump() }
+export function signIn(id: string) { session = id; storage.set(LS_SESSION, id); bump() }
+export function signOut() { session = null; storage.del(LS_SESSION); bump() }
 
 // ---------- reads ----------
 export const ranches = RANCHES
@@ -100,12 +101,12 @@ export function recordPayment(noteId: string, amountCents: Cents, method: Paymen
     method,
     status: 'settled',
   }]
-  localStorage.setItem(LS_PAYMENTS, JSON.stringify(extraPayments))
+  storage.set(LS_PAYMENTS, JSON.stringify(extraPayments))
   bump()
 }
 
 export function resetDemo() {
   extraPayments = []
-  localStorage.removeItem(LS_PAYMENTS)
+  storage.del(LS_PAYMENTS)
   bump()
 }
