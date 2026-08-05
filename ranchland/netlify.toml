@@ -1,0 +1,11 @@
+# Deploy RANCH LAND as its own Netlify site:
+#   Add new site -> Import from GitHub -> pick this repo
+#   Set "Base directory" to  ranchland  (Netlify then reads this file)
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
