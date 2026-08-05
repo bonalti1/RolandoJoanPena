@@ -93,6 +93,7 @@ export default function Journal() {
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const [draftBlob, setDraftBlob] = useState<Blob | null>(null)
   const [draftUrl, setDraftUrl] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -260,8 +261,10 @@ export default function Journal() {
   ].filter((grp) => grp.items.length > 0)
 
   // Group entries by month, then by day, so a finished month reads as a chapter.
+  const q = query.trim().toLowerCase()
+  const shown = q ? entries.filter((e) => `${e.title} ${e.transcript}`.toLowerCase().includes(q)) : entries
   const months: { month: string; days: { day: string; items: Entry[] }[] }[] = []
-  for (const e of entries) {
+  for (const e of shown) {
     const d = new Date(e.ts)
     const monthKey = d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     const dayKey = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
@@ -399,73 +402,86 @@ export default function Journal() {
             <EmptyState icon={<IconJournal width={40} height={40} />} title="No journal entries yet"
               hint="Record your first thought above. Entries are grouped by month so you can look back on a whole season of thinking." />
           ) : (
-            <div className="flex flex-col gap-8">
-              {months.map((mg) => (
-                <div key={mg.month}>
-                  <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--color-text)' }}>{mg.month}</h2>
-                  <div className="flex flex-col gap-5">
-                    {mg.days.map((g) => (
-                      <div key={g.day}>
-                        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] mb-2 px-1" style={{ color: 'var(--color-muted)' }}>{g.day}</h3>
-                        <div className="flex flex-col gap-3">
-                          {g.items.map((e) => {
-                            const stamp = new Date(e.ts).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-                            const expanded = open === e.id
-                            const isEditing = editing === e.id
-                            return (
-                              <Card key={e.id} className="p-4">
-                                {isEditing ? (
-                                  <div className="flex flex-col gap-2">
-                                    <Input value={editTitle} onChange={(ev) => setEditTitle(ev.target.value)} placeholder="Title (optional)" />
-                                    <textarea value={editText} onChange={(ev) => setEditText(ev.target.value)} rows={5} placeholder="Your entry…"
-                                      className="rounded-xl px-3 py-2 text-sm outline-none w-full resize-y" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
-                                    <div className="flex justify-end gap-2">
-                                      <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-                                      <Button onClick={saveEdit}><IconCheck width={16} height={16} /> Save</Button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="min-w-0">
-                                        <span className="font-semibold block" style={{ color: 'var(--color-text)' }}>{e.title || 'Journal entry'}</span>
-                                        <span className="text-xs tnum" style={{ color: 'var(--color-muted)' }}>{stamp}{e.hasAudio && e.durationMs ? ` · 🎤 ${fmtClock(e.durationMs)}` : ''}</span>
-                                        <p className="text-sm mt-1.5" style={{ color: 'var(--color-muted)' }}>{e.summary || '(no transcript)'}</p>
-                                      </div>
-                                      <div className="flex items-center gap-1 shrink-0">
-                                        <button onClick={() => startEdit(e)} className="opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Edit entry" title="Edit">
-                                          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-                                        </button>
-                                        <button onClick={() => confirmDelete({ label: e.title ? `the entry “${e.title}”` : 'this journal entry', detail: 'The entry and its audio recording will be permanently deleted.', onConfirm: () => { void remove(e) } })} className="opacity-60 hover:opacity-100 transition" style={{ color: 'var(--color-muted)' }} aria-label="Delete entry">
-                                          <IconTrash width={16} height={16} />
-                                        </button>
-                                      </div>
-                                    </div>
+            <>
+              <div className="relative mb-5">
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your journal…"
+                  className="w-full rounded-xl pl-3 pr-9 py-2.5 text-sm outline-none" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                {query && <button onClick={() => setQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--color-muted)' }} aria-label="Clear search">✕</button>}
+              </div>
 
-                                    {expanded && e.transcript && e.transcript !== e.summary && (
-                                      <p className="text-sm mt-3 whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--color-text)' }}>{e.transcript}</p>
+              {months.length === 0 ? (
+                <p className="text-sm px-1" style={{ color: 'var(--color-muted)' }}>No entries match “{query}”.</p>
+              ) : (
+                <div className="flex flex-col gap-8">
+                  {months.map((mg) => (
+                    <div key={mg.month}>
+                      <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--color-text)' }}>{mg.month}</h2>
+                      <div className="flex flex-col gap-5">
+                        {mg.days.map((g) => (
+                          <div key={g.day}>
+                            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] mb-2 px-1" style={{ color: 'var(--color-muted)' }}>{g.day}</h3>
+                            <Card className="overflow-hidden">
+                              {g.items.map((e, idx) => {
+                                const time = new Date(e.ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+                                const expanded = open === e.id
+                                const isEditing = editing === e.id
+                                return (
+                                  <div key={e.id} style={{ borderTop: idx > 0 ? '1px solid var(--color-border)' : undefined }}>
+                                    {isEditing ? (
+                                      <div className="flex flex-col gap-2 p-4">
+                                        <Input value={editTitle} onChange={(ev) => setEditTitle(ev.target.value)} placeholder="Title (optional)" />
+                                        <textarea value={editText} onChange={(ev) => setEditText(ev.target.value)} rows={6} placeholder="Your entry…"
+                                          className="rounded-xl px-3 py-2 text-sm outline-none w-full resize-y" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                                        <div className="flex justify-end gap-2">
+                                          <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                                          <Button onClick={saveEdit}><IconCheck width={16} height={16} /> Save</Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <button onClick={() => setOpen(expanded ? null : e.id)} className="w-full flex items-start gap-3 text-left px-4 py-3 transition" style={{ background: expanded ? 'color-mix(in srgb, var(--color-accent) 6%, var(--color-surface))' : 'transparent' }}>
+                                          <span className="text-xs tnum shrink-0 pt-0.5 w-14" style={{ color: 'var(--color-muted)' }}>{time}</span>
+                                          <span className="flex-1 min-w-0">
+                                            {e.title && <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{e.title} — </span>}
+                                            <span className={expanded ? '' : 'line-clamp-2'} style={{ color: e.title ? 'var(--color-muted)' : 'var(--color-text)' }}>{e.summary || '(no transcript)'}</span>
+                                          </span>
+                                          {e.hasAudio && e.durationMs > 0 && (
+                                            <span className="text-[11px] tnum shrink-0 rounded-full px-2 py-0.5 font-semibold" style={{ background: 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))', color: 'var(--color-accent)' }}>🎤 {fmtClock(e.durationMs)}</span>
+                                          )}
+                                          <span className="text-xs shrink-0 pt-0.5 transition-transform" style={{ color: 'var(--color-muted)', transform: expanded ? 'rotate(90deg)' : 'none' }}>▸</span>
+                                        </button>
+
+                                        {expanded && (
+                                          <div className="px-4 pb-4 pl-[4.25rem]">
+                                            {e.transcript && e.transcript !== e.summary && (
+                                              <p className="text-sm whitespace-pre-wrap leading-relaxed mb-3" style={{ color: 'var(--color-text)' }}>{e.transcript}</p>
+                                            )}
+                                            {e.hasAudio && <div className="mb-3"><AudioPlayer id={e.id} /></div>}
+                                            <div className="flex items-center gap-4">
+                                              <button onClick={() => startEdit(e)} className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: 'var(--color-accent)' }}>
+                                                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                                                Edit
+                                              </button>
+                                              <button onClick={() => confirmDelete({ label: e.title ? `the entry “${e.title}”` : 'this journal entry', detail: 'The entry and its audio recording will be permanently deleted.', onConfirm: () => { void remove(e) } })} className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: '#c0504d' }}>
+                                                <IconTrash width={14} height={14} /> Delete
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </>
                                     )}
-
-                                    <div className="flex items-center gap-3 mt-3 flex-wrap">
-                                      {e.transcript && e.transcript !== e.summary && (
-                                        <button onClick={() => setOpen(expanded ? null : e.id)} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>
-                                          {expanded ? 'Hide transcript' : 'Show full transcript'}
-                                        </button>
-                                      )}
-                                      {e.hasAudio && <AudioPlayer id={e.id} />}
-                                    </div>
-                                  </>
-                                )}
-                              </Card>
-                            )
-                          })}
-                        </div>
+                                  </div>
+                                )
+                              })}
+                            </Card>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
