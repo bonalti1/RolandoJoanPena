@@ -222,16 +222,10 @@ function ListEditor({ items, onChange }: { items?: ListItem[]; onChange: (items:
               <button onClick={() => onChange(list.filter((x) => x.id !== it.id))} title="Remove" className="shrink-0 rounded-md p-1 mt-0.5" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
             </div>
 
-            {/* Plan · due */}
-            <div className="grid sm:grid-cols-[1fr_160px] gap-2 mt-3 pl-6">
-              <div>
-                <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>{it.fixed ? 'Resolution' : 'How we’ll fix it'}</label>
-                <GrowTextarea value={it.fix ?? ''} onChange={(v) => upd(it.id, { fix: v })} placeholder={it.fixed ? 'What fixed it…' : 'The plan…'} className="w-full" />
-              </div>
-              <div>
-                <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>{it.fixed ? 'Fixed on' : 'Due date'}</label>
-                <input type="date" value={it.fixed ? (it.fixedOn ?? '') : (it.due ?? '')} onChange={(e) => upd(it.id, it.fixed ? { fixedOn: e.target.value } : { due: e.target.value })} className="w-full rounded-lg px-2 py-1.5 text-sm outline-none tnum" style={fieldSm} />
-              </div>
+            {/* Plan */}
+            <div className="mt-3 pl-6">
+              <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>{it.fixed ? 'Resolution' : 'How we’ll fix it'}</label>
+              <GrowTextarea value={it.fix ?? ''} onChange={(v) => upd(it.id, { fix: v })} placeholder={it.fixed ? 'What fixed it…' : 'The plan…'} className="w-full" />
             </div>
 
             {/* Fixed toggle + carry forward */}
