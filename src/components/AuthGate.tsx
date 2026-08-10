@@ -35,17 +35,6 @@ function IconMail({ size = 16 }: { size?: number }) {
   )
 }
 
-function IconGoogle({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden>
-      <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-      <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
-      <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
-      <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
-    </svg>
-  )
-}
-
 function Spinner() {
   return (
     <span
@@ -58,10 +47,13 @@ function Spinner() {
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'signed-out' | 'syncing' | 'ready'>('loading')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [showPw, setShowPw] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
-  const [showEmail, setShowEmail] = useState(false)
 
   useEffect(() => {
     if (!cloudConfigured || !supabase) { setStatus('ready'); return }
@@ -88,21 +80,32 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   if (status === 'ready') return <>{children}</>
 
-  const signInWithGoogle = async () => {
-    setError('')
-    setBusy(true)
-    const { error } = await supabase!.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin },
-    })
-    // On success the browser navigates to Google, so we only land here on error.
-    if (error) { setError(error.message); setBusy(false) }
-  }
-
-  const sendLink = async () => {
-    setError('')
+  // Email + password. First-timers switch to "Create your password" (signUp);
+  // after that it's a one-step password sign-in. On success onAuthStateChange
+  // boots the app automatically.
+  const submitPassword = async () => {
+    setError(''); setNotice('')
     const addr = email.trim()
     if (!addr) { setError('Enter your email.'); return }
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
+    setBusy(true)
+    if (mode === 'signup') {
+      const { data, error } = await supabase!.auth.signUp({ email: addr, password })
+      setBusy(false)
+      if (error) { setError(error.message); return }
+      if (!data.session) { setNotice('Account created. Check your email to confirm, then sign in.'); setMode('signin') }
+    } else {
+      const { error } = await supabase!.auth.signInWithPassword({ email: addr, password })
+      setBusy(false)
+      if (error) setError(/invalid/i.test(error.message) ? 'Wrong email or password. First time? Tap “Create your password”.' : error.message)
+    }
+  }
+
+  // Fallback: email a one-tap magic link (no password needed).
+  const sendLink = async () => {
+    setError(''); setNotice('')
+    const addr = email.trim()
+    if (!addr) { setError('Enter your email first.'); return }
     setBusy(true)
     const { error } = await supabase!.auth.signInWithOtp({
       email: addr,
@@ -170,57 +173,79 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             </div>
           ) : (
             <>
-              <h1 className="text-2xl font-semibold tracking-tight text-center">Welcome back</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-center">
+                {mode === 'signup' ? 'Create your password' : 'Welcome back'}
+              </h1>
               <p className="text-sm text-center mt-1.5 mb-6" style={{ color: C.muted }}>
-                Sign in to your private dashboard
+                {mode === 'signup' ? 'Set a password to secure your dashboard' : 'Sign in to your private dashboard'}
               </p>
 
+              {notice && <p className="text-sm mb-3 text-center" style={{ color: '#5fd08a' }}>{notice}</p>}
               {error && <p className="text-sm mb-3 text-center" style={{ color: '#f0787a' }}>{error}</p>}
 
-              {/* Primary — Google one-tap */}
+              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                autoFocus
+                className="w-full rounded-xl px-3.5 py-3 text-sm outline-none mt-1.5 mb-4 transition"
+                style={{ background: C.field, border: `1px solid ${C.fieldBorder}`, color: C.text }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = C.accent)}
+                onBlur={(e) => (e.currentTarget.style.borderColor = C.fieldBorder)}
+              />
+
+              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Password</label>
+              <div className="relative mt-1.5 mb-4">
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') submitPassword() }}
+                  placeholder={mode === 'signup' ? 'Choose a password' : 'Your password'}
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  className="w-full rounded-xl px-3.5 py-3 pr-16 text-sm outline-none transition"
+                  style={{ background: C.field, border: `1px solid ${C.fieldBorder}`, color: C.text }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = C.fieldBorder)}
+                />
+                <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold" style={{ color: C.muted }}>
+                  {showPw ? 'Hide' : 'Show'}
+                </button>
+              </div>
+
               <button
-                onClick={signInWithGoogle}
+                onClick={submitPassword}
                 disabled={busy}
-                className="w-full rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-center gap-2.5 transition active:scale-[0.98] disabled:opacity-60"
-                style={{ background: '#ffffff', color: '#1f2733', boxShadow: '0 10px 26px -12px rgba(0,0,0,0.6)' }}
+                className="w-full rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-60"
+                style={{ background: `linear-gradient(180deg, ${C.accent} 0%, ${C.accent2} 100%)`, color: '#fff', boxShadow: '0 10px 26px -10px rgba(37,99,235,0.7)' }}
               >
-                {busy ? <Spinner /> : <><IconGoogle size={18} /> Continue with Google</>}
+                {busy ? <Spinner /> : (mode === 'signup' ? 'Create account & sign in' : 'Sign in')}
               </button>
 
-              {showEmail ? (
-                <div className="mt-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="h-px flex-1" style={{ background: C.panelBorder }} />
-                    <span className="text-[11px] uppercase tracking-wider" style={{ color: C.muted }}>or with email</span>
-                    <span className="h-px flex-1" style={{ background: C.panelBorder }} />
-                  </div>
-                  <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') sendLink() }}
-                    placeholder="you@email.com"
-                    autoFocus
-                    className="w-full rounded-xl px-3.5 py-3 text-sm outline-none mt-1.5 mb-4 transition"
-                    style={{ background: C.field, border: `1px solid ${C.fieldBorder}`, color: C.text }}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = C.accent)}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = C.fieldBorder)}
-                  />
-                  <button
-                    onClick={sendLink}
-                    disabled={busy}
-                    className="w-full rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-60"
-                    style={{ background: `linear-gradient(180deg, ${C.accent} 0%, ${C.accent2} 100%)`, color: '#fff', boxShadow: '0 10px 26px -10px rgba(37,99,235,0.7)' }}
-                  >
-                    {busy ? <Spinner /> : <><IconMail size={16} /> Email me a sign-in link</>}
-                  </button>
-                </div>
-              ) : (
-                <button onClick={() => { setShowEmail(true); setError('') }} className="w-full text-center text-[12px] mt-5 transition hover:opacity-80" style={{ color: C.muted }}>
-                  Prefer email? Get a one-tap link instead
-                </button>
-              )}
+              <button
+                onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setNotice('') }}
+                className="w-full text-center text-[12px] mt-4 transition hover:opacity-80"
+                style={{ color: C.accent }}
+              >
+                {mode === 'signin' ? 'First time? Create your password' : 'Already set up? Sign in'}
+              </button>
+
+              <div className="flex items-center gap-3 my-4">
+                <span className="h-px flex-1" style={{ background: C.panelBorder }} />
+                <span className="text-[11px] uppercase tracking-wider" style={{ color: C.muted }}>or</span>
+                <span className="h-px flex-1" style={{ background: C.panelBorder }} />
+              </div>
+
+              <button
+                onClick={sendLink}
+                disabled={busy}
+                className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-60"
+                style={{ background: 'transparent', color: C.text, border: `1px solid ${C.fieldBorder}` }}
+              >
+                <IconMail size={15} /> Email me a one-tap link instead
+              </button>
             </>
           )}
         </div>

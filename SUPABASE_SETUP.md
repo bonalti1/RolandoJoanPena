@@ -64,40 +64,28 @@ alter publication supabase_realtime add table public.app_state;
 
 ## 6. Sign in
 1. Open your site. You'll now see a **Sign in** screen.
-2. Tap **Continue with Google** (after step 8 below) — or **Prefer email?** to get
-   a one-tap email link instead.
+2. The first time, tap **First time? Create your password**, enter your email and
+   a password, and tap **Create account & sign in**. After that, just enter your
+   email + password and tap **Sign in** — instantly, no waiting for email.
+   *(You can also tap **Email me a one-tap link instead** any time — that needs no
+   password and no setup.)*
 3. Your existing data uploads automatically. Repeat the sign-in on your phone
    and other computers — each one pulls everything down and stays in sync.
 
 You can see the status and sign out any time under **Settings → Cloud backup**.
 
-## 7. Turn on "Continue with Google" (one-tap sign-in)
+## 7. (Recommended) Make password sign-in instant
 
-The sign-in screen shows a **Continue with Google** button. To make it work you
-enable Google as a provider once. (Until you do this, use **Prefer email?** to
-sign in — that needs no extra setup.)
+By default Supabase may require you to confirm your email the first time you
+create a password. To skip that and have **Create account & sign in** log you
+straight in:
 
-**A. Create Google OAuth credentials**
-1. Go to **https://console.cloud.google.com** → create a project (or pick one).
-2. Left menu → **APIs & Services** → **OAuth consent screen**. Choose **External**,
-   fill in the app name (e.g. `RJP Dashboard`) and your email, save. Under
-   **Audience**, add your own email as a **Test user** (or click **Publish app**).
-3. **APIs & Services** → **Credentials** → **Create credentials** → **OAuth client ID**.
-   - Application type: **Web application**.
-   - **Authorized JavaScript origins:** add `https://rolandojoanpena.netlify.app`
-   - **Authorized redirect URIs:** add your Supabase callback —
-     `https://wwzsgfzfjykcvyoimwva.supabase.co/auth/v1/callback`
-     (Project URL + `/auth/v1/callback`.)
-   - Create, then copy the **Client ID** and **Client secret**.
+1. Supabase → **Authentication** → **Sign In / Providers** → **Email**.
+2. Turn **Confirm email** *off* → **Save**.
 
-**B. Enable Google in Supabase**
-1. Supabase → **Authentication** → **Sign In / Providers** (or **Providers**) → **Google**.
-2. Toggle it **on**, paste the **Client ID** and **Client secret**, **Save**.
-3. Make sure **Authentication → URL Configuration → Redirect URLs** already lists
-   `https://rolandojoanpena.netlify.app` (from step 4). Done.
-
-No Netlify change is needed. From then on, **Continue with Google** signs you in
-in one tap on any device.
+That's it — no keys, no external accounts. (If you leave it on, you'll just get
+one confirmation email the very first time; password sign-in works normally
+after that.)
 
 ---
 
