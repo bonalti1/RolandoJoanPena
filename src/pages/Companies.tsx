@@ -201,14 +201,13 @@ function GrowTextarea({ value, onChange, placeholder, className }: { value: stri
   )
 }
 
-function ListEditor({ items, onChange, owners }: { items?: ListItem[]; onChange: (items: ListItem[]) => void; owners: string[] }) {
+function ListEditor({ items, onChange }: { items?: ListItem[]; onChange: (items: ListItem[]) => void }) {
   const list = items ?? []
   const upd = (id: string, patch: Partial<ListItem>) => onChange(list.map((x) => (x.id === id ? { ...x, ...patch } : x)))
   const toggleFixed = (it: ListItem) => upd(it.id, it.fixed ? { fixed: false } : { fixed: true, fixedOn: it.fixedOn ?? todayISO() })
   return (
     <div className="flex flex-col gap-3">
       {list.map((it, i) => {
-        const ownerOpts = Array.from(new Set([...owners, ...(it.owner ? [it.owner] : [])].filter((n) => n && n.trim())))
         return (
           <div key={it.id} className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
             {/* What it is + severity */}
@@ -223,18 +222,11 @@ function ListEditor({ items, onChange, owners }: { items?: ListItem[]; onChange:
               <button onClick={() => onChange(list.filter((x) => x.id !== it.id))} title="Remove" className="shrink-0 rounded-md p-1 mt-0.5" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
             </div>
 
-            {/* Plan · owner · due */}
-            <div className="grid sm:grid-cols-[1fr_150px_160px] gap-2 mt-3 pl-6">
+            {/* Plan · due */}
+            <div className="grid sm:grid-cols-[1fr_160px] gap-2 mt-3 pl-6">
               <div>
                 <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>{it.fixed ? 'Resolution' : 'How we’ll fix it'}</label>
-                <input value={it.fix ?? ''} onChange={(e) => upd(it.id, { fix: e.target.value })} placeholder={it.fixed ? 'What fixed it…' : 'The plan…'} className="w-full rounded-lg px-2.5 py-1.5 text-sm outline-none" style={fieldSm} />
-              </div>
-              <div>
-                <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>Owner</label>
-                <select value={it.owner ?? ''} onChange={(e) => upd(it.id, { owner: e.target.value || undefined })} className="w-full rounded-lg px-2 py-1.5 text-sm outline-none" style={fieldSm}>
-                  <option value="">Unassigned</option>
-                  {ownerOpts.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
+                <GrowTextarea value={it.fix ?? ''} onChange={(v) => upd(it.id, { fix: v })} placeholder={it.fixed ? 'What fixed it…' : 'The plan…'} className="w-full" />
               </div>
               <div>
                 <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>{it.fixed ? 'Fixed on' : 'Due date'}</label>
@@ -479,8 +471,6 @@ export default function Companies() {
   const r: Review = dept ? getReview(selected, quarter, dept.id) : {}
   const set = (patch: Review) => { if (dept) setReview(dept.id, patch) }
   const leadFirst = (r.leadName || '').split(' ')[0]
-  // People who can own a fix: the department lead + team members.
-  const owners = Array.from(new Set([r.leadName, ...(r.team ?? []).map((m) => m.name)].filter((n): n is string => !!n && n.trim() !== '')))
 
   return (
     <div>
@@ -562,8 +552,8 @@ export default function Companies() {
                 <button onClick={() => confirmDelete({ label: dept.name ? `the “${dept.name}” department` : 'this department', detail: 'This department and its review will be removed.', onConfirm: () => { setDepts((prev) => prev.filter((x) => x.id !== dept.id)); setDeptSel(null); setSavedAt(Date.now()) } })} title="Delete department" aria-label="Delete department" className="shrink-0 rounded-lg p-2 transition" style={{ color: '#dc2626', background: 'color-mix(in srgb, #dc2626 10%, var(--color-surface))' }}><IconTrash width={16} height={16} /></button>
               </div>
             </div>
-            <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} owners={owners} onChange={(items) => set({ bottlenecks: items })} /></Section>
-            <Section title="Problems"><ListEditor items={r.problems} owners={owners} onChange={(items) => set({ problems: items })} /></Section>
+            <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} onChange={(items) => set({ bottlenecks: items })} /></Section>
+            <Section title="Problems"><ListEditor items={r.problems} onChange={(items) => set({ problems: items })} /></Section>
 
             <Section title="Goals for the quarter"><TextArea value={r.goals} onChange={(v) => set({ goals: v })} rows={6} placeholder="What this department must achieve…" /></Section>
 
