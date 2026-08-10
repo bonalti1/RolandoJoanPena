@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, PageHeader, Button, Input } from '../components/ui'
-import { IconPlus, IconTrash, IconSearch } from '../components/icons'
+import { IconPlus, IconTrash, IconSearch, IconCheck } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useToast } from '../lib/toast'
 import { useConfirmDelete } from '../lib/confirmDelete'
@@ -11,7 +11,15 @@ type Status = 'green' | 'yellow' | 'red'
 type Level = 'High' | 'Med' | 'Low'
 type Rating = 'good' | 'needs' | 'bad'
 type Member = { id: string; name: string; role: string; status?: Status; photo?: string }
-type ListItem = { id: string; text: string; level?: Level }
+type ListItem = {
+  id: string; text: string; level?: Level
+  fix?: string          // how we'll fix it / resolution
+  owner?: string        // person responsible
+  due?: string          // due date (YYYY-MM-DD)
+  fixed?: boolean
+  fixedOn?: string      // date it was fixed (YYYY-MM-DD)
+  carry?: boolean       // carry forward to the next quarter until resolved
+}
 type Metrics = { goal?: number; onTime?: number; quality?: number; satisfaction?: number }
 type Review = {
   status?: Status
@@ -79,6 +87,8 @@ const quarterLabel = (q: string) => q.replace('-', ' ')
 const nextQuarter = (q: string) => { const [y, qq] = q.split('-Q').map(Number); return qq === 4 ? `${y + 1}-Q1` : `${y}-Q${qq + 1}` }
 const fieldStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
 const initials = (name: string) => (name || '').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '+'
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const fmtDate = (iso?: string) => { if (!iso) return ''; const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) }
 
 /** Downscale/center-crop any image blob to a small square JPEG data URL for avatars. */
 async function toAvatarDataUrl(blob: Blob): Promise<string> {
@@ -172,23 +182,76 @@ function StatusSelect({ value, onChange, compact }: { value?: Status; onChange: 
   )
 }
 
-function ListEditor({ items, onChange }: { items?: ListItem[]; onChange: (items: ListItem[]) => void }) {
+function Toggle({ on, onClick }: { on?: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="relative shrink-0 rounded-full transition" style={{ width: 34, height: 20, background: on ? 'var(--color-accent)' : 'var(--color-border)' }} aria-pressed={!!on}>
+      <span className="absolute top-0.5 rounded-full transition-all" style={{ width: 16, height: 16, background: '#fff', left: on ? 16 : 2 }} />
+    </button>
+  )
+}
+
+const fieldSm = { ...fieldStyle, borderRadius: 8 }
+const miniLabel = 'text-[11px] font-semibold uppercase tracking-[0.08em] mb-1 block'
+
+function ListEditor({ items, onChange, owners }: { items?: ListItem[]; onChange: (items: ListItem[]) => void; owners: string[] }) {
   const list = items ?? []
   const upd = (id: string, patch: Partial<ListItem>) => onChange(list.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  const toggleFixed = (it: ListItem) => upd(it.id, it.fixed ? { fixed: false } : { fixed: true, fixedOn: it.fixedOn ?? todayISO() })
   return (
-    <div className="flex flex-col gap-2">
-      {list.map((it, i) => (
-        <div key={it.id} className="group flex items-center gap-2">
-          <span className="text-sm tnum w-4 shrink-0" style={{ color: 'var(--color-muted)' }}>{i + 1}</span>
-          <input value={it.text} onChange={(e) => upd(it.id, { text: e.target.value })} placeholder="Describe it…" className="flex-1 rounded-lg px-2.5 py-1.5 text-sm outline-none" style={fieldStyle} />
-          <div className="flex gap-1 shrink-0">
-            {LEVELS.map((lv) => (
-              <button key={lv} onClick={() => upd(it.id, { level: lv })} className="text-[11px] font-semibold px-2 py-1 rounded-md" style={it.level === lv ? { background: `color-mix(in srgb, ${levelColor[lv]} 16%, var(--color-surface))`, color: levelColor[lv], border: `1px solid ${levelColor[lv]}` } : { background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>{lv}</button>
-            ))}
+    <div className="flex flex-col gap-3">
+      {list.map((it, i) => {
+        const ownerOpts = Array.from(new Set([...owners, ...(it.owner ? [it.owner] : [])].filter((n) => n && n.trim())))
+        return (
+          <div key={it.id} className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+            {/* What it is + severity */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm tnum w-4 shrink-0" style={{ color: 'var(--color-muted)' }}>{i + 1}</span>
+              <input value={it.text} onChange={(e) => upd(it.id, { text: e.target.value })} placeholder="Describe it…" className="flex-1 min-w-0 rounded-lg px-2.5 py-1.5 text-sm outline-none" style={fieldSm} />
+              <div className="flex gap-1 shrink-0">
+                {LEVELS.map((lv) => (
+                  <button key={lv} onClick={() => upd(it.id, { level: lv })} className="text-[11px] font-semibold px-2 py-1 rounded-md" style={it.level === lv ? { background: `color-mix(in srgb, ${levelColor[lv]} 16%, var(--color-surface))`, color: levelColor[lv], border: `1px solid ${levelColor[lv]}` } : { background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>{lv}</button>
+                ))}
+              </div>
+              <button onClick={() => onChange(list.filter((x) => x.id !== it.id))} title="Remove" className="shrink-0 rounded-md p-1" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
+            </div>
+
+            {/* Plan · owner · due */}
+            <div className="grid sm:grid-cols-[1fr_150px_160px] gap-2 mt-3 pl-6">
+              <div>
+                <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>{it.fixed ? 'Resolution' : 'How we’ll fix it'}</label>
+                <input value={it.fix ?? ''} onChange={(e) => upd(it.id, { fix: e.target.value })} placeholder={it.fixed ? 'What fixed it…' : 'The plan…'} className="w-full rounded-lg px-2.5 py-1.5 text-sm outline-none" style={fieldSm} />
+              </div>
+              <div>
+                <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>Owner</label>
+                <select value={it.owner ?? ''} onChange={(e) => upd(it.id, { owner: e.target.value || undefined })} className="w-full rounded-lg px-2 py-1.5 text-sm outline-none" style={fieldSm}>
+                  <option value="">Unassigned</option>
+                  {ownerOpts.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={miniLabel} style={{ color: 'var(--color-muted)' }}>{it.fixed ? 'Fixed on' : 'Due date'}</label>
+                <input type="date" value={it.fixed ? (it.fixedOn ?? '') : (it.due ?? '')} onChange={(e) => upd(it.id, it.fixed ? { fixedOn: e.target.value } : { due: e.target.value })} className="w-full rounded-lg px-2 py-1.5 text-sm outline-none tnum" style={fieldSm} />
+              </div>
+            </div>
+
+            {/* Fixed toggle + carry forward */}
+            <div className="flex items-center justify-between gap-3 mt-3 pl-6 flex-wrap">
+              <button onClick={() => toggleFixed(it)} className="inline-flex items-center gap-2 text-sm">
+                <span className="h-5 w-5 rounded-md grid place-items-center shrink-0" style={{ border: it.fixed ? '2px solid #16a34a' : '2px solid var(--color-border)', background: it.fixed ? '#16a34a' : 'transparent' }}>
+                  {it.fixed && <IconCheck width={12} height={12} style={{ color: '#fff' }} />}
+                </span>
+                {it.fixed
+                  ? <span className="font-semibold" style={{ color: '#16a34a' }}>Fixed{it.fixedOn ? ` on ${fmtDate(it.fixedOn)}` : ''}</span>
+                  : <span style={{ color: 'var(--color-muted)' }}>Mark fixed</span>}
+              </button>
+              <label className="inline-flex items-center gap-2 text-xs" style={{ color: 'var(--color-muted)' }}>
+                <span>Carry to next quarter</span>
+                <Toggle on={it.carry} onClick={() => upd(it.id, { carry: !it.carry })} />
+              </label>
+            </div>
           </div>
-          <button onClick={() => onChange(list.filter((x) => x.id !== it.id))} className="opacity-0 group-hover:opacity-60 shrink-0" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
-        </div>
-      ))}
+        )
+      })}
       <button onClick={() => onChange([...list, { id: uid('li'), text: '', level: 'Med' }])} className="text-sm font-semibold self-start inline-flex items-center gap-1 mt-1" style={{ color: 'var(--color-accent)' }}><IconPlus width={14} height={14} /> Add</button>
     </div>
   )
@@ -319,18 +382,24 @@ export default function Companies() {
     return c
   }
   // A new quarter inherits the roster (lead, team, photos, headcount) so you
-  // never re-upload people — but the assessment (status, feedback, bottlenecks,
-  // problems, goals, summary) starts blank so each quarter is a fresh evaluation
-  // you can compare against the last.
+  // never re-upload people, plus any bottleneck/problem flagged "carry to next
+  // quarter" that isn't fixed yet — so open issues follow you until resolved.
+  // The rest of the assessment (status, feedback, goals, summary) starts blank
+  // so each quarter is a fresh evaluation you can compare against the last.
+  const carryList = (items?: ListItem[]): ListItem[] =>
+    (items ?? [])
+      .filter((x) => x.carry && !x.fixed && x.text.trim())
+      .map((x) => ({ id: uid('li'), text: x.text, level: x.level, fix: x.fix, owner: x.owner, due: x.due, carry: true }))
   const carryOver = (r: Review): Review => {
     const out: Review = {}
-    if (r.description) out.description = r.description
     if (r.leadName) out.leadName = r.leadName
     if (r.leadRole) out.leadRole = r.leadRole
     if (r.leadPhoto) out.leadPhoto = r.leadPhoto
     if (r.headcount) out.headcount = r.headcount
     if (r.cost) out.cost = r.cost
     if (r.team && r.team.length) out.team = r.team.map((m) => ({ id: uid('m'), name: m.name, role: m.role, photo: m.photo }))
+    const bl = carryList(r.bottlenecks); if (bl.length) out.bottlenecks = bl
+    const pl = carryList(r.problems); if (pl.length) out.problems = pl
     return out
   }
   const addQuarter = () => {
@@ -413,6 +482,8 @@ export default function Companies() {
   const r: Review = dept ? getReview(selected, quarter, dept.id) : {}
   const set = (patch: Review) => { if (dept) setReview(dept.id, patch) }
   const leadFirst = (r.leadName || '').split(' ')[0]
+  // People who can own a fix: the department lead + team members.
+  const owners = Array.from(new Set([r.leadName, ...(r.team ?? []).map((m) => m.name)].filter((n): n is string => !!n && n.trim() !== '')))
 
   return (
     <div>
@@ -494,8 +565,8 @@ export default function Companies() {
                 <button onClick={() => confirmDelete({ label: dept.name ? `the “${dept.name}” department` : 'this department', detail: 'This department and its review will be removed.', onConfirm: () => { setDepts((prev) => prev.filter((x) => x.id !== dept.id)); setDeptSel(null); setSavedAt(Date.now()) } })} title="Delete department" aria-label="Delete department" className="shrink-0 rounded-lg p-2 transition" style={{ color: '#dc2626', background: 'color-mix(in srgb, #dc2626 10%, var(--color-surface))' }}><IconTrash width={16} height={16} /></button>
               </div>
             </div>
-            <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} onChange={(items) => set({ bottlenecks: items })} /></Section>
-            <Section title="Problems"><ListEditor items={r.problems} onChange={(items) => set({ problems: items })} /></Section>
+            <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} owners={owners} onChange={(items) => set({ bottlenecks: items })} /></Section>
+            <Section title="Problems"><ListEditor items={r.problems} owners={owners} onChange={(items) => set({ problems: items })} /></Section>
 
             <Section title="Goals for the quarter"><TextArea value={r.goals} onChange={(v) => set({ goals: v })} rows={6} placeholder="What this department must achieve…" /></Section>
             <Section title="What we're fixing">
