@@ -193,6 +193,16 @@ function Toggle({ on, onClick }: { on?: boolean; onClick: () => void }) {
 const fieldSm = { ...fieldStyle, borderRadius: 8 }
 const miniLabel = 'text-[11px] font-semibold uppercase tracking-[0.08em] mb-1 block'
 
+/** A textarea that grows to fit its content so long descriptions stay readable. */
+function GrowTextarea({ value, onChange, placeholder, className }: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => { const el = ref.current; if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` } }, [value])
+  return (
+    <textarea ref={ref} rows={1} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      className={`resize-none overflow-hidden rounded-lg px-2.5 py-1.5 text-sm outline-none leading-snug ${className ?? ''}`} style={fieldSm} />
+  )
+}
+
 function ListEditor({ items, onChange, owners }: { items?: ListItem[]; onChange: (items: ListItem[]) => void; owners: string[] }) {
   const list = items ?? []
   const upd = (id: string, patch: Partial<ListItem>) => onChange(list.map((x) => (x.id === id ? { ...x, ...patch } : x)))
@@ -204,15 +214,15 @@ function ListEditor({ items, onChange, owners }: { items?: ListItem[]; onChange:
         return (
           <div key={it.id} className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
             {/* What it is + severity */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm tnum w-4 shrink-0" style={{ color: 'var(--color-muted)' }}>{i + 1}</span>
-              <input value={it.text} onChange={(e) => upd(it.id, { text: e.target.value })} placeholder="Describe it…" className="flex-1 min-w-0 rounded-lg px-2.5 py-1.5 text-sm outline-none" style={fieldSm} />
-              <div className="flex gap-1 shrink-0">
+            <div className="flex items-start gap-2">
+              <span className="text-sm tnum w-4 shrink-0 pt-1.5" style={{ color: 'var(--color-muted)' }}>{i + 1}</span>
+              <GrowTextarea value={it.text} onChange={(v) => upd(it.id, { text: v })} placeholder="Describe it…" className="flex-1 min-w-0" />
+              <div className="flex gap-1 shrink-0 pt-0.5">
                 {LEVELS.map((lv) => (
                   <button key={lv} onClick={() => upd(it.id, { level: lv })} className="text-[11px] font-semibold px-2 py-1 rounded-md" style={it.level === lv ? { background: `color-mix(in srgb, ${levelColor[lv]} 16%, var(--color-surface))`, color: levelColor[lv], border: `1px solid ${levelColor[lv]}` } : { background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>{lv}</button>
                 ))}
               </div>
-              <button onClick={() => onChange(list.filter((x) => x.id !== it.id))} title="Remove" className="shrink-0 rounded-md p-1" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
+              <button onClick={() => onChange(list.filter((x) => x.id !== it.id))} title="Remove" className="shrink-0 rounded-md p-1 mt-0.5" style={{ color: 'var(--color-muted)' }}><IconTrash width={14} height={14} /></button>
             </div>
 
             {/* Plan · owner · due */}
