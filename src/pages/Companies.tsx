@@ -36,8 +36,6 @@ type Review = {
   hiring?: 'no' | 'maybe' | 'yes'
   sop?: string; costsNotes?: string; goals?: string
 }
-type WorkItem = { id: string; text: string; done: boolean; company?: CompanyId; cat?: string; desc?: string }
-type WorkBoard = { backlog: WorkItem[]; weeks: Record<string, unknown> }
 
 const SEED_DEPTS: Dept[] = [
   'Content', 'Ad spend', 'GHL', 'Appointment setter', 'Closer', 'Mortgage', 'Drafting',
@@ -289,7 +287,6 @@ export default function Companies() {
   const [reviews, setReviews] = useStore<Record<string, Review>>('companies.reviews', {})
   const [quarters, setQuarters] = useStore<string[]>('companies.quarters', [currentQuarter()])
   const [savedAt, setSavedAt] = useStore<number>('companies.savedAt', 0)
-  const [, setWorkBoard] = useStore<WorkBoard>('work.work', { backlog: [], weeks: {} })
 
   const [seeded, setSeeded] = useStore<Record<string, number>>('companies.seeded', {})
   const [selected, setSelected] = useState<CompanyId | null>(null)
@@ -434,16 +431,6 @@ export default function Companies() {
   }
   const addDept = () => { const n = newDept.trim(); if (!n) return; const id = uid('d'); setDepts((prev) => [...prev, { id, name: n }]); setNewDept(''); setDeptSel(id); setSavedAt(Date.now()) }
 
-  const turnIntoTask = (deptName: string, text: string) => {
-    if (!selected) return
-    const item: WorkItem = { id: uid('w'), text: text.trim() || `Fix: ${deptName}`, done: false, company: selected, cat: 'Task', desc: `${deptName} · ${quarterLabel(quarter)}` }
-    setWorkBoard((prev) => {
-      const b = prev && Array.isArray(prev.backlog) ? prev : { backlog: [], weeks: {} }
-      return { ...b, backlog: [...b.backlog, item] }
-    })
-    toast(`Added to ${companyById(selected)?.name} Work tasks`)
-  }
-
   // ---------- Company picker ----------
   if (!selected) {
     return (
@@ -579,10 +566,6 @@ export default function Companies() {
             <Section title="Problems"><ListEditor items={r.problems} owners={owners} onChange={(items) => set({ problems: items })} /></Section>
 
             <Section title="Goals for the quarter"><TextArea value={r.goals} onChange={(v) => set({ goals: v })} rows={6} placeholder="What this department must achieve…" /></Section>
-            <Section title="What we're fixing">
-              <TextArea value={r.fixing} onChange={(v) => set({ fixing: v })} rows={3} placeholder="The plan to fix what's broken…" />
-              {(r.fixing ?? '').trim() && <Button className="mt-2" onClick={() => turnIntoTask(dept.name, r.fixing ?? '')}><IconPlus width={15} height={15} /> Turn into a Work task</Button>}
-            </Section>
 
             <Section title="Quick summary">
               <TextArea value={r.summary} onChange={(v) => set({ summary: v })} rows={3} placeholder="Key takeaways this quarter…" />
