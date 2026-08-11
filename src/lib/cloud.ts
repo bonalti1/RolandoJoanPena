@@ -81,7 +81,13 @@ function applyRemote(key: string, value: unknown, updatedMs: number) {
 }
 
 /** Pull the whole cloud snapshot and reconcile it against local by timestamp. */
+let pulling = false
 async function pullAndMerge() {
+  if (!supabase || !userId || pulling) return
+  pulling = true
+  try { await doPullAndMerge() } finally { pulling = false }
+}
+async function doPullAndMerge() {
   if (!supabase || !userId) return
   const { data, error } = await supabase.from(TABLE).select('key, value, updated_at')
   if (error) return
@@ -114,6 +120,7 @@ async function pullAndMerge() {
 }
 
 let channel: ReturnType<NonNullable<typeof supabase>['channel']> | null = null
+let onWake: (() => void) | null = null
 
 /** Begin syncing for the signed-in user. Safe to call again after re-auth. */
 export async function startCloudSync(uid: string) {
@@ -137,6 +144,15 @@ export async function startCloudSync(uid: string) {
       },
     )
     .subscribe()
+
+  // Re-pull whenever the app comes back to the foreground or the network
+  // returns, so opening it on another device always shows the latest — even if
+  // a realtime event was missed while the tab was backgrounded or offline.
+  if (onWake) { document.removeEventListener('visibilitychange', onWake); window.removeEventListener('online', onWake); window.removeEventListener('focus', onWake) }
+  onWake = () => { if (document.visibilityState === 'visible') void pullAndMerge() }
+  document.addEventListener('visibilitychange', onWake)
+  window.addEventListener('online', onWake)
+  window.addEventListener('focus', onWake)
 }
 
 /** Stop syncing (on sign-out) and forget the queued pushes. */
@@ -145,6 +161,7 @@ export async function stopCloudSync() {
   if (flushTimer) { clearTimeout(flushTimer); flushTimer = null }
   pending.clear()
   userId = null
+  if (onWake) { document.removeEventListener('visibilitychange', onWake); window.removeEventListener('online', onWake); window.removeEventListener('focus', onWake); onWake = null }
   await channel?.unsubscribe()
   channel = null
 }
