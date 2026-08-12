@@ -95,6 +95,15 @@ export const IconHealth = (p: P) => (
   </svg>
 )
 
+export const IconTeam = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="7.5" r="3" />
+    <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+    <circle cx="4.5" cy="10" r="2" />
+    <circle cx="19.5" cy="10" r="2" />
+  </svg>
+)
+
 export const IconFamily = (p: P) => (
   <svg {...base(p)}>
     <circle cx="8" cy="8" r="3" />

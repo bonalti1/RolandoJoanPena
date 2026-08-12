@@ -8,6 +8,7 @@ import Home from './pages/Home'
 import WorkList from './pages/WorkList'
 import HomeCare from './pages/HomeCare'
 import Companies from './pages/Companies'
+import Team from './pages/Team'
 import Finances from './pages/Finances'
 import Calendar from './pages/Calendar'
 import Health from './pages/Health'
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/home-care" element={<HomeCare />} />
             <Route path="/work-tasks" element={<WorkList fixedBoard="Work" />} />
             <Route path="/companies" element={<Companies />} />
+            <Route path="/team" element={<Team />} />
             <Route path="/tasks" element={<Navigate to="/home-tasks" replace />} />
             <Route path="/work" element={<Navigate to="/work-tasks" replace />} />
             <Route path="/finances" element={<Finances />} />
