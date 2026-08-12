@@ -45,16 +45,17 @@ export default function Team() {
     const src = /[?&]as=/.test(base) ? base : base + (base.includes('?') ? '&' : '?') + 'as=assistant'
     return (
       <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--color-bg)' }}>
-        <div className="flex items-center gap-3 px-4 py-2.5 shrink-0" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
-          <button onClick={() => setViewing(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-2.5 py-1.5" style={{ color: 'var(--color-accent)', background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+        {/* Dark BONALTI bar — the white wordmark sits on the company's dark chrome */}
+        <div className="flex items-center gap-3 px-4 py-2.5 shrink-0" style={{ background: 'linear-gradient(180deg, var(--color-sidebar) 0%, var(--color-sidebar-2) 100%)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <button onClick={() => setViewing(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-2.5 py-1.5 shrink-0" style={{ color: '#fff', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)' }}>
             ‹ My dashboard
           </button>
-          <span className="h-7 w-7 rounded-full grid place-items-center text-xs font-bold shrink-0" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>{initials(viewing.name)}</span>
+          <img src="/logos/bonalti.png" alt="BONALTI" draggable={false} className="shrink-0" style={{ height: 15, width: 'auto' }} />
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold leading-tight truncate" style={{ color: 'var(--color-text)' }}>{viewing.name}'s workspace</div>
-            <div className="text-[11px] leading-tight truncate" style={{ color: 'var(--color-muted)' }}>{viewing.role}</div>
+            <div className="text-sm font-bold leading-tight truncate" style={{ color: '#fff' }}>{viewing.name} Operating System</div>
+            <div className="text-[11px] leading-tight truncate" style={{ color: 'rgba(255,255,255,0.55)' }}>{viewing.role}</div>
           </div>
-          <a href={src} target="_blank" rel="noopener" className="text-xs font-semibold shrink-0" style={{ color: 'var(--color-accent)' }}>Open in new tab ↗</a>
+          <a href={src} target="_blank" rel="noopener" className="text-xs font-semibold shrink-0" style={{ color: 'rgba(255,255,255,0.85)' }}>Open in new tab ↗</a>
         </div>
         <iframe src={src} title={`${viewing.name}'s workspace`} className="flex-1 w-full border-0" allow="microphone; clipboard-read; clipboard-write" />
       </div>
