@@ -18,10 +18,13 @@ const SEED: Leader[] = [
 
 const initials = (name: string) => (name || '').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'
 
+const normUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
+
 export default function Team() {
   const confirmDelete = useConfirmDelete()
   const [leaders, setLeaders] = useStore<Leader[]>('team.leaders', SEED)
   const [editing, setEditing] = useState<string | null>(null)
+  const [viewing, setViewing] = useState<Leader | null>(null)
   const [draftName, setDraftName] = useState('')
   const [draftRole, setDraftRole] = useState('')
   const [draftUrl, setDraftUrl] = useState('')
@@ -30,8 +33,28 @@ export default function Team() {
 
   const openWorkspace = (l: Leader) => {
     if (!l.url.trim()) { setEditing(l.id); return }
-    const url = /^https?:\/\//i.test(l.url) ? l.url : `https://${l.url}`
-    window.open(url, '_blank', 'noopener')
+    setViewing(l)
+  }
+
+  // ---- Embedded workspace: work inside a leader's app without leaving yours ----
+  if (viewing) {
+    const src = normUrl(viewing.url)
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--color-bg)' }}>
+        <div className="flex items-center gap-3 px-4 py-2.5 shrink-0" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+          <button onClick={() => setViewing(null)} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-2.5 py-1.5" style={{ color: 'var(--color-accent)', background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+            ‹ My dashboard
+          </button>
+          <span className="h-7 w-7 rounded-full grid place-items-center text-xs font-bold shrink-0" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>{initials(viewing.name)}</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold leading-tight truncate" style={{ color: 'var(--color-text)' }}>{viewing.name}'s workspace</div>
+            <div className="text-[11px] leading-tight truncate" style={{ color: 'var(--color-muted)' }}>{viewing.role}</div>
+          </div>
+          <a href={src} target="_blank" rel="noopener" className="text-xs font-semibold shrink-0" style={{ color: 'var(--color-accent)' }}>Open in new tab ↗</a>
+        </div>
+        <iframe src={src} title={`${viewing.name}'s workspace`} className="flex-1 w-full border-0" allow="microphone; clipboard-read; clipboard-write" />
+      </div>
+    )
   }
 
   const addLeader = () => {
