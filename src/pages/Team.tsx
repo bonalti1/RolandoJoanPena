@@ -43,11 +43,9 @@ export default function Team() {
 
   // ---- Embedded workspace: work inside a leader's app without leaving yours ----
   if (viewing) {
-    // `as=assistant` asks the leader's app to render exactly what THEY see
-    // (their shell, their sections) instead of the owner view. Apps that don't
-    // know the param simply ignore it.
-    const base = normUrl(viewing.url)
-    const src = /[?&]as=/.test(base) ? base : base + (base.includes('?') ? '&' : '?') + 'as=assistant'
+    // A leader's site always renders their own workspace, whoever signs in, so
+    // the plain URL is all we need.
+    const src = normUrl(viewing.url)
     return (
       <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--color-bg)' }}>
         {/* Dark BONALTI bar — the white wordmark sits on the company's dark chrome */}
