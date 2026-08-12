@@ -10,11 +10,16 @@ import { useConfirmDelete } from '../lib/confirmDelete'
  * into each of them. The workspace URL is saved once and syncs across devices.
  */
 
-type Leader = { id: string; name: string; role: string; url: string }
+type Leader = { id: string; name: string; role: string; url: string; os?: string }
 
 const SEED: Leader[] = [
-  { id: 'lead_carlos', name: 'Carlos', role: 'Content Manager', url: '' },
+  { id: 'lead_carlos', name: 'Carlos', role: 'Content Manager', url: '', os: 'Content Operating System' },
 ]
+
+/** The workspace is branded by function ("Content Operating System"), falling
+ * back to the leader's name for cards saved before the field existed. */
+const osTitle = (l: Leader) =>
+  l.os?.trim() || (l.id === 'lead_carlos' ? 'Content Operating System' : `${l.name} Operating System`)
 
 const initials = (name: string) => (name || '').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?'
 
@@ -52,8 +57,8 @@ export default function Team() {
           </button>
           <img src="/logos/bonalti.png" alt="BONALTI" draggable={false} className="shrink-0" style={{ height: 15, width: 'auto' }} />
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-bold leading-tight truncate" style={{ color: '#fff' }}>{viewing.name} Operating System</div>
-            <div className="text-[11px] leading-tight truncate" style={{ color: 'rgba(255,255,255,0.55)' }}>{viewing.role}</div>
+            <div className="text-sm font-bold leading-tight truncate" style={{ color: '#fff' }}>{osTitle(viewing)}</div>
+            <div className="text-[11px] leading-tight truncate" style={{ color: 'rgba(255,255,255,0.55)' }}>{viewing.name} · {viewing.role}</div>
           </div>
           <a href={src} target="_blank" rel="noopener" className="text-xs font-semibold shrink-0" style={{ color: 'rgba(255,255,255,0.85)' }}>Open in new tab ↗</a>
         </div>
@@ -82,8 +87,8 @@ export default function Team() {
             <div className="flex items-center gap-3 mb-4">
               <span className="h-11 w-11 rounded-full grid place-items-center font-bold shrink-0" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>{initials(l.name)}</span>
               <div className="flex-1 min-w-0">
-                <div className="font-bold truncate" style={{ color: 'var(--color-text)' }}>{l.name}</div>
-                <div className="text-sm truncate" style={{ color: 'var(--color-muted)' }}>{l.role || 'Leader'}</div>
+                <div className="font-bold truncate" style={{ color: 'var(--color-text)' }}>{osTitle(l)}</div>
+                <div className="text-sm truncate" style={{ color: 'var(--color-muted)' }}>{l.name} · {l.role || 'Leader'}</div>
               </div>
               <button
                 onClick={() => confirmDelete({ label: `${l.name}'s workspace card`, detail: 'Only this card is removed — their app and data are untouched.', onConfirm: () => setLeaders((prev) => prev.filter((x) => x.id !== l.id)) })}
@@ -97,6 +102,7 @@ export default function Team() {
               <div className="flex flex-col gap-2">
                 <Input value={l.name} onChange={(e) => patch(l.id, { name: e.target.value })} placeholder="Name" />
                 <Input value={l.role} onChange={(e) => patch(l.id, { role: e.target.value })} placeholder="Role (e.g. Content Manager)" />
+                <Input value={l.os ?? ''} onChange={(e) => patch(l.id, { os: e.target.value })} placeholder="Workspace name (e.g. Content Operating System)" />
                 <Input value={l.url} onChange={(e) => patch(l.id, { url: e.target.value })} placeholder="Workspace link (e.g. bonalti-employeeos.netlify.app)" />
                 <Button onClick={() => setEditing(null)}>Done</Button>
               </div>
