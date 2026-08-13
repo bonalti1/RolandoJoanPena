@@ -51,10 +51,11 @@ function CoLogo({ id, h = 15 }: { id?: string; h?: number }) {
   return <img src={c.logo} alt={c.name} draggable={false} className="shrink-0 object-contain" style={{ height: h, width: 'auto', maxWidth: h * 3.6 }} />
 }
 
-function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBadge, onHover, onLeave }: {
+function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBadge, onPickDay, onHover, onLeave }: {
   item: Item; variant: 'compact' | 'full'
   onToggle: () => void; onRemove: () => void; onOpen: () => void; onDragStart: () => void
   dayBadge?: string
+  onPickDay?: (e: React.MouseEvent) => void
   onHover?: (e: React.MouseEvent, item: Item) => void; onLeave?: () => void
 }) {
   const c = companyById(item.company)
@@ -81,7 +82,22 @@ function TaskRow({ item, variant, onToggle, onRemove, onOpen, onDragStart, dayBa
         {variant === 'full' && (item.desc || item.notes) && <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-muted)' }}>{item.desc || item.notes}</div>}
       </button>
       <div className="flex items-center gap-1 shrink-0">
-        {dayBadge && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))', color: 'var(--color-accent)' }}>{dayBadge}</span>}
+        {/* The day chip. Dragging a task up to the columns means crossing a
+            screenful — and on a phone it isn't possible at all — so the day is
+            also a one-tap menu right here on the row. */}
+        {onPickDay ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onPickDay(e) }}
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
+            style={dayBadge
+              ? { background: 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))', color: 'var(--color-accent)' }
+              : { background: 'var(--color-surface)', color: 'var(--color-muted)', border: '1px dashed var(--color-border)' }}
+            title="Put this on a day">
+            {dayBadge ?? '+ Day'}
+          </button>
+        ) : dayBadge ? (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-accent) 14%, var(--color-surface))', color: 'var(--color-accent)' }}>{dayBadge}</span>
+        ) : null}
         {item.due && <span className="text-[10px] font-semibold tnum" style={{ color: 'var(--color-accent)' }}>{fmtDue(item.due)}</span>}
         {variant === 'full' && item.priority && item.priority !== 'Medium' && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--color-surface)', color: item.priority === 'High' ? '#c0504d' : 'var(--color-muted)' }}>{item.priority}</span>}
         <button onClick={onRemove} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }} aria-label="Delete"><IconTrash width={13} height={13} /></button>
@@ -121,6 +137,13 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
     setHoverTip({ text: item.text, desc: detail, company: companyById(item.company)?.name, left: r.left, top: r.bottom + 6 })
   }
   const hideTip = () => setHoverTip(null)
+
+  // Day picker anchored to the row that opened it.
+  const [dayPick, setDayPick] = useState<{ bucket: string; id: string; left: number; top: number } | null>(null)
+  const openDayPick = (e: React.MouseEvent, bucket: string, id: string) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setDayPick({ bucket, id, left: r.right, top: r.bottom + 4 })
+  }
 
   // Bills come straight from Finances so paying them can live as a to-do here.
   const [bills] = useStore<Bill[]>('pay.bills', [])
@@ -196,6 +219,28 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
     moveItem(drag.from, toBucket, drag.id)
     setDrag(null)
   }
+
+  /**
+   * The day columns sit a screenful above the Master List, and a browser will
+   * not scroll the page for you mid-drag — so a task picked up down here could
+   * never reach them. Holding the pointer near the top or bottom edge scrolls
+   * the window, faster the closer to the edge it gets.
+   */
+  useEffect(() => {
+    if (!drag) return
+    const EDGE = 120
+    let speed = 0
+    let frame = 0
+    const onOver = (e: DragEvent) => {
+      const fromTop = e.clientY - EDGE
+      const fromBottom = e.clientY - (window.innerHeight - EDGE)
+      speed = fromTop < 0 ? Math.max(-28, fromTop / 4) : fromBottom > 0 ? Math.min(28, fromBottom / 4) : 0
+    }
+    const tick = () => { if (speed) window.scrollBy(0, speed); frame = requestAnimationFrame(tick) }
+    window.addEventListener('dragover', onOver)
+    frame = requestAnimationFrame(tick)
+    return () => { window.removeEventListener('dragover', onOver); cancelAnimationFrame(frame) }
+  }, [drag])
 
   const copyLastWeek = () =>
     update((b) => {
@@ -349,9 +394,46 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
           {hoverTip.desc && <div className="text-xs mt-1 whitespace-pre-wrap leading-snug" style={{ opacity: 0.85 }}>{hoverTip.desc}</div>}
         </div>
       )}
+      {/* Day picker — put a task on a day without dragging it up the page */}
+      {dayPick && (() => {
+        const W = 176
+        const H = 330
+        const todayName = DAYS[(new Date().getDay() + 6) % 7]
+        const left = Math.max(8, Math.min(dayPick.left - W, window.innerWidth - W - 8))
+        const flip = dayPick.top + H > window.innerHeight
+        return (
+          <>
+            <div className="fixed inset-0 z-[85]" onClick={() => setDayPick(null)} />
+            <div className="fixed z-[90] rounded-xl p-1 fade-up"
+              style={{ left, top: flip ? undefined : dayPick.top, bottom: flip ? 12 : undefined, width: W, background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)' }}>
+              <div className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1" style={{ color: 'var(--color-muted)' }}>Put on a day</div>
+              {DAYS.map((d) => {
+                const on = dayPick.bucket === d
+                return (
+                  <button key={d}
+                    onClick={() => { moveItem(dayPick.bucket, d, dayPick.id); setDayPick(null) }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2"
+                    style={{ background: on ? 'color-mix(in srgb, var(--color-accent) 14%, transparent)' : 'transparent', color: on ? 'var(--color-accent)' : 'var(--color-text)' }}>
+                    {d}
+                    {isThisWeek && d === todayName && <span className="text-[10px] ml-auto" style={{ color: 'var(--color-muted)' }}>Today</span>}
+                  </button>
+                )
+              })}
+              {dayPick.bucket !== BACKLOG && (
+                <button onClick={() => { moveItem(dayPick.bucket, BACKLOG, dayPick.id); setDayPick(null) }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-sm mt-0.5"
+                  style={{ color: 'var(--color-muted)', borderTop: '1px solid var(--color-border)' }}>
+                  Back to Master List
+                </button>
+              )}
+            </div>
+          </>
+        )
+      })()}
+
       <PageHeader
         title={fixedBoard ? `${fixedBoard} tasks` : 'Work list'}
-        subtitle="Plan your week by dragging tasks onto a day."
+        subtitle="Tap a task's day chip to schedule it — or drag it onto a day."
         action={
           <div className="flex items-center gap-1.5">
             {!isWork && (
@@ -529,7 +611,7 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         ) : (
           <ul className="flex flex-col gap-1">
             {masterItems.map(({ item: i, bucket }) => (
-              <TaskRow key={i.id} item={i} variant="full" dayBadge={bucket === BACKLOG ? undefined : DAY_SHORT[bucket]} onToggle={() => toggle(bucket, i.id)} onRemove={() => confirmRemove(bucket, i)} onOpen={() => setSelected({ bucket, id: i.id })} onDragStart={() => setDrag({ from: bucket, id: i.id })} onHover={showTip} onLeave={hideTip} />
+              <TaskRow key={i.id} item={i} variant="full" dayBadge={bucket === BACKLOG ? undefined : DAY_SHORT[bucket]} onPickDay={(e) => openDayPick(e, bucket, i.id)} onToggle={() => toggle(bucket, i.id)} onRemove={() => confirmRemove(bucket, i)} onOpen={() => setSelected({ bucket, id: i.id })} onDragStart={() => setDrag({ from: bucket, id: i.id })} onHover={showTip} onLeave={hideTip} />
             ))}
           </ul>
         )}
