@@ -55,8 +55,8 @@ const IconSlider = (p: SVGProps<SVGSVGElement>) => (
 )
 
 /** Shell for a Today's-Focus card: coloured icon + title, a "View all" link, body, and a footer link. */
-function FocusCard({ accent, icon, title, viewAllLabel = 'View all', onViewAll, viewAllTo, footerLabel, footerTo, onFooter, children }: {
-  accent: string; icon: React.ReactNode; title: string
+function FocusCard({ accent, icon, title, note, viewAllLabel = 'View all', onViewAll, viewAllTo, footerLabel, footerTo, onFooter, children }: {
+  accent: string; icon: React.ReactNode; title: string; note?: string
   viewAllLabel?: string; onViewAll?: () => void; viewAllTo?: string
   footerLabel: string; footerTo?: string; onFooter?: () => void
   children: React.ReactNode
@@ -67,9 +67,12 @@ function FocusCard({ accent, icon, title, viewAllLabel = 'View all', onViewAll, 
   return (
     <div className="rounded-[20px] p-5 flex flex-col" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2.5">
-          <span style={{ color: accent }}>{icon}</span>
-          <h3 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>{title}</h3>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="shrink-0" style={{ color: accent }}>{icon}</span>
+          <div className="min-w-0">
+            <h3 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>{title}</h3>
+            {note && <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{note}</p>}
+          </div>
         </div>
         {viewAll}
       </div>
@@ -110,8 +113,57 @@ function BoardRow({ item, accent, onToggleDone, onToggleUrgent }: { item: WItem;
   )
 }
 
-/** Inline "+ Add a … task" input that drops a task into a board's backlog. */
-function AddRow({ accent, placeholder, onAdd }: { accent: string; placeholder: string; onAdd: (text: string) => void }) {
+/**
+ * Today's list for one board. Only what is still open shows as tasks — the
+ * card is meant to answer "what am I doing today", and a finished task is no
+ * longer an answer. Anything already done folds into a single line you can
+ * open if something needs unchecking.
+ */
+function TodayList({ items, accent, empty, onToggleDone, onToggleUrgent }: {
+  items: WItem[]; accent: string; empty: string
+  onToggleDone: (id: string) => void; onToggleUrgent: (id: string) => void
+}) {
+  const [showDone, setShowDone] = useState(false)
+  const open = items.filter((i) => !i.done)
+  const done = items.filter((i) => i.done)
+
+  return (
+    <>
+      {open.length === 0 ? (
+        <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>
+          {done.length > 0 ? `All ${done.length} done for today. 🎉` : empty}
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-3 mb-3">
+          {open.map((it) => (
+            <BoardRow key={it.id} item={it} accent={accent}
+              onToggleDone={() => onToggleDone(it.id)} onToggleUrgent={() => onToggleUrgent(it.id)} />
+          ))}
+        </ul>
+      )}
+
+      {done.length > 0 && (
+        <>
+          <button onClick={() => setShowDone((v) => !v)} className="text-xs font-semibold flex items-center gap-1.5 mb-2" style={{ color: 'var(--color-muted)' }}>
+            <IconCheck width={13} height={13} style={{ color: accent }} />
+            {done.length} done today
+            <span style={{ opacity: 0.7 }}>{showDone ? '▴' : '▾'}</span>
+          </button>
+          {showDone && (
+            <ul className="flex flex-col gap-3 mb-3">
+              {done.map((it) => (
+                <BoardRow key={it.id} item={it} accent={accent}
+                  onToggleDone={() => onToggleDone(it.id)} onToggleUrgent={() => onToggleUrgent(it.id)} />
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
+/** Inline "+ Add a … task" input that drops a task into a board's backlog. */function AddRow({ accent, placeholder, onAdd }: { accent: string; placeholder: string; onAdd: (text: string) => void }) {
   const [text, setText] = useState('')
   const submit = () => { if (text.trim()) { onAdd(text); setText('') } }
   return (
@@ -245,7 +297,7 @@ export default function Home() {
           <span style={{ color: 'var(--color-accent)' }}><IconTarget /></span>
           <div>
             <h2 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>Today's Main Focus</h2>
-            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Your top priorities across the 3 areas that drive your day.</p>
+            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Only what's on today — non-negotiables, business and home.</p>
           </div>
         </div>
         <button onClick={() => setNnEdit(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl shrink-0" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
@@ -276,31 +328,25 @@ export default function Home() {
           )}
         </FocusCard>
 
-        {/* Business priorities → Work tasks */}
-        <FocusCard accent="#ea580c" icon={<IconBriefcase />} title="Business priorities" viewAllTo="/work-tasks" footerLabel="Open full tab" footerTo="/work-tasks">
-          {bizItems.length === 0 ? (
-            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Nothing set for today. Add a task below or schedule one in Work tasks.</p>
-          ) : (
-            <ul className="flex flex-col gap-3 mb-3">
-              {bizItems.map((it) => <BoardRow key={it.id} item={it} accent="#ea580c" onToggleDone={() => toggleBoardDone(setWorkBoard, it.id)} onToggleUrgent={() => toggleUrgentItem(setWorkBoard, it.id)} />)}
-            </ul>
-          )}
+        {/* Today's business tasks → Work tasks */}
+        <FocusCard accent="#ea580c" icon={<IconBriefcase />} title="Today's business tasks" note={todayName} viewAllTo="/work-tasks" footerLabel="Open full tab" footerTo="/work-tasks">
+          <TodayList items={bizItems} accent="#ea580c"
+            empty="Nothing scheduled for today. Add one below, or put a task on today in Work tasks."
+            onToggleDone={(id) => toggleBoardDone(setWorkBoard, id)}
+            onToggleUrgent={(id) => toggleUrgentItem(setWorkBoard, id)} />
           <div className="pt-2" style={{ borderTop: bizItems.length ? '1px solid var(--color-border)' : 'none' }}>
-            <AddRow accent="#ea580c" placeholder="Add a business task" onAdd={(t) => addBoardTask(setWorkBoard, t)} />
+            <AddRow accent="#ea580c" placeholder="Add a task for today" onAdd={(t) => addBoardTask(setWorkBoard, t)} />
           </div>
         </FocusCard>
 
-        {/* Home priorities → Home tasks */}
-        <FocusCard accent="#16a34a" icon={<IconHome width={22} height={22} />} title="Home priorities" viewAllTo="/home-tasks" footerLabel="Open full tab" footerTo="/home-tasks">
-          {homeTaskItems.length === 0 ? (
-            <p className="text-sm py-4" style={{ color: 'var(--color-muted)' }}>Nothing set for today. Add a task below or schedule one in Home tasks.</p>
-          ) : (
-            <ul className="flex flex-col gap-3 mb-3">
-              {homeTaskItems.map((it) => <BoardRow key={it.id} item={it} accent="#16a34a" onToggleDone={() => toggleBoardDone(setHomeBoard, it.id)} onToggleUrgent={() => toggleUrgentItem(setHomeBoard, it.id)} />)}
-            </ul>
-          )}
+        {/* Today's home tasks → Home tasks */}
+        <FocusCard accent="#16a34a" icon={<IconHome width={22} height={22} />} title="Today's home tasks" note={todayName} viewAllTo="/home-tasks" footerLabel="Open full tab" footerTo="/home-tasks">
+          <TodayList items={homeTaskItems} accent="#16a34a"
+            empty="Nothing scheduled for today. Add one below, or put a task on today in Home tasks."
+            onToggleDone={(id) => toggleBoardDone(setHomeBoard, id)}
+            onToggleUrgent={(id) => toggleUrgentItem(setHomeBoard, id)} />
           <div className="pt-2" style={{ borderTop: homeTaskItems.length ? '1px solid var(--color-border)' : 'none' }}>
-            <AddRow accent="#16a34a" placeholder="Add a home task" onAdd={(t) => addBoardTask(setHomeBoard, t)} />
+            <AddRow accent="#16a34a" placeholder="Add a task for today" onAdd={(t) => addBoardTask(setHomeBoard, t)} />
           </div>
         </FocusCard>
       </div>
