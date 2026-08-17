@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, PageHeader, Button, Input } from '../components/ui'
 import { IconPlus, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
@@ -14,7 +14,13 @@ type Leader = { id: string; name: string; role: string; url: string; os?: string
 
 const SEED: Leader[] = [
   { id: 'lead_carlos', name: 'Carlos', role: 'Content Manager', url: '', os: 'Content Operating System' },
+  { id: 'lead_cristo', name: 'Cristo Calderon', role: 'COO', url: 'cristocalderon.netlify.app', os: 'Personal Operating System' },
 ]
+
+// Cards added to the seed after this page shipped won't appear for anyone who
+// already has a saved roster, so missing ones are merged in once. Bump to add
+// another leader everywhere.
+const SEED_VERSION = 1
 
 /** The workspace is branded by function ("Content Operating System"), falling
  * back to the leader's name for cards saved before the field existed. */
@@ -28,6 +34,7 @@ const normUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
 export default function Team() {
   const confirmDelete = useConfirmDelete()
   const [leaders, setLeaders] = useStore<Leader[]>('team.leaders', SEED)
+  const [seeded, setSeeded] = useStore<number>('team.seeded', 0)
   const [editing, setEditing] = useState<string | null>(null)
   const [viewing, setViewing] = useState<Leader | null>(null)
   const [draftName, setDraftName] = useState('')
@@ -35,6 +42,19 @@ export default function Team() {
   const [draftUrl, setDraftUrl] = useState('')
 
   const patch = (id: string, p: Partial<Leader>) => setLeaders((prev) => prev.map((l) => (l.id === id ? { ...l, ...p } : l)))
+
+  // Add any seed leader missing from an existing roster, once. Cards you've
+  // edited or deleted on purpose are left alone after their version has run.
+  useEffect(() => {
+    if (seeded >= SEED_VERSION) return
+    setLeaders((prev) => {
+      const have = new Set(prev.map((l) => l.id))
+      const missing = SEED.filter((s) => !have.has(s.id))
+      return missing.length ? [...prev, ...missing] : prev
+    })
+    setSeeded(SEED_VERSION)
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [seeded])
 
   const openWorkspace = (l: Leader) => {
     if (!l.url.trim()) { setEditing(l.id); return }
