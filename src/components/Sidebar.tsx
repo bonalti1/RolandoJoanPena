@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   IconHome, IconTasks, IconWork, IconCompanies, IconTeam, IconPayments, IconCalendar,
-  IconHealth, IconFamily, IconJournal, IconBell, IconSettings,
+  IconHealth, IconFamily, IconJournal, IconIdea, IconBell, IconSettings,
 } from './icons'
 import { useStore } from '../lib/store'
 import { Logo } from './Logo'
@@ -12,6 +12,7 @@ const MENU = [
   { to: '/home-tasks', label: 'Home tasks', Icon: IconTasks },
   { to: '/work-tasks', label: 'Work tasks', Icon: IconWork },
   { to: '/companies', label: 'Companies', Icon: IconCompanies },
+  { to: '/ideas', label: 'Ideas', Icon: IconIdea },
   { to: '/team', label: 'Team', Icon: IconTeam },
   { to: '/finances', label: 'Finances', Icon: IconPayments },
   { to: '/calendar', label: 'Calendar', Icon: IconCalendar },

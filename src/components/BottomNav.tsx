@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { IconHome, IconWork, IconTasks, IconJournal } from './icons'
+import { IconHome, IconWork, IconTasks, IconIdea } from './icons'
 
 /**
  * Thumb-reachable bottom tab bar for phones (hidden on lg+, where the sidebar
@@ -11,7 +11,9 @@ const TABS = [
   { to: '/home', label: 'Home', Icon: IconHome },
   { to: '/work-tasks', label: 'Work', Icon: IconWork },
   { to: '/home-tasks', label: 'Tasks', Icon: IconTasks },
-  { to: '/journal', label: 'Journal', Icon: IconJournal },
+  // Ideas takes the fourth slot: they arrive at random moments and have to be
+  // one thumb-tap away. Journal lives on behind More.
+  { to: '/ideas', label: 'Ideas', Icon: IconIdea },
 ]
 
 function IconMore({ width = 22, height = 22 }: { width?: number; height?: number }) {

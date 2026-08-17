@@ -51,6 +51,13 @@ export const IconJournal = (p: P) => (
   </svg>
 )
 
+export const IconIdea = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 18h6M10 21h4" />
+    <path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2 1 1.9l.1.7h4.8l.1-.7c.1-.7.4-1.4 1-1.9A6 6 0 0 0 12 3Z" />
+  </svg>
+)
+
 export const IconCompanies = (p: P) => (
   <svg {...base(p)}>
     <rect x="3" y="3" width="8" height="18" rx="1" />

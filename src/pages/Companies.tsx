@@ -5,8 +5,8 @@ import { useStore, uid } from '../lib/store'
 import { useToast } from '../lib/toast'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { COMPANIES, companyById, type CompanyId } from '../lib/companies'
+import { SEED_DEPTS, type Dept } from '../lib/depts'
 
-type Dept = { id: string; name: string }
 type Status = 'green' | 'yellow' | 'red'
 type Level = 'High' | 'Med' | 'Low'
 type Rating = 'good' | 'needs' | 'bad'
@@ -36,12 +36,6 @@ type Review = {
   hiring?: 'no' | 'maybe' | 'yes'
   sop?: string; costsNotes?: string; goals?: string
 }
-
-const SEED_DEPTS: Dept[] = [
-  'Content', 'Ad spend', 'GHL', 'Appointment setter', 'Closer', 'Mortgage', 'Drafting',
-  'Construction loans', 'T/C', 'Client communication', 'Permits, draws & payroll',
-  'Scheduling / selections', 'QC / Runner', 'Accountant',
-].map((name, i) => ({ id: `d${i}`, name }))
 
 // One-time starting roster for South Texas Builders (names/roles only — photos
 // get added in-app). Matched to departments by name; only fills empty leads.

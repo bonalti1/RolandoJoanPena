@@ -14,6 +14,7 @@ import Calendar from './pages/Calendar'
 import Health from './pages/Health'
 import Family from './pages/Family'
 import Journal from './pages/Journal'
+import Ideas from './pages/Ideas'
 import Notifications from './pages/Notifications'
 import Settings from './pages/Settings'
 
@@ -74,6 +75,7 @@ export default function App() {
             <Route path="/health" element={<Health />} />
             <Route path="/family" element={<Family />} />
             <Route path="/journal" element={<Journal />} />
+            <Route path="/ideas" element={<Ideas />} />
             <Route path="/assistant" element={<Navigate to="/journal" replace />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
