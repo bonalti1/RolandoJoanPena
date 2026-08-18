@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { storeNamespace } from './acting'
 
 /**
  * Persisted state hook. Everything in the dashboard is stored locally in the
@@ -8,6 +9,13 @@ import { useEffect, useRef, useState } from 'react'
  * source of truth for the offline-first experience.
  */
 export const PREFIX = 'jess:'
+
+/**
+ * Where a key actually lives in localStorage. Your own data sits under the
+ * plain prefix; while working inside someone else's OS it is namespaced by
+ * their id, so the two can never overwrite one another on this device.
+ */
+export const storeKey = (key: string): string => PREFIX + storeNamespace() + key
 
 /**
  * The cloud sync layer (lib/cloud.ts) registers a listener here so it can push
@@ -21,7 +29,7 @@ export function setLocalWriteListener(fn: ((key: string, value: unknown) => void
 
 function read<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(PREFIX + key)
+    const raw = localStorage.getItem(storeKey(key))
     return raw ? (JSON.parse(raw) as T) : fallback
   } catch {
     return fallback
@@ -34,7 +42,7 @@ export function useStore<T>(key: string, initial: T) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(PREFIX + key, JSON.stringify(value))
+      localStorage.setItem(storeKey(key), JSON.stringify(value))
     } catch {
       /* storage full or unavailable — ignore */
     }
@@ -46,7 +54,7 @@ export function useStore<T>(key: string, initial: T) {
   // Keep multiple tabs in sync.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === PREFIX + key && e.newValue) {
+      if (e.key === storeKey(key) && e.newValue) {
         try {
           setValue(JSON.parse(e.newValue))
         } catch {

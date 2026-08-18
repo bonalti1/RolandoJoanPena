@@ -3,6 +3,8 @@ import { Card, PageHeader, Button, Input } from '../components/ui'
 import { IconPlus, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
+import { enterOs } from '../lib/acting'
+import { useOsGrants } from '../lib/osAccess'
 
 /**
  * Team workspaces — one card per leader. Each leader runs their own app (their
@@ -33,6 +35,14 @@ const normUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
 
 export default function Team() {
   const confirmDelete = useConfirmDelete()
+  // Colleagues whose OS you've been granted access to, resolved from Supabase
+  // so nobody has to copy user ids around.
+  const grants = useOsGrants()
+  /** The access grant matching a card, if you've been given one. */
+  const grantFor = (l: Leader) => {
+    const first = l.name.trim().split(/\s+/)[0].toLowerCase()
+    return grants.find((g) => g.ownerName.toLowerCase().includes(first))
+  }
   const [leaders, setLeaders] = useStore<Leader[]>('team.leaders', SEED)
   const [seeded, setSeeded] = useStore<number>('team.seeded', 0)
   const [editing, setEditing] = useState<string | null>(null)
@@ -126,17 +136,35 @@ export default function Team() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => openWorkspace(l)}
-                  className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-center transition active:scale-[0.98]"
-                  style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
-                >
-                  {l.url.trim() ? 'Open workspace →' : 'Set workspace link'}
-                </button>
+                {/* Someone whose OS you've been granted is opened in place —
+                    their boards, your session. Everyone else keeps the plain
+                    link to their own app. */}
+                {grantFor(l) ? (
+                  <button
+                    onClick={() => enterOs({ id: grantFor(l)!.ownerId, name: l.name.split(' ')[0] })}
+                    className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-center transition active:scale-[0.98]"
+                    style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
+                  >
+                    Work in their OS →
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => openWorkspace(l)}
+                    className="flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-center transition active:scale-[0.98]"
+                    style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
+                  >
+                    {l.url.trim() ? 'Open workspace →' : 'Set workspace link'}
+                  </button>
+                )}
                 <Button variant="outline" onClick={() => setEditing(l.id)}>Edit</Button>
               </div>
             )}
-            {!l.url.trim() && editing !== l.id && (
+            {grantFor(l) && editing !== l.id && (
+              <p className="text-xs mt-2" style={{ color: 'var(--color-muted)' }}>
+                Opens their Work tasks, Companies and Ideas. Their personal pages stay private.
+              </p>
+            )}
+            {!grantFor(l) && !l.url.trim() && editing !== l.id && (
               <p className="text-xs mt-2" style={{ color: 'var(--color-muted)' }}>Paste their app's link once — it saves and syncs to all your devices.</p>
             )}
           </Card>

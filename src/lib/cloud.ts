@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import { PREFIX, setLocalWriteListener } from './store'
+import { PREFIX, storeKey, setLocalWriteListener } from './store'
+import { actingOwner, isDelegating, isDelegateKey, storeNamespace } from './acting'
 
 /**
  * Cloud sync for all localStorage-backed dashboard data.
@@ -15,32 +16,52 @@ import { PREFIX, setLocalWriteListener } from './store'
  *
  * The table (created by the user in Supabase):
  *   app_state(user_id uuid, key text, value jsonb, updated_at timestamptz,
- *             primary key (user_id, key))  — RLS locked to auth.uid().
+ *             primary key (user_id, key))  — RLS locked to auth.uid(), plus a
+ *             delegate grant in `os_access` for the business keys only.
+ *
+ * When working inside someone else's OS, every row read and written here
+ * belongs to *them*: syncTarget() is their id rather than yours, and only keys
+ * on the delegate allowlist move at all. The database enforces the same rule,
+ * so this layer narrowing it is defence in depth, not the defence.
  */
 const TABLE = 'app_state'
-const META = 'jess:__synctimes__' // key -> epoch ms of last local write
+/** Sync timestamps live beside the data they describe, so a delegated copy
+ *  keeps its own clock and never confuses the merge for your own OS. */
+const meta = () => `jess:${storeNamespace()}__synctimes__`
 
 type Times = Record<string, number>
 
 function loadTimes(): Times {
-  try { return JSON.parse(localStorage.getItem(META) || '{}') } catch { return {} }
+  try { return JSON.parse(localStorage.getItem(meta()) || '{}') } catch { return {} }
 }
 function saveTimes(t: Times) {
-  try { localStorage.setItem(META, JSON.stringify(t)) } catch { /* ignore */ }
+  try { localStorage.setItem(meta(), JSON.stringify(t)) } catch { /* ignore */ }
 }
 function stamp(key: string, ms: number) {
   const t = loadTimes(); t[key] = ms; saveTimes(t)
 }
 
-/** Every user-facing store key (strip the prefix and our internal meta key). */
+/** Every user-facing store key for whoever's OS this is (prefix and internal
+ *  meta key stripped). While delegating this covers only their namespace. */
 function localKeys(): string[] {
+  const base = PREFIX + storeNamespace()
   const out: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
-    if (k && k.startsWith(PREFIX) && k !== META) out.push(k.slice(PREFIX.length))
+    if (!k || !k.startsWith(base) || k === meta()) continue
+    const key = k.slice(base.length)
+    if (key.includes('__synctimes__')) continue
+    if (!syncable(key)) continue
+    out.push(key)
   }
   return out
 }
+
+/** Whether a key may sync at all in the current mode. */
+const syncable = (key: string): boolean => !isDelegating() || isDelegateKey(key)
+
+/** Whose rows this session reads and writes. */
+const syncTarget = (): string | null => (isDelegating() ? actingOwner()!.id : userId)
 
 let userId: string | null = null
 /** The signed-in user's id, used to scope their private files in Storage. */
@@ -50,9 +71,10 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null
 
 async function flush() {
   flushTimer = null
-  if (!supabase || !userId || pending.size === 0) return
+  const target = syncTarget()
+  if (!supabase || !target || pending.size === 0) return
   const rows = [...pending.entries()].map(([key, value]) => ({
-    user_id: userId, key, value, updated_at: new Date().toISOString(),
+    user_id: target, key, value, updated_at: new Date().toISOString(),
   }))
   pending.clear()
   const { error } = await supabase.from(TABLE).upsert(rows, { onConflict: 'user_id,key' })
@@ -64,6 +86,7 @@ async function flush() {
 }
 
 function queuePush(key: string, value: unknown) {
+  if (!syncable(key)) return   // never push someone else's private pages
   stamp(key, Date.now())
   pending.set(key, value)
   if (!flushTimer) flushTimer = setTimeout(flush, 700)
@@ -71,8 +94,9 @@ function queuePush(key: string, value: unknown) {
 
 /** Apply a value that arrived from the cloud into localStorage + live UI. */
 function applyRemote(key: string, value: unknown, updatedMs: number) {
+  if (!syncable(key)) return
   const str = JSON.stringify(value)
-  const full = PREFIX + key
+  const full = storeKey(key)
   if (localStorage.getItem(full) === str) { stamp(key, updatedMs); return }
   localStorage.setItem(full, str)
   stamp(key, updatedMs)
@@ -83,13 +107,14 @@ function applyRemote(key: string, value: unknown, updatedMs: number) {
 /** Pull the whole cloud snapshot and reconcile it against local by timestamp. */
 let pulling = false
 async function pullAndMerge() {
-  if (!supabase || !userId || pulling) return
+  if (!supabase || !syncTarget() || pulling) return
   pulling = true
   try { await doPullAndMerge() } finally { pulling = false }
 }
 async function doPullAndMerge() {
-  if (!supabase || !userId) return
-  const { data, error } = await supabase.from(TABLE).select('key, value, updated_at')
+  const target = syncTarget()
+  if (!supabase || !target) return
+  const { data, error } = await supabase.from(TABLE).select('key, value, updated_at').eq('user_id', target)
   if (error) return
   const times = loadTimes()
   const cloudKeys = new Set<string>()
@@ -97,8 +122,9 @@ async function doPullAndMerge() {
   for (const row of data ?? []) {
     const cloudMs = new Date(row.updated_at as string).getTime()
     cloudKeys.add(row.key)
+    if (!syncable(row.key)) continue
     const localMs = times[row.key] ?? 0
-    const localHas = localStorage.getItem(PREFIX + row.key) !== null
+    const localHas = localStorage.getItem(storeKey(row.key)) !== null
     // Cloud wins when it's newer, or when we have no local copy at all.
     if (!localHas || cloudMs >= localMs) applyRemote(row.key, row.value, cloudMs)
   }
@@ -106,7 +132,7 @@ async function doPullAndMerge() {
   // Push up anything the cloud doesn't have, or where local is newer.
   for (const key of localKeys()) {
     const localMs = times[key] ?? 0
-    const raw = localStorage.getItem(PREFIX + key)
+    const raw = localStorage.getItem(storeKey(key))
     if (raw === null) continue
     let value: unknown
     try { value = JSON.parse(raw) } catch { continue }
@@ -141,7 +167,7 @@ export async function startCloudSync(uid: string) {
     const ch = supabase.channel(`app_state_changes_${++channelSeq}`)
     ch.on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: TABLE, filter: `user_id=eq.${uid}` },
+      { event: '*', schema: 'public', table: TABLE, filter: `user_id=eq.${syncTarget() ?? uid}` },
       (payload) => {
         const row = (payload.new ?? {}) as { key?: string; value?: unknown; updated_at?: string }
         if (!row.key || !('value' in row)) return

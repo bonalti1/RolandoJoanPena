@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import BottomNav from './components/BottomNav'
 import { IconMenu } from './components/icons'
@@ -17,6 +17,7 @@ import Journal from './pages/Journal'
 import Ideas from './pages/Ideas'
 import Notifications from './pages/Notifications'
 import Settings from './pages/Settings'
+import { actingOwner, isDelegating, leaveOs } from './lib/acting'
 
 function useClockShort() {
   const now = new Date()
@@ -29,6 +30,58 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const time = useClockShort()
+  const guest = isDelegating() ? actingOwner() : null
+
+  /**
+   * Working inside someone else's OS shows only their business pages — their
+   * Work tasks, Companies and Ideas. Their Home tasks, Health, Family,
+   * Finances and Journal are not routed at all here, and the sync layer and
+   * the database both refuse those keys independently.
+   */
+  if (guest) {
+    return (
+      <div className="flex flex-col h-full" style={{ background: 'var(--color-bg)' }}>
+        <div className="flex items-center gap-3 px-4 py-2.5 shrink-0"
+          style={{ background: 'linear-gradient(180deg, var(--color-sidebar) 0%, var(--color-sidebar-2) 100%)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <button onClick={leaveOs} className="inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-2.5 py-1.5 shrink-0"
+            style={{ color: '#fff', background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)' }}>
+            ‹ My dashboard
+          </button>
+          <img src="/logos/bonalti.png" alt="BONALTI" draggable={false} className="shrink-0" style={{ height: 15, width: 'auto' }} />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold leading-tight truncate" style={{ color: '#fff' }}>{guest.name}'s Operating System</div>
+            <div className="text-[11px] leading-tight truncate" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              You're editing their work — business pages only
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex gap-1.5 px-4 pt-3 max-w-[100rem] mx-auto">
+            {[['/work-tasks', 'Work tasks'], ['/companies', 'Companies'], ['/ideas', 'Ideas']].map(([to, label]) => (
+              <NavLink key={to} to={to}
+                className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition"
+                style={({ isActive }) => ({
+                  background: isActive ? 'var(--color-accent)' : 'var(--color-surface)',
+                  color: isActive ? 'var(--color-on-accent)' : 'var(--color-muted)',
+                  border: '1px solid var(--color-border)',
+                })}>
+                {label}
+              </NavLink>
+            ))}
+          </div>
+          <div key={location.pathname} className="max-w-[100rem] mx-auto px-5 sm:px-6 md:px-10 pt-5 pb-16">
+            <Routes>
+              <Route path="/work-tasks" element={<WorkList fixedBoard="Work" />} />
+              <Route path="/companies" element={<Companies />} />
+              <Route path="/ideas" element={<Ideas />} />
+              <Route path="*" element={<Navigate to="/work-tasks" replace />} />
+            </Routes>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full" style={{ background: 'var(--color-bg)' }}>
