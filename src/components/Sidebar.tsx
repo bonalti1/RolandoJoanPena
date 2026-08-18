@@ -5,7 +5,7 @@ import {
   IconHealth, IconFamily, IconJournal, IconIdea, IconBell, IconSettings,
 } from './icons'
 import { useStore } from '../lib/store'
-import { isHiddenTab } from '../lib/brand'
+import { useHiddenTabs } from '../lib/nav'
 import { Logo } from './Logo'
 
 const MENU = [
@@ -37,7 +37,8 @@ function useClock() {
 }
 
 function Section({ items, label, onNavigate, spread }: { items: typeof MENU; label: string; onNavigate?: () => void; spread?: boolean }) {
-  items = items.filter((i) => !isHiddenTab(i.to))
+  const { isHidden } = useHiddenTabs()
+  items = items.filter((i) => !isHidden(i.to))
   return (
     <div className={spread ? 'flex-1 flex flex-col min-h-0' : ''}>
       <div className="text-[10px] font-semibold uppercase tracking-[0.14em] mb-1 px-3 opacity-45">{label}</div>

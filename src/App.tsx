@@ -18,7 +18,7 @@ import Ideas from './pages/Ideas'
 import Notifications from './pages/Notifications'
 import Settings from './pages/Settings'
 import { actingOwner, isDelegating, leaveOs } from './lib/acting'
-import { isHiddenTab } from './lib/brand'
+import { useHiddenTabs } from './lib/nav'
 
 function useClockShort() {
   const now = new Date()
@@ -32,6 +32,9 @@ export default function App() {
   const location = useLocation()
   const time = useClockShort()
   const guest = isDelegating() ? actingOwner() : null
+  const { isHidden } = useHiddenTabs()
+  /** A hidden page's route bounces home, so it can't be reached by URL. */
+  const page = (path: string, el: React.ReactNode) => (isHidden(path) ? <Navigate to="/home" replace /> : el)
 
   /**
    * Working inside someone else's OS shows only their business pages — their
@@ -115,21 +118,21 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
-            <Route path="/home-tasks" element={<WorkList fixedBoard="Home" />} />
+            <Route path="/home-tasks" element={page('home-tasks', <WorkList fixedBoard="Home" />)} />
             <Route path="/home-care" element={<HomeCare />} />
-            <Route path="/work-tasks" element={<WorkList fixedBoard="Work" />} />
-            <Route path="/companies" element={<Companies />} />
-            <Route path="/team" element={<Team />} />
+            <Route path="/work-tasks" element={page('work-tasks', <WorkList fixedBoard="Work" />)} />
+            <Route path="/companies" element={page('companies', <Companies />)} />
+            <Route path="/team" element={page('team', <Team />)} />
             <Route path="/tasks" element={<Navigate to="/home-tasks" replace />} />
             <Route path="/work" element={<Navigate to="/work-tasks" replace />} />
-            <Route path="/finances" element={<Finances />} />
+            <Route path="/finances" element={page('finances', <Finances />)} />
             <Route path="/payments" element={<Navigate to="/finances" replace />} />
             <Route path="/bank" element={<Navigate to="/finances" replace />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/health" element={isHiddenTab('health') ? <Navigate to="/home" replace /> : <Health />} />
-            <Route path="/family" element={isHiddenTab('family') ? <Navigate to="/home" replace /> : <Family />} />
-            <Route path="/journal" element={<Journal />} />
-            <Route path="/ideas" element={<Ideas />} />
+            <Route path="/calendar" element={page('calendar', <Calendar />)} />
+            <Route path="/health" element={page('health', <Health />)} />
+            <Route path="/family" element={page('family', <Family />)} />
+            <Route path="/journal" element={page('journal', <Journal />)} />
+            <Route path="/ideas" element={page('ideas', <Ideas />)} />
             <Route path="/assistant" element={<Navigate to="/journal" replace />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />

@@ -3,6 +3,7 @@ import { Card, PageHeader, Button, Input } from '../components/ui'
 import { useTheme, PRESETS, DEFAULT_PRESET, type Theme } from '../lib/theme'
 import { useStore } from '../lib/store'
 import { OWNER_NAME } from '../lib/brand'
+import { useHiddenTabs } from '../lib/nav'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { CURRENCIES } from '../lib/format'
 import { supabase, cloudConfigured } from '../lib/supabase'
@@ -72,6 +73,7 @@ const FIELDS: { key: keyof Theme; label: string }[] = [
 ]
 
 export default function Settings() {
+  const { hidden: hiddenTabs, toggle: toggleTab, offerable } = useHiddenTabs()
   const { theme, setTheme, applyPreset } = useTheme()
   const confirmDelete = useConfirmDelete()
   const [profile, setProfile] = useStore<{ name: string; photo?: string; photoInSidebar?: boolean }>('profile', { name: OWNER_NAME })
@@ -171,6 +173,29 @@ export default function Settings() {
       </Card>
 
       <IntegrationsCard />
+
+      {/* Pages — which tabs this account's OS shows. Follows the login to
+          every device, so each leader carries their own set. */}
+      <Card className="p-5 mb-6">
+        <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--color-text)' }}>Pages</h2>
+        <p className="text-xs mb-4" style={{ color: 'var(--color-muted)' }}>
+          Choose which tabs your app shows. Turning one off hides it everywhere — menus and links — until you turn it back on. Your data on that page is kept, not deleted.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {offerable.map((p) => {
+            const on = !hiddenTabs.includes(p.path)
+            return (
+              <button key={p.path} onClick={() => toggleTab(p.path)}
+                className="text-sm font-semibold px-3.5 py-2 rounded-xl transition"
+                style={on
+                  ? { background: 'color-mix(in srgb, var(--color-accent) 12%, var(--color-surface))', border: '1px solid var(--color-accent)', color: 'var(--color-text)' }
+                  : { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-muted)', textDecoration: 'line-through' }}>
+                {on ? '✓ ' : ''}{p.label}
+              </button>
+            )
+          })}
+        </div>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="p-5">

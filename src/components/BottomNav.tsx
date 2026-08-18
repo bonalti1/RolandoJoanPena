@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { IconHome, IconWork, IconTasks, IconIdea } from './icons'
+import { useHiddenTabs } from '../lib/nav'
 
 /**
  * Thumb-reachable bottom tab bar for phones (hidden on lg+, where the sidebar
@@ -27,13 +28,15 @@ function IconMore({ width = 22, height = 22 }: { width?: number; height?: number
 }
 
 export default function BottomNav({ onMore }: { onMore: () => void }) {
+  const { isHidden } = useHiddenTabs()
+  const tabs = TABS.filter((t) => !isHidden(t.to))
   return (
     <nav
       className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass"
       style={{ borderTop: '1px solid var(--color-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex items-stretch">
-        {TABS.map(({ to, label, Icon }) => (
+        {tabs.map(({ to, label, Icon }) => (
           <NavLink
             key={to}
             to={to}
