@@ -18,3 +18,14 @@ export const OWNER_FIRST: string = OWNER_NAME.split(/\s+/)[0]
 
 export const OWNER_WORDMARK: string =
   ((import.meta.env.VITE_OWNER_WORDMARK as string | undefined) || '').trim()
+
+/**
+ * VITE_HIDDEN_TABS — comma-separated page names this site does without,
+ * e.g. "family" or "family,health". Hidden pages disappear from every menu
+ * and their routes bounce home, so the page can't be reached by URL either.
+ */
+const hidden = ((import.meta.env.VITE_HIDDEN_TABS as string | undefined) || '')
+  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+
+export const isHiddenTab = (path: string): boolean =>
+  hidden.includes(path.replace(/^\//, '').toLowerCase())

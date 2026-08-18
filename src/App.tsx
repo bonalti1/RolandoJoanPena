@@ -18,6 +18,7 @@ import Ideas from './pages/Ideas'
 import Notifications from './pages/Notifications'
 import Settings from './pages/Settings'
 import { actingOwner, isDelegating, leaveOs } from './lib/acting'
+import { isHiddenTab } from './lib/brand'
 
 function useClockShort() {
   const now = new Date()
@@ -125,8 +126,8 @@ export default function App() {
             <Route path="/payments" element={<Navigate to="/finances" replace />} />
             <Route path="/bank" element={<Navigate to="/finances" replace />} />
             <Route path="/calendar" element={<Calendar />} />
-            <Route path="/health" element={<Health />} />
-            <Route path="/family" element={<Family />} />
+            <Route path="/health" element={isHiddenTab('health') ? <Navigate to="/home" replace /> : <Health />} />
+            <Route path="/family" element={isHiddenTab('family') ? <Navigate to="/home" replace /> : <Family />} />
             <Route path="/journal" element={<Journal />} />
             <Route path="/ideas" element={<Ideas />} />
             <Route path="/assistant" element={<Navigate to="/journal" replace />} />
