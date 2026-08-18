@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Card, PageHeader, Button, Input } from '../components/ui'
 import { useTheme, PRESETS, DEFAULT_PRESET, type Theme } from '../lib/theme'
 import { useStore } from '../lib/store'
+import { OWNER_NAME } from '../lib/brand'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { CURRENCIES } from '../lib/format'
 import { supabase, cloudConfigured } from '../lib/supabase'
@@ -73,7 +74,7 @@ const FIELDS: { key: keyof Theme; label: string }[] = [
 export default function Settings() {
   const { theme, setTheme, applyPreset } = useTheme()
   const confirmDelete = useConfirmDelete()
-  const [profile, setProfile] = useStore<{ name: string; photo?: string; photoInSidebar?: boolean }>('profile', { name: 'Rolando' })
+  const [profile, setProfile] = useStore<{ name: string; photo?: string; photoInSidebar?: boolean }>('profile', { name: OWNER_NAME })
   const [currency, setCurrency] = useStore<string>('currency', 'USD')
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
 

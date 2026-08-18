@@ -6,6 +6,7 @@ import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { todayISO, startOfWeek, toISO } from '../lib/dates'
 import { money } from '../lib/format'
+import { OWNER_NAME, OWNER_FIRST } from '../lib/brand'
 
 type Task = { id: string; text: string; done: boolean; created: number; due?: string }
 type Scope = 'week' | 'weekend' | 'all'
@@ -176,7 +177,7 @@ function TodayList({ items, accent, empty, onToggleDone, onToggleUrgent }: {
 }
 
 export default function Home() {
-  const [profile] = useStore<{ name: string; photo?: string }>('profile', { name: 'Rolando Joan' })
+  const [profile] = useStore<{ name: string; photo?: string }>('profile', { name: OWNER_NAME })
   const [, setTasks] = useStore<Task[]>('tasks.master', [])
   const [bills] = useStore<Bill[]>('pay.bills', [])
   const [cells] = useStore<Record<string, number>>('pay.cells', {})
@@ -260,7 +261,7 @@ export default function Home() {
     [bills, cells, year, month],
   )
 
-  const initials = (profile.name || 'R').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+  const initials = (profile.name || OWNER_FIRST).split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
     <div className="fade-up">
@@ -269,7 +270,7 @@ export default function Home() {
         <div>
           <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{dateLabel}</p>
           <h1 className="text-[32px] font-semibold leading-tight mt-1" style={{ color: 'var(--color-text)' }}>
-            {greeting()}, {(profile.name || 'Rolando').split(' ')[0]} 👋
+            {greeting()}, {(profile.name || OWNER_FIRST).split(' ')[0]} 👋
           </h1>
         </div>
         <div className="flex items-center gap-2 shrink-0 pt-1">
@@ -280,7 +281,7 @@ export default function Home() {
             {profile.photo
               ? <img src={profile.photo} alt="" className="h-8 w-8 rounded-full object-cover" />
               : <span className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>{initials}</span>}
-            <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{(profile.name || 'Rolando').split(' ')[0]}</span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{(profile.name || OWNER_FIRST).split(' ')[0]}</span>
           </Link>
         </div>
       </div>
