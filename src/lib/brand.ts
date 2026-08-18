@@ -11,10 +11,18 @@
  * Neither variable touches data. Whose tasks appear is decided by the login,
  * never by the site.
  */
-export const OWNER_NAME: string =
-  ((import.meta.env.VITE_OWNER_NAME as string | undefined) || 'Rolando').trim()
+/**
+ * VITE_BRAND_FROM_LOGIN=1 — the shared team door. One site serves every
+ * leader: the wordmark and greeting come from the signed-in profile, so a new
+ * leader is onboarded by sending them the link — no new site, no variables.
+ */
+export const BRAND_FROM_LOGIN: boolean =
+  ((import.meta.env.VITE_BRAND_FROM_LOGIN as string | undefined) || '').trim() === '1'
 
-export const OWNER_FIRST: string = OWNER_NAME.split(/\s+/)[0]
+export const OWNER_NAME: string =
+  ((import.meta.env.VITE_OWNER_NAME as string | undefined) || (BRAND_FROM_LOGIN ? '' : 'Rolando')).trim()
+
+export const OWNER_FIRST: string = OWNER_NAME.split(/\s+/)[0] ?? ''
 
 export const OWNER_WORDMARK: string =
   ((import.meta.env.VITE_OWNER_WORDMARK as string | undefined) || '').trim()

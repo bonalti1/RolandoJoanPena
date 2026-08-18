@@ -9,7 +9,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 const env = loadEnv('production', '.', 'VITE_')
 const OWNER = (env.VITE_OWNER_NAME || '').trim()
 const FIRST = OWNER.split(/\s+/)[0] || 'Rolando'
-const TITLE = `${FIRST}'s Dashboard`
+// The shared team door is nobody's in particular — it carries the company name.
+const LOGIN_BRAND = (env.VITE_BRAND_FROM_LOGIN || '').trim() === '1'
+const TITLE = LOGIN_BRAND ? 'BONALTI OS' : `${FIRST}'s Dashboard`
+const SHORT = LOGIN_BRAND ? 'BONALTI' : FIRST
 
 /** Fills %VITE_OWNER_TITLE% in index.html with the site's computed title. */
 const ownerTitle = (): Plugin => ({
@@ -27,7 +30,7 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: TITLE,
-        short_name: FIRST,
+        short_name: SHORT,
         description: 'Tasks, bills, calendar, journal and more — all in one place.',
         theme_color: '#172032',
         background_color: '#f5f7fa',

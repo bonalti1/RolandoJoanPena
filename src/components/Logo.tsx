@@ -1,4 +1,5 @@
-import { OWNER_WORDMARK } from '../lib/brand'
+import { BRAND_FROM_LOGIN, OWNER_WORDMARK } from '../lib/brand'
+import { useStore } from '../lib/store'
 
 /**
  * The site's personal wordmark. By default the RJP monogram — an elegant
@@ -8,10 +9,37 @@ import { OWNER_WORDMARK } from '../lib/brand'
  * its owner's mark with no new artwork.
  */
 export function Logo({ height = 56, title = 'RJP' }: { height?: number; title?: string }) {
-  if (OWNER_WORDMARK) {
+  // On the shared team door the mark is whoever signed in — their name in the
+  // signature script the moment they've set it, the company mark before then
+  // (and on the login screen, where nobody is signed in yet).
+  const [profile] = useStore<{ name?: string }>('profile', {})
+  const loginName = BRAND_FROM_LOGIN ? (profile.name || '').trim() : ''
+  const wordmark = OWNER_WORDMARK || loginName
+
+  if (BRAND_FROM_LOGIN && !wordmark) {
     return (
       <span
-        aria-label={OWNER_WORDMARK}
+        aria-label="BONALTI"
+        style={{
+          fontFamily: 'Georgia, "Times New Roman", serif',
+          fontSize: height * 0.52,
+          lineHeight: `${height}px`,
+          letterSpacing: '0.18em',
+          display: 'block',
+          whiteSpace: 'nowrap',
+          userSelect: 'none',
+          color: 'currentColor',
+        }}
+      >
+        BONALTI
+      </span>
+    )
+  }
+
+  if (wordmark) {
+    return (
+      <span
+        aria-label={wordmark}
         style={{
           fontFamily: '"Signature", "Snell Roundhand", "Brush Script MT", cursive',
           // The script face carries tall ascenders — sized so the name fills
@@ -24,7 +52,7 @@ export function Logo({ height = 56, title = 'RJP' }: { height?: number; title?: 
           color: 'currentColor',
         }}
       >
-        {OWNER_WORDMARK}
+        {wordmark}
       </span>
     )
   }
