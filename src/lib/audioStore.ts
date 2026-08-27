@@ -75,7 +75,13 @@ export async function putAudio(id: string, blob: Blob): Promise<void> {
 
 export async function getAudio(id: string): Promise<Blob | null> {
   const local = await getLocal(id)
-  if (local) return local
+  if (local) {
+    // Self-healing backup: recordings made before sign-in (or before the
+    // bucket existed) never reached the cloud. Re-upload whenever the owning
+    // device plays one, so other devices can fetch it from then on.
+    void uploadRemote(id, local)
+    return local
+  }
   // Not on this device — try the cloud, then cache it locally for next time.
   const remote = await downloadRemote(id)
   if (remote) { try { await putLocal(id, remote) } catch { /* ignore cache failure */ } return remote }
