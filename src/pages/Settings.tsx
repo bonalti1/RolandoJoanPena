@@ -5,6 +5,7 @@ import { useStore } from '../lib/store'
 import { OWNER_NAME } from '../lib/brand'
 import { useHiddenTabs } from '../lib/nav'
 import { useConfirmDelete } from '../lib/confirmDelete'
+import WeekReport from '../components/WeekReport'
 import { CURRENCIES } from '../lib/format'
 import { supabase, cloudConfigured } from '../lib/supabase'
 import { stopCloudSync } from '../lib/cloud'
@@ -103,6 +104,8 @@ export default function Settings() {
   return (
     <div>
       <PageHeader title="Settings" subtitle="Make the dashboard yours — profile, currency, theme and your data." />
+
+      <WeekReport />
 
       <Card className="p-5 mb-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">

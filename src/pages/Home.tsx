@@ -203,6 +203,10 @@ export default function Home() {
   // ---- Non-negotiables (home.nonneg) ----
   const [nonNegs, setNonNegs] = useStore<NonNeg[]>('home.nonneg', [])
   const [nnToday, setNnToday] = useStore<{ date: string; done: string[] }>('home.nonneg.today', { date: '', done: [] })
+  // Daily scorecard the weekly report reads — which non-negotiables were hit
+  // on which date, and how many applied that day. Without this, yesterday's
+  // checkmarks vanish at midnight and there is nothing to report on.
+  const [, setNnHistory] = useStore<Record<string, { done: string[]; total: number }>>('home.nonneg.history', {})
   const [nnDraft, setNnDraft] = useState('')
   const [nnView, setNnView] = useState<Scope>('week')
   const [nnEdit, setNnEdit] = useState(false)
@@ -217,6 +221,7 @@ export default function Home() {
   const toggleNonNeg = (id: string) => {
     const done = nnDone.includes(id) ? nnDone.filter((x) => x !== id) : [...nnDone, id]
     setNnToday({ date: today, done })
+    setNnHistory((prev) => ({ ...prev, [today]: { done, total: todayList.length } }))
   }
   const editList = nonNegs.filter((n) => scopeOf(n) === nnView)
   const addNonNeg = () => {
