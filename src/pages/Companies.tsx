@@ -6,6 +6,7 @@ import { useToast } from '../lib/toast'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { COMPANIES, companyById, type CompanyId } from '../lib/companies'
 import { SEED_DEPTS, type Dept } from '../lib/depts'
+import { uploadDoc, docUrl, removeDoc, docsReady, docKey, fmtSize, type DeptDoc } from '../lib/deptDocs'
 
 type Status = 'green' | 'yellow' | 'red'
 type Level = 'High' | 'Med' | 'Low'
@@ -77,6 +78,7 @@ const levelColor: Record<Level, string> = { High: '#dc2626', Med: '#f59e0b', Low
 const currentQuarter = () => { const d = new Date(); return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}` }
 const quarterLabel = (q: string) => q.replace('-', ' ')
 const nextQuarter = (q: string) => { const [y, qq] = q.split('-Q').map(Number); return qq === 4 ? `${y + 1}-Q1` : `${y}-Q${qq + 1}` }
+const prevQuarter = (q: string) => { const [y, qq] = q.split('-Q').map(Number); return qq === 1 ? `${y - 1}-Q4` : `${y}-Q${qq - 1}` }
 const fieldStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
 const initials = (name: string) => (name || '').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '+'
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -196,9 +198,18 @@ function GrowTextarea({ value, onChange, placeholder, className }: { value: stri
 }
 
 function ListEditor({ items, onChange }: { items?: ListItem[]; onChange: (items: ListItem[]) => void }) {
+  const { toast } = useToast()
   const list = items ?? []
   const upd = (id: string, patch: Partial<ListItem>) => onChange(list.map((x) => (x.id === id ? { ...x, ...patch } : x)))
-  const toggleFixed = (it: ListItem) => upd(it.id, it.fixed ? { fixed: false } : { fixed: true, fixedOn: it.fixedOn ?? todayISO() })
+  // A checkmark with no explanation teaches the next quarter nothing — the
+  // written solution is the record, so it has to exist before Fixed does.
+  const toggleFixed = (it: ListItem) => {
+    if (!it.fixed && !(it.fix ?? '').trim()) {
+      toast('Write how it was fixed first — the solution is the record, not the checkmark.')
+      return
+    }
+    upd(it.id, it.fixed ? { fixed: false } : { fixed: true, fixedOn: it.fixedOn ?? todayISO() })
+  }
   return (
     <div className="flex flex-col gap-3">
       {list.map((it, i) => {
@@ -254,6 +265,199 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 const TextArea = (p: { value?: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) => (
   <textarea value={p.value ?? ''} onChange={(e) => p.onChange(e.target.value)} rows={p.rows ?? 5} placeholder={p.placeholder} className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-y" style={fieldStyle} />
 )
+
+type PrevItem = ListItem & { kind: 'bottlenecks' | 'problems' }
+
+/**
+ * Last quarter's open questions, answered at the top of this quarter's review:
+ * what got fixed (and how), and what is still following you. Marking one fixed
+ * here REQUIRES writing how — the written solution is what next quarter learns
+ * from, not the checkmark — and it resolves the carried-forward copy in the
+ * current quarter at the same time.
+ */
+function PrevQuarterPanel({ fromQ, items, carriedTexts, onFix, onViewPrev }: {
+  fromQ: string
+  items: PrevItem[]
+  carriedTexts: Set<string>
+  onFix: (item: PrevItem, explanation: string) => void
+  onViewPrev: () => void
+}) {
+  const { toast } = useToast()
+  const [fixingId, setFixingId] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const fixed = items.filter((i) => i.fixed)
+  const open = items.filter((i) => !i.fixed)
+
+  const save = (it: PrevItem) => {
+    if (!draft.trim()) { toast('Write how it was fixed first — that’s the part worth keeping.'); return }
+    onFix(it, draft.trim())
+    setFixingId(null)
+    setDraft('')
+  }
+
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <div>
+          <h2 className="text-lg font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Previous quarter problems</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>From {quarterLabel(fromQ)}</p>
+        </div>
+        <div className="flex items-center gap-3 text-xs font-semibold">
+          {fixed.length > 0 && <span style={{ color: '#16a34a' }}>{fixed.length} fixed</span>}
+          {open.length > 0 && <span style={{ color: '#d97706' }}>{open.length} carried forward</span>}
+          <button onClick={onViewPrev} style={{ color: 'var(--color-accent)' }}>View {quarterLabel(fromQ)} review →</button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        {fixed.map((it) => (
+          <div key={it.id} className="rounded-xl p-3" style={{ border: '1px solid color-mix(in srgb, #16a34a 35%, var(--color-border))', background: 'color-mix(in srgb, #16a34a 4%, var(--color-surface))' }}>
+            <div className="flex items-start gap-2.5">
+              <span className="h-5 w-5 rounded-md grid place-items-center shrink-0 mt-0.5" style={{ background: '#16a34a' }}><IconCheck width={12} height={12} style={{ color: '#fff' }} /></span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 mt-0.5" style={{ background: 'color-mix(in srgb, #16a34a 16%, var(--color-surface))', color: '#16a34a' }}>Fixed</span>
+              <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{it.text}</span>
+              {it.fixedOn && <span className="text-xs shrink-0" style={{ color: 'var(--color-muted)' }}>Resolved {fmtDate(it.fixedOn)}</span>}
+            </div>
+            {it.fix && (
+              <div className="mt-2 pl-8">
+                <span className={miniLabel} style={{ color: 'var(--color-muted)' }}>How we fixed it</span>
+                <p className="text-sm rounded-lg px-3 py-2" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>{it.fix}</p>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {open.map((it) => {
+          const carried = carriedTexts.has(it.text.trim())
+          return (
+            <div key={it.id} className="rounded-xl p-3" style={{ border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
+              <div className="flex items-start gap-2.5">
+                <button onClick={() => { setFixingId(fixingId === it.id ? null : it.id); setDraft(it.fix ?? '') }}
+                  className="inline-flex items-center gap-1.5 shrink-0 mt-0.5" title="Mark fixed (you'll write how)">
+                  <span className="h-5 w-5 rounded-md grid place-items-center" style={{ border: '2px solid var(--color-border)' }} />
+                  <span className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>Mark fixed</span>
+                </button>
+                <span className="flex-1 min-w-0 text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{it.text}</span>
+                {carried && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: 'color-mix(in srgb, #d97706 16%, var(--color-surface))', color: '#d97706' }}>Carried into this quarter</span>}
+              </div>
+
+              {fixingId === it.id ? (
+                <div className="mt-2 pl-8">
+                  <span className={miniLabel} style={{ color: 'var(--color-muted)' }}>How did you fix it? <span style={{ textTransform: 'none', letterSpacing: 0 }}>· required</span></span>
+                  <GrowTextarea value={draft} onChange={setDraft} placeholder="What actually solved it…" className="w-full" />
+                  <div className="flex gap-2 mt-2">
+                    <Button onClick={() => save(it)}><IconCheck width={14} height={14} /> Save as fixed</Button>
+                    <Button variant="ghost" onClick={() => { setFixingId(null); setDraft('') }}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {it.fix && (
+                    <div className="mt-2 pl-8">
+                      <span className={miniLabel} style={{ color: 'var(--color-muted)' }}>Next action</span>
+                      <p className="text-sm rounded-lg px-3 py-2" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>{it.fix}</p>
+                    </div>
+                  )}
+                  {(it.owner || it.due) && (
+                    <p className="text-xs mt-1.5 pl-8 text-right" style={{ color: 'var(--color-muted)' }}>
+                      {it.owner ? `Owner: ${it.owner}` : ''}{it.owner && it.due ? ' · ' : ''}{it.due ? `Due ${fmtDate(it.due)}` : ''}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
+/**
+ * PDFs that belong to this department in this quarter — plans, reviews,
+ * contracts. The bytes live in private per-user cloud storage; the list syncs
+ * like everything else, so switching back to an old quarter shows the
+ * documents that were saved with it.
+ */
+function DeptDocsCard({ co, quarter, dept }: { co: CompanyId; quarter: string; dept: string }) {
+  const { toast } = useToast()
+  const confirmDelete = useConfirmDelete()
+  const [docs, setDocs] = useStore<Record<string, DeptDoc[]>>('companies.docs', {})
+  const [busy, setBusy] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const k = docKey(co, quarter, dept)
+  const list = docs[k] ?? []
+
+  const upload = async (files: FileList | null) => {
+    if (!files?.length) return
+    setBusy(true)
+    let ok = 0
+    for (const f of Array.from(files)) {
+      if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) { toast(`${f.name} isn’t a PDF`); continue }
+      try {
+        const doc = await uploadDoc(co, quarter, dept, f)
+        if (doc) { setDocs((prev) => ({ ...prev, [k]: [...(prev[k] ?? []), doc] })); ok++ }
+        else toast(`Could not upload ${f.name} — check your connection`)
+      } catch { toast(`${f.name} is over the 25 MB limit`) }
+    }
+    setBusy(false)
+    if (ok) toast(`${ok} document${ok === 1 ? '' : 's'} saved to ${quarterLabel(quarter)}`)
+  }
+
+  const openDoc = async (d: DeptDoc, download: boolean) => {
+    const url = await docUrl(d.path, download ? d.name : undefined)
+    if (url) window.open(url, '_blank', 'noopener')
+    else toast('Could not open the document — check your connection')
+  }
+
+  return (
+    <Card className="p-4">
+      <h3 className="font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Department PDFs</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--color-muted)' }}>{quarterLabel(quarter)} — saved to this department and quarter.</p>
+
+      {!docsReady() ? (
+        <p className="text-xs rounded-lg px-3 py-2" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>
+          Documents need the cloud — sign in and they'll store securely under your account.
+        </p>
+      ) : (
+        <>
+          <button onClick={() => fileRef.current?.click()} disabled={busy}
+            className="w-full rounded-xl py-4 text-sm font-semibold transition"
+            style={{ border: '1.5px dashed var(--color-border)', color: 'var(--color-accent)', background: 'var(--color-bg)' }}>
+            {busy ? 'Uploading…' : '⬆ Upload PDF'}
+          </button>
+          <input ref={fileRef} type="file" accept="application/pdf,.pdf" multiple className="hidden"
+            onChange={(e) => { void upload(e.target.files); e.currentTarget.value = '' }} />
+
+          {list.length > 0 && (
+            <ul className="flex flex-col gap-1.5 mt-3">
+              {list.map((d) => (
+                <li key={d.path} className="group flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: 'var(--color-bg)' }}>
+                  <span className="text-[10px] font-bold px-1.5 py-1 rounded shrink-0" style={{ background: '#dc2626', color: '#fff' }}>PDF</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>{d.name}</div>
+                    <div className="text-[10px]" style={{ color: 'var(--color-muted)' }}>{fmtDate(new Date(d.ts).toISOString().slice(0, 10))} · {fmtSize(d.size)}</div>
+                  </div>
+                  <button onClick={() => void openDoc(d, false)} className="text-[11px] font-bold shrink-0" style={{ color: 'var(--color-accent)' }}>View</button>
+                  <button onClick={() => void openDoc(d, true)} title="Download" className="text-[13px] shrink-0" style={{ color: 'var(--color-muted)' }}>⬇</button>
+                  <button
+                    onClick={() => confirmDelete({
+                      label: `“${d.name}”`,
+                      detail: 'The document will be removed from this department and quarter.',
+                      onConfirm: () => { void removeDoc(d.path); setDocs((prev) => ({ ...prev, [k]: (prev[k] ?? []).filter((x) => x.path !== d.path) })) },
+                    })}
+                    className="opacity-0 group-hover:opacity-60 shrink-0" style={{ color: 'var(--color-muted)' }} aria-label="Delete">
+                    <IconTrash width={13} height={13} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </Card>
+  )
+}
 
 export default function Companies() {
   const { toast } = useToast()
@@ -460,6 +664,45 @@ export default function Companies() {
   const set = (patch: Review) => { if (dept) setReview(dept.id, patch) }
   const leadFirst = (r.leadName || '').split(' ')[0]
 
+  // Last quarter's bottlenecks + problems for this department, shown above
+  // this quarter's plan so nothing quietly disappears between reviews.
+  const pq = prevQuarter(quarter)
+  const pr: Review = dept ? getReview(selected, pq, dept.id) : {}
+  const prevItems: PrevItem[] = dept ? [
+    ...(pr.bottlenecks ?? []).map((x) => ({ ...x, kind: 'bottlenecks' as const })),
+    ...(pr.problems ?? []).map((x) => ({ ...x, kind: 'problems' as const })),
+  ].filter((x) => x.text.trim()) : []
+  const carriedTexts = new Set(
+    [...(r.bottlenecks ?? []), ...(r.problems ?? [])].filter((x) => !x.fixed && x.text.trim()).map((x) => x.text.trim()),
+  )
+
+  /** Resolve a previous-quarter item (explanation required by the panel), and
+   *  mark its carried-forward copy in the current quarter fixed too. */
+  const fixPrevItem = (item: PrevItem, explanation: string) => {
+    if (!dept) return
+    const today = todayISO()
+    const pk = key(selected, pq, dept.id)
+    const ck = key(selected, quarter, dept.id)
+    setReviews((prev) => {
+      const next = { ...prev }
+      const prevRv = next[pk] ?? {}
+      next[pk] = {
+        ...prevRv,
+        [item.kind]: (prevRv[item.kind] ?? []).map((x) =>
+          x.id === item.id ? { ...x, fixed: true, fixedOn: today, fix: explanation } : x),
+      }
+      const cur = next[ck]
+      if (cur) {
+        const resolveCopy = (arr?: ListItem[]) => (arr ?? []).map((x) =>
+          !x.fixed && x.text.trim() === item.text.trim() ? { ...x, fixed: true, fixedOn: today, fix: explanation } : x)
+        next[ck] = { ...cur, bottlenecks: resolveCopy(cur.bottlenecks), problems: resolveCopy(cur.problems) }
+      }
+      return next
+    })
+    setSavedAt(Date.now())
+    toast(carriedTexts.has(item.text.trim()) ? 'Fixed — its carried-over copy is resolved too' : 'Marked fixed')
+  }
+
   return (
     <div>
       {/* Header */}
@@ -532,7 +775,17 @@ export default function Companies() {
         {!dept ? (
           <Card className="p-8 text-center" style={{ color: 'var(--color-muted)' }}>Add a department to start the review.</Card>
         ) : (
-          <Card className="p-5">
+          <div className="flex flex-col gap-4 min-w-0">
+            {prevItems.length > 0 && (
+              <PrevQuarterPanel
+                fromQ={pq}
+                items={prevItems}
+                carriedTexts={carriedTexts}
+                onFix={fixPrevItem}
+                onViewPrev={() => { if (!quarters.includes(pq)) setQuarters((prev) => [...prev, pq]); setQuarter(pq) }}
+              />
+            )}
+            <Card className="p-5">
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <h2 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>{dept.name}</h2>
               <div className="flex items-center gap-2">
@@ -549,11 +802,13 @@ export default function Companies() {
               <TextArea value={r.summary} onChange={(v) => set({ summary: v })} rows={3} placeholder="Key takeaways this quarter…" />
             </Section>
           </Card>
+          </div>
         )}
 
-        {/* Right rail: leader, team, hiring */}
+        {/* Right rail: documents, leader, team, hiring */}
         {dept && (
           <div className="flex flex-col gap-4 xl:sticky xl:top-3">
+            <DeptDocsCard co={selected} quarter={quarter} dept={dept.id} />
             <Card className="p-4">
               <h3 className="font-bold mb-3" style={{ color: 'var(--color-text)' }}>Department lead</h3>
               <div className="flex items-start gap-3 mb-2">
