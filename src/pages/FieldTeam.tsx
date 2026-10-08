@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { Card } from '../components/ui'
 import { IconCheck, IconPlus, IconTrash } from '../components/icons'
 import { supabase } from '../lib/supabase'
+import { EmployeeOS } from '../components/EmployeeApp'
 import { useToast } from '../lib/toast'
 import { todayISO, formatDueLabel } from '../lib/dates'
 import {
@@ -90,8 +91,32 @@ export default function FieldTeam() {
 
   const emp = emps.find((x) => x.id === sel) || null
 
+  // Rolando steps into an employee's actual OS. The session token is held
+  // only in memory here (never saved to this browser), so his own site never
+  // turns into the employee's app on the next visit.
+  const [viewing, setViewing] = useState<{ token: string } | null>(null)
+  const openOs = async (e: Employee) => {
+    const { data, error } = await db().rpc('emp_owner_session', { p_employee: e.id })
+    if (error) {
+      toast(error.message.includes('Could not find the function')
+        ? 'One-time setup: run supabase/employee_os_02_owner_view.sql in Supabase.'
+        : error.message)
+      return
+    }
+    setViewing({ token: data as string })
+  }
+  const closeOs = async () => {
+    if (viewing) await db().rpc('emp_logout', { p_token: viewing.token })
+    setViewing(null); await load()
+  }
+
   return (
     <div className="mt-8">
+      {viewing && (
+        <div className="fixed inset-0 z-50" style={{ background: 'var(--color-bg)' }}>
+          <EmployeeOS token={viewing.token} onOut={() => void closeOs()} viewedBy="You're" />
+        </div>
+      )}
       <div className="flex items-end justify-between gap-3 mb-4">
         <div>
           <h2 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>Field team</h2>
@@ -119,6 +144,7 @@ export default function FieldTeam() {
                 day={days.find((d) => d.employee_id === e.id && d.day === today)} today={today} />
             ))}
           </div>
+          {emp && <AccessBar e={emp} onOpen={() => void openOs(emp)} />}
           {emp && (
             <EmployeeDetail key={emp.id} e={emp} today={today} write={write} reload={load}
               clock={clock.filter((c) => c.employee_id === emp.id)}
@@ -398,5 +424,26 @@ function SettingsPanel({ e, write, reload }: { e: Employee; write: Write; reload
         </label>
       </div>
     </Panel>
+  )
+}
+
+/** His link and your way in, side by side above his details. */
+function AccessBar({ e, onOpen }: { e: Employee; onOpen: () => void }) {
+  const { toast } = useToast()
+  const link = `${window.location.origin}/employee`
+  const first = e.name.split(' ')[0]
+  const sms = `sms:?&body=${encodeURIComponent(`Your Employee OS: ${link} (sign in with your code)`)}`
+  return (
+    <Card className="p-4 mb-4 flex flex-wrap items-center gap-3">
+      <button onClick={onOpen} className="rounded-xl px-4 py-2.5 text-sm font-semibold"
+        style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>Open {first}'s OS →</button>
+      <div className="flex-1 min-w-[220px]">
+        <p className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>{first}'s direct link</p>
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{link}</p>
+      </div>
+      <button onClick={() => { void navigator.clipboard?.writeText(link); toast('Link copied') }}
+        className="rounded-xl px-3.5 py-2 text-sm font-semibold" style={{ border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>Copy link</button>
+      <a href={sms} className="rounded-xl px-3.5 py-2 text-sm font-semibold" style={{ border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>Text {first} the link</a>
+    </Card>
   )
 }

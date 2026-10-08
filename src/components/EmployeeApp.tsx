@@ -81,7 +81,12 @@ function PinGate({ onIn }: { onIn: (token: string) => void }) {
 
 type Tab = 'today' | 'tasks' | 'journal'
 
-function EmployeeOS({ token, onOut }: { token: string; onOut: () => void }) {
+/**
+ * The OS itself. `viewedBy` is set when Rolando opens it from Team: same
+ * screens, same data, but a banner makes clear that whatever he taps counts
+ * as the employee, and "Sign out" becomes "Close".
+ */
+export function EmployeeOS({ token, onOut, viewedBy }: { token: string; onOut: () => void; viewedBy?: string }) {
   const [day, setDay] = useState(todayISO())
   const [me, setMe] = useState<EmpMe | null>(null)
   const [error, setError] = useState('')
@@ -141,10 +146,15 @@ function EmployeeOS({ token, onOut }: { token: string; onOut: () => void }) {
 
   return (
     <div className="h-full flex flex-col" style={{ background: 'var(--color-bg)' }}>
+      {viewedBy && (
+        <div className="px-4 py-2 text-xs font-semibold text-center" style={{ background: '#fef3c7', color: '#92400e' }}>
+          {viewedBy} viewing {first}'s OS. Anything you tap counts as {first}.
+        </div>
+      )}
       <header className="sticky top-0 z-30 glass flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <img src="/logos/stb.png" alt="" style={{ height: 22, width: 'auto' }} />
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--color-muted)' }}>{first}'s OS</span>
-        <button onClick={signOut} className="ml-auto text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>Sign out</button>
+        <button onClick={signOut} className="ml-auto text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>{viewedBy ? 'Close' : 'Sign out'}</button>
       </header>
 
       <main className="flex-1 overflow-y-auto">
