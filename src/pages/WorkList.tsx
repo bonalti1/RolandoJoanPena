@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, PageHeader, Input, Button } from '../components/ui'
-import { IconPlus, IconTrash, IconCheck, IconHome } from '../components/icons'
+import { IconPlus, IconTrash, IconCheck, IconHome, IconSearch } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { startOfWeek, addDays, toISO, todayISO, isoWeek, formatWeekRange } from '../lib/dates'
@@ -124,6 +124,8 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
   const [catFilter, setCatFilter] = useState<'All' | Cat | 'Bills'>('All')
   const [rolledNote, setRolledNote] = useState(0)
   const [focusDay, setFocusDay] = useState<string | null>(null)
+  const [showAllDone, setShowAllDone] = useState(false)
+  const [doneSearch, setDoneSearch] = useState('')
 
   // Hover tooltip: shows a task's full name + details when the card truncates it.
   const [hoverTip, setHoverTip] = useState<{ text: string; desc?: string; company?: string; left: number; top: number } | null>(null)
@@ -219,6 +221,41 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
     moveItem(drag.from, toBucket, drag.id)
     setDrag(null)
   }
+
+  /**
+   * The full archive: every completed task this board has ever recorded,
+   * across every week, newest first. The regular toggle/remove helpers only
+   * touch the week on screen, so the archive gets its own pair that write to
+   * the exact week an item actually lives in.
+   */
+  type DoneRow = { item: Item; where: string; week: string }
+  const allCompleted = (): DoneRow[] => {
+    const out: DoneRow[] = []
+    for (const i of board.backlog) if (i.done) out.push({ item: i, where: BACKLOG, week: '' })
+    for (const [wk, days] of Object.entries(board.weeks))
+      for (const [day, items] of Object.entries(days))
+        for (const i of items ?? []) if (i.done) out.push({ item: i, where: day, week: wk })
+    return out.sort((a, b) => (b.item.completedAt ?? 0) - (a.item.completedAt ?? 0))
+  }
+  const patchAt = (week: string, where: string, fn: (items: Item[]) => Item[]) =>
+    update((b) => {
+      if (where === BACKLOG) return { ...b, backlog: fn(b.backlog) }
+      const days = b.weeks[week]
+      if (!days) return b
+      return { ...b, weeks: { ...b.weeks, [week]: { ...days, [where]: fn(days[where] ?? []) } } }
+    })
+  const uncheckAt = (row: DoneRow) =>
+    patchAt(row.week, row.where, (items) => items.map((i) => i.id === row.item.id ? { ...i, done: false, completedAt: undefined } : i))
+  const removeAt = (row: DoneRow) =>
+    confirmDelete({
+      label: row.item.text ? `“${row.item.text}”` : 'this task',
+      detail: 'It will be removed from your completed history. This can’t be undone.',
+      onConfirm: () => patchAt(row.week, row.where, (items) => items.filter((i) => i.id !== row.item.id)),
+    })
+  const doneDateLabel = (ts?: number) =>
+    ts ? new Date(ts).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Date not recorded'
+  const doneTime = (ts?: number) =>
+    ts ? new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : ''
 
   /**
    * The day columns sit a screenful above the Master List, and a browser will
@@ -617,11 +654,19 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
         )}
       </div>
 
-      {completed.length > 0 && (
-        <Card className="p-4 mt-5">
-          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--color-muted)' }}>
+      {/* Completed this week + the door to the full archive */}
+      <Card className="p-4 mt-5">
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--color-muted)' }}>
             <IconCheck width={15} height={15} /> Completed this week ({completed.length})
           </h3>
+          <button onClick={() => { setShowAllDone(true); setDoneSearch('') }} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>
+            All completed tasks →
+          </button>
+        </div>
+        {completed.length === 0 ? (
+          <p className="text-sm py-2 text-center" style={{ color: 'var(--color-muted)' }}>Nothing checked off this week yet.</p>
+        ) : (
           <ul className="flex flex-col gap-1">
             {completed.map(({ item, where }) => (
               <li key={item.id} className="group flex items-center gap-2 py-1.5 px-2 rounded-lg" style={{ background: 'var(--color-bg)' }}>
@@ -635,8 +680,72 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
               </li>
             ))}
           </ul>
-        </Card>
-      )}
+        )}
+      </Card>
+
+      {/* All completed tasks — the archive, grouped by the day each was finished */}
+      {showAllDone && (() => {
+        const q = doneSearch.trim().toLowerCase()
+        const rows = allCompleted().filter((r) =>
+          !q || `${r.item.text} ${companyById(r.item.company)?.name ?? ''}`.toLowerCase().includes(q))
+        let lastLabel = ''
+        return (
+          <>
+            <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setShowAllDone(false)} />
+            <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[94%] max-w-2xl max-h-[88vh] flex flex-col rounded-2xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)' }}>
+              <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>All completed tasks</h3>
+                  <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{rows.length} task{rows.length === 1 ? '' : 's'} · {tab} board · newest first</p>
+                </div>
+                <button onClick={() => setShowAllDone(false)} className="text-lg shrink-0" style={{ color: 'var(--color-muted)' }} aria-label="Close">✕</button>
+              </div>
+
+              <div className="px-5 pt-3">
+                <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                  <IconSearch width={15} height={15} style={{ color: 'var(--color-muted)' }} />
+                  <input autoFocus value={doneSearch} onChange={(e) => setDoneSearch(e.target.value)} placeholder="Search completed tasks…" className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--color-text)' }} />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 py-3">
+                {rows.length === 0 ? (
+                  <p className="text-sm py-8 text-center" style={{ color: 'var(--color-muted)' }}>
+                    {doneSearch ? 'Nothing completed matches that.' : 'Nothing completed yet — check something off and it lands here with its date.'}
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-1 pb-2">
+                    {rows.map((row) => {
+                      const label = doneDateLabel(row.item.completedAt)
+                      const header = label !== lastLabel
+                      lastLabel = label
+                      return (
+                        <li key={`${row.week}|${row.where}|${row.item.id}`}>
+                          {header && (
+                            <div className="text-[11px] font-bold uppercase tracking-[0.08em] mt-3 mb-1.5" style={{ color: 'var(--color-muted)' }}>{label}</div>
+                          )}
+                          <div className="group flex items-center gap-2 py-1.5 px-2 rounded-lg" style={{ background: 'var(--color-bg)' }}>
+                            <button onClick={() => uncheckAt(row)} className="h-4 w-4 rounded grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: 'var(--color-accent)' }} title="Put it back as not done">
+                              <IconCheck width={11} height={11} style={{ color: 'var(--color-on-accent)' }} />
+                            </button>
+                            {companyById(row.item.company) && <CoLogo id={row.item.company} h={13} />}
+                            <span className="flex-1 min-w-0 text-sm truncate" style={{ color: 'var(--color-text)' }}>{row.item.text}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-surface)', color: 'var(--color-muted)' }}>
+                              {row.where === BACKLOG ? 'Master List' : DAY_SHORT[row.where] ?? row.where}
+                            </span>
+                            <span className="text-xs tnum shrink-0 w-16 text-right" style={{ color: 'var(--color-muted)' }}>{doneTime(row.item.completedAt)}</span>
+                            <button onClick={() => removeAt(row)} className="opacity-0 group-hover:opacity-60 shrink-0" style={{ color: 'var(--color-muted)' }} aria-label="Delete"><IconTrash width={13} height={13} /></button>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       {/* Add task modal (Work board) */}
       {modal && (
