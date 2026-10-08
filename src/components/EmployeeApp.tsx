@@ -347,7 +347,7 @@ function TasksCard({ me, token, run, day, todayOnly, onSeeAll }: {
     <Section title={todayOnly ? 'Today’s tasks' : 'Tasks'}
       right={todayOnly && onSeeAll ? <button onClick={onSeeAll} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>All tasks ({open.length})</button> : undefined}>
       {shown.length === 0 && <p className="text-sm py-1" style={{ color: 'var(--color-muted)' }}>{todayOnly ? 'Nothing due today.' : 'No tasks yet.'}</p>}
-      <ul className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
+      <ul className="divide-y divide-[var(--color-border)]">
         {shown.map((t) => <TaskRow key={t.id} t={t} day={day} token={token} run={run} />)}
       </ul>
       {!todayOnly && (
