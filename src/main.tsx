@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import AuthGate from './components/AuthGate.tsx'
+import EmployeeApp from './components/EmployeeApp.tsx'
+import { empToken } from './lib/employee.ts'
 import { ThemeProvider } from './lib/theme.tsx'
 import { ToastProvider } from './lib/toast.tsx'
 import { ConfirmDeleteProvider } from './lib/confirmDelete.tsx'
@@ -48,7 +50,25 @@ class Boundary extends React.Component<{ children: React.ReactNode }, { error?: 
   }
 }
 
+/**
+ * Field employees (Roberto first) sign in with a PIN at /employee, outside
+ * AuthGate: no email account exists for them. A phone that already holds an
+ * employee session and opens the bare site (e.g. from a home-screen icon,
+ * whose start URL is /) is sent to /employee too.
+ */
+if (window.location.pathname === '/' && empToken.get()) window.history.replaceState(null, '', '/employee')
+const isEmployee = window.location.pathname.startsWith('/employee')
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
+  isEmployee ? (
+    <React.StrictMode>
+      <Boundary>
+        <ThemeProvider>
+          <EmployeeApp />
+        </ThemeProvider>
+      </Boundary>
+    </React.StrictMode>
+  ) :
   <React.StrictMode>
     <Boundary>
     <ThemeProvider>

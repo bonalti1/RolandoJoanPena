@@ -5,6 +5,7 @@ import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { enterOs } from '../lib/acting'
 import { useOsGrants } from '../lib/osAccess'
+import FieldTeam from './FieldTeam'
 
 /**
  * Team workspaces — one card per leader. Each leader runs their own app (their
@@ -180,6 +181,8 @@ export default function Team() {
           <Button onClick={addLeader}><IconPlus width={16} height={16} /> Add</Button>
         </div>
       </Card>
+
+      <FieldTeam />
     </div>
   )
 }
