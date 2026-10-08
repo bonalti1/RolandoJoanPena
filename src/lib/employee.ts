@@ -21,7 +21,24 @@ export type EmpClock = {
   lng: number | null
   accuracy_m: number | null
   geo_note: string
+  /** Set when the employee undid this punch; it then counts for nothing. */
+  voided_at?: string | null
+  void_reason?: string
 }
+
+export type PayShift = { in: string; out: string; minutes: number }
+export type PayDay = { day: string; minutes: number; rate: number | null; amount: number; shifts: PayShift[] }
+export type EmpInvoice = {
+  id: string; employee_id?: string; number: number; week_start: string; week_end: string
+  lines: PayDay[]; minutes: number; total: number; from_name: string; bill_to: string
+  status: 'sent' | 'approved' | 'paid'; sent_at: string; approved_at: string | null; paid_at: string | null
+}
+export type PayWeek = {
+  week_start: string; week_end: string; days: PayDay[]; minutes: number; amount: number
+  open_days: string[]; missing_rate: boolean; ended: boolean
+  invoice: Pick<EmpInvoice, 'id' | 'number' | 'status' | 'total' | 'minutes' | 'sent_at' | 'approved_at' | 'paid_at'> | null
+}
+export type Payroll = { rate: number | null; weeks: PayWeek[]; invoices: EmpInvoice[] }
 
 export type EmpTask = {
   id: string
@@ -56,6 +73,15 @@ export function empErrorText(e: unknown): string {
   const msg = String((e as { message?: string })?.message || e || '')
   if (msg.includes('wrong_pin')) return 'That code didn’t match. Try again.'
   if (msg.includes('too_many_attempts')) return 'Too many tries. Wait 15 minutes and try again.'
+  if (msg.includes('reason_required')) return 'Write a short reason for the undo.'
+  if (msg.includes('only_last_punch')) return 'Only your last punch can be undone.'
+  if (msg.includes('only_today')) return 'Only today’s punch can be undone. Ask Rolando to fix older ones.'
+  if (msg.includes('week_invoiced')) return 'That week is already invoiced, so its hours are locked.'
+  if (msg.includes('week_not_finished')) return 'You can invoice a week once it ends (after Sunday).'
+  if (msg.includes('already_invoiced')) return 'That week already has an invoice.'
+  if (msg.includes('missing_clock_out')) return 'A day that week has a clock-in with no clock-out. Ask Rolando to fix it first.'
+  if (msg.includes('no_pay_rate')) return 'No pay rate is set yet. Ask Rolando to set it.'
+  if (msg.includes('no_hours')) return 'No hours that week, so there is nothing to invoice.'
   if (msg.includes('session_expired')) return 'You’ve been signed out. Enter your code again.'
   if (msg.includes('Could not find the function')) return 'The Employee OS isn’t set up yet (run supabase/09_employee_os.sql).'
   if (/fetch|network/i.test(msg)) return 'No connection. Check your signal and try again.'
@@ -96,6 +122,11 @@ export const empApi = {
       p_token: token, p_day: day,
       p_nn_done: patch.nn_done ?? null, p_journal: patch.journal ?? null,
     }),
+  undo: (token: string, punch: string, reason: string) =>
+    rpc<void>('emp_clock_undo', { p_token: token, p_punch: punch, p_reason: reason }),
+  payroll: (token: string, weeks = 8) => rpc<Payroll>('emp_payroll', { p_token: token, p_weeks: weeks }),
+  invoiceCreate: (token: string, week: string) =>
+    rpc<EmpInvoice>('emp_invoice_create', { p_token: token, p_week: week }),
   saveOwnNn: (token: string, items: string[]) =>
     rpc<void>('emp_nn_own_save', { p_token: token, p_items: items }),
 }
@@ -143,7 +174,7 @@ export const timeLabel = (iso: string) =>
 /** Hours and minutes worked from today's punches (an open shift counts up to now). */
 export function workedMinutes(punches: EmpClock[], dayISO: string): number {
   const today = punches
-    .filter((c) => localDayISO(c.at) === dayISO)
+    .filter((c) => !c.voided_at && localDayISO(c.at) === dayISO)
     .sort((a, b) => a.at.localeCompare(b.at))
   let total = 0
   let start: number | null = null
@@ -162,3 +193,17 @@ export function localDayISO(iso: string): string {
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+export const money = (n: number | null | undefined) =>
+  (n ?? 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+
+export const hoursLabel = (minutes: number) => (minutes / 60).toFixed(2).replace(/\.00$/, '') + ' h'
+
+/** "Oct 6 – Oct 12" from ISO dates (read as calendar days, not instants). */
+export function weekLabel(start: string, end: string) {
+  const f = (iso: string) => new Date(iso + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric' })
+  return `${f(start)} – ${f(end)}`
+}
+
+export const invoiceNo = (name: string, n: number) =>
+  `${(name || 'E').trim().charAt(0).toUpperCase()}-${String(n).padStart(4, '0')}`
