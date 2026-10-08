@@ -268,11 +268,11 @@ function TasksPanel({ e, tasks, today, write }: { e: Employee; tasks: Task[]; to
             style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>Assign</button>
         </div>
       </div>
-      <ul className="divide-y" style={{ borderColor: 'var(--color-border)' }}>{open.map(row)}</ul>
+      <ul className="divide-y divide-[var(--color-border)]">{open.map(row)}</ul>
       {done.length > 0 && (
         <>
           <p className="text-[11px] font-semibold uppercase tracking-wide mt-3" style={{ color: 'var(--color-muted)' }}>Recently done</p>
-          <ul className="divide-y" style={{ borderColor: 'var(--color-border)' }}>{done.map(row)}</ul>
+          <ul className="divide-y divide-[var(--color-border)]">{done.map(row)}</ul>
         </>
       )}
     </Panel>
