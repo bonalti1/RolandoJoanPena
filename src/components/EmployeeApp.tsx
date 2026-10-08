@@ -4,7 +4,7 @@ import { IconCheck, IconHome, IconJournal, IconPlus, IconTasks, IconTrash } from
 import { todayISO, formatDueLabel } from '../lib/dates'
 import {
   empApi, empErrorText, empToken, fmtWorked, geoLabel, getGeoStamp, isSessionExpired, localDayISO,
-  mapsLink, timeLabel, workedMinutes, type EmpMe, type EmpTask,
+  mapsLink, timeLabel, workedMinutes, type EmpApp, type EmpMe, type EmpTask,
 } from '../lib/employee'
 
 /**
@@ -86,6 +86,19 @@ function EmployeeOS({ token, onOut }: { token: string; onOut: () => void }) {
   const [me, setMe] = useState<EmpMe | null>(null)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('today')
+  const [openApp, setOpenApp] = useState<EmpApp | null>(null)
+
+  // Apps (the scheduling board) open INSIDE the OS, full screen, instead of in
+  // a new tab: going back is one tap — or the phone's own back gesture, which
+  // the history entry below turns into "close the app" — and he never lands
+  // on the board's password screen wondering which app he is in.
+  const showApp = (a: EmpApp) => { window.history.pushState({ empApp: true }, ''); setOpenApp(a) }
+  const hideApp = () => { if (window.history.state?.empApp) window.history.back(); else setOpenApp(null) }
+  useEffect(() => {
+    const onPop = () => setOpenApp(null)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   const load = useCallback(async () => {
     const d = todayISO()
@@ -146,7 +159,7 @@ function EmployeeOS({ token, onOut }: { token: string; onOut: () => void }) {
                 {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
               </p>
               <ClockCard me={me} day={day} token={token} run={run} />
-              <AppsCard me={me} />
+              <AppsCard me={me} onOpen={showApp} />
               <NonNegotiables me={me} day={day} token={token} run={run} />
               <TasksCard me={me} token={token} run={run} todayOnly day={day} onSeeAll={() => setTab('tasks')} />
             </>
@@ -172,6 +185,8 @@ function EmployeeOS({ token, onOut }: { token: string; onOut: () => void }) {
           ))}
         </div>
       </nav>
+
+      {openApp && <AppView app={openApp} owner={first} onBack={hideApp} />}
     </div>
   )
 }
@@ -241,19 +256,44 @@ function ClockCard({ me, day, token, run }: { me: EmpMe; day: string; token: str
 
 // ── App buttons (Open STB Scheduling, …) ────────────────────────────────────
 
-function AppsCard({ me }: { me: EmpMe }) {
+function AppsCard({ me, onOpen }: { me: EmpMe; onOpen: (a: EmpApp) => void }) {
   const apps = (me.employee.apps || []).filter((a) => a && a.url)
   if (apps.length === 0) return null
   return (
     <div className="mb-4 grid gap-2.5">
       {apps.map((a) => (
-        <a key={a.url + a.label} href={a.url} target="_blank" rel="noopener"
-          className="flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition active:scale-[0.98]"
+        <button key={a.url + a.label} onClick={() => onOpen(a)}
+          className="flex items-center justify-between rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-left transition active:scale-[0.98]"
           style={{ background: '#16294d', color: '#fff' }}>
           <span>{a.label || 'Open'}</span>
-          <span aria-hidden>↗</span>
-        </a>
+          <span aria-hidden>›</span>
+        </button>
       ))}
+    </div>
+  )
+}
+
+/**
+ * Another app (the STB scheduling board) shown full screen inside the OS.
+ * It loads fresh on every open, so its link — which carries the view-only
+ * code — signs him straight in each time; there is no second password.
+ */
+function AppView({ app, owner, onBack }: { app: EmpApp; owner: string; onBack: () => void }) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0b1220' }}>
+      <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: '#16294d', color: '#fff', paddingTop: 'max(10px, env(safe-area-inset-top))' }}>
+        <button onClick={onBack} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[15px] font-semibold active:scale-[0.97]"
+          style={{ background: 'rgba(255,255,255,0.12)' }}>
+          ‹ Back to {owner}'s OS
+        </button>
+        <span className="ml-auto text-xs font-medium truncate" style={{ opacity: 0.7 }}>{app.label}</span>
+      </div>
+      <div className="relative flex-1">
+        {!loaded && <div className="absolute inset-0 grid place-items-center text-sm" style={{ color: '#93a1b5' }}>Opening {app.label || 'app'}…</div>}
+        <iframe src={app.url} title={app.label || 'App'} onLoad={() => setLoaded(true)}
+          className="absolute inset-0 w-full h-full border-0" style={{ background: '#fff', opacity: loaded ? 1 : 0 }} />
+      </div>
     </div>
   )
 }
