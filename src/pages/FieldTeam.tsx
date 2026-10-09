@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { Card } from '../components/ui'
 import { IconCheck, IconPlus, IconTrash } from '../components/icons'
 import { supabase } from '../lib/supabase'
+import { EmployeeOS } from '../components/EmployeeApp'
+import { InvoiceView, STATUS_COLOR, STATUS_LABEL } from '../components/EmpInvoice'
 import { useToast } from '../lib/toast'
 import { todayISO, formatDueLabel } from '../lib/dates'
 import {
-  fmtWorked, geoLabel, localDayISO, mapsLink, timeLabel, workedMinutes,
-  type EmpApp, type EmpClock, type EmpTask,
+  fmtWorked, geoLabel, hoursLabel, invoiceNo, localDayISO, mapsLink, money, timeLabel, weekLabel, workedMinutes,
+  type EmpApp, type EmpClock, type EmpInvoice, type EmpTask, type Payroll,
 } from '../lib/employee'
 
 const wsField: CSSProperties = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }
@@ -24,7 +26,9 @@ type Employee = {
   id: string; name: string; title: string; company: string
   pin_hash: string | null; active: boolean
   apps: EmpApp[]; nn_owner: string[]; nn_own: string[]
+  invoice_from?: string; invoice_bill_to?: string
 }
+type Rate = { id: string; rate: number; effective_from: string; created_at: string }
 type Day = { employee_id: string; day: string; nn_done: string[]; journal: string; updated_at: string }
 type Clock = EmpClock & { employee_id: string }
 type Task = EmpTask & { employee_id: string; created_at: string }
@@ -40,12 +44,14 @@ export default function FieldTeam() {
   const [sel, setSel] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [setupMissing, setSetupMissing] = useState(false)
+  // Bumped on every reload so panels that fetch their own data (payroll) refresh too.
+  const [rev, setRev] = useState(0)
   const today = todayISO()
 
   const load = useCallback(async () => {
     const since = new Date(Date.now() - 14 * 86400000).toISOString()
     const [e, c, t, d] = await Promise.all([
-      db().from('emp_employees').select('id,name,title,company,pin_hash,active,apps,nn_owner,nn_own').order('created_at'),
+      db().from('emp_employees').select('*').order('created_at'),
       db().from('emp_clock').select('*').gte('at', since).order('at'),
       db().from('emp_tasks').select('*').order('created_at'),
       db().from('emp_days').select('*').gte('day', since.slice(0, 10)).order('day', { ascending: false }),
@@ -56,12 +62,13 @@ export default function FieldTeam() {
     setTasks((t.data || []) as Task[])
     setDays((d.data || []) as Day[])
     setLoaded(true)
+    setRev((r) => r + 1)
   }, [])
 
   useEffect(() => { void load() }, [load])
   useEffect(() => {
     const ch = db().channel('emp-team')
-    for (const table of ['emp_clock', 'emp_tasks', 'emp_days', 'emp_employees']) {
+    for (const table of ['emp_clock', 'emp_tasks', 'emp_days', 'emp_employees', 'emp_invoices', 'emp_rates']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => void load())
     }
     ch.subscribe()
@@ -90,8 +97,32 @@ export default function FieldTeam() {
 
   const emp = emps.find((x) => x.id === sel) || null
 
+  // Rolando steps into an employee's actual OS. The session token is held
+  // only in memory here (never saved to this browser), so his own site never
+  // turns into the employee's app on the next visit.
+  const [viewing, setViewing] = useState<{ token: string } | null>(null)
+  const openOs = async (e: Employee) => {
+    const { data, error } = await db().rpc('emp_owner_session', { p_employee: e.id })
+    if (error) {
+      toast(error.message.includes('Could not find the function')
+        ? 'One-time setup: run supabase/employee_os_02_owner_view.sql in Supabase.'
+        : error.message)
+      return
+    }
+    setViewing({ token: data as string })
+  }
+  const closeOs = async () => {
+    if (viewing) await db().rpc('emp_logout', { p_token: viewing.token })
+    setViewing(null); await load()
+  }
+
   return (
     <div className="mt-8">
+      {viewing && (
+        <div className="fixed inset-0 z-50" style={{ background: 'var(--color-bg)' }}>
+          <EmployeeOS token={viewing.token} onOut={() => void closeOs()} viewedBy="You're" />
+        </div>
+      )}
       <div className="flex items-end justify-between gap-3 mb-4">
         <div>
           <h2 className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>Field team</h2>
@@ -119,8 +150,9 @@ export default function FieldTeam() {
                 day={days.find((d) => d.employee_id === e.id && d.day === today)} today={today} />
             ))}
           </div>
+          {emp && <AccessBar e={emp} onOpen={() => void openOs(emp)} />}
           {emp && (
-            <EmployeeDetail key={emp.id} e={emp} today={today} write={write} reload={load}
+            <EmployeeDetail key={emp.id} e={emp} today={today} write={write} reload={load} rev={rev}
               clock={clock.filter((c) => c.employee_id === emp.id)}
               tasks={tasks.filter((t) => t.employee_id === emp.id)}
               days={days.filter((d) => d.employee_id === emp.id)} />
@@ -142,7 +174,7 @@ function nnProgress(e: Employee, day?: Day) {
 function EmployeeTile({ e, active, onClick, clock, tasks, day, today }: {
   e: Employee; active: boolean; onClick: () => void; clock: Clock[]; tasks: Task[]; day?: Day; today: string
 }) {
-  const todays = clock.filter((c) => localDayISO(c.at) === today)
+  const todays = clock.filter((c) => !c.voided_at && localDayISO(c.at) === today)
   const last = todays[todays.length - 1]
   const firstIn = todays.find((c) => c.kind === 'in')
   const nn = nnProgress(e, day)
@@ -181,11 +213,12 @@ function Panel({ title, children, right }: { title: string; children: ReactNode;
   )
 }
 
-function EmployeeDetail({ e, clock, tasks, days, today, write, reload }: {
-  e: Employee; clock: Clock[]; tasks: Task[]; days: Day[]; today: string; write: Write; reload: () => Promise<void>
+function EmployeeDetail({ e, clock, tasks, days, today, write, reload, rev }: {
+  e: Employee; clock: Clock[]; tasks: Task[]; days: Day[]; today: string; write: Write; reload: () => Promise<void>; rev: number
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <PayPanel e={e} write={write} rev={rev} />
       <ClockPanel clock={clock} />
       <TasksPanel e={e} tasks={tasks} today={today} write={write} />
       <NnPanel e={e} day={days.find((d) => d.day === today)} write={write} />
@@ -211,7 +244,13 @@ function ClockPanel({ clock }: { clock: Clock[] }) {
               <span>{new Date(d + 'T12:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
               <span className="tnum">{fmtWorked(workedMinutes(list, d))}</span>
             </div>
-            {list.map((c) => (
+            {list.map((c) => c.voided_at ? (
+              <div key={c.id} className="flex items-center gap-2 text-sm py-0.5" style={{ color: 'var(--color-muted)' }}>
+                <span className="font-semibold w-9 line-through">{c.kind === 'in' ? 'In' : 'Out'}</span>
+                <span className="tnum line-through">{timeLabel(c.at)}</span>
+                <span className="ml-auto text-xs" style={{ color: '#b45309' }}>Undone: {c.void_reason}</span>
+              </div>
+            ) : (
               <div key={c.id} className="flex items-center gap-2 text-sm py-0.5">
                 <span className="font-semibold w-9" style={{ color: c.kind === 'in' ? '#16a34a' : '#dc2626' }}>{c.kind === 'in' ? 'In' : 'Out'}</span>
                 <span className="tnum" style={{ color: 'var(--color-text)' }}>{timeLabel(c.at)}</span>
@@ -334,6 +373,8 @@ function SettingsPanel({ e, write, reload }: { e: Employee; write: Write; reload
   const [title, setTitle] = useState(e.title)
   const [pin, setPin] = useState('')
   const [apps, setApps] = useState<EmpApp[]>(e.apps || [])
+  const [invFrom, setInvFrom] = useState(e.invoice_from || '')
+  const [billTo, setBillTo] = useState(e.invoice_bill_to ?? 'South Texas Builders')
   const loginUrl = `${window.location.origin}/employee`
 
   const setPinNow = async () => {
@@ -391,12 +432,150 @@ function SettingsPanel({ e, write, reload }: { e: Employee; write: Write; reload
           </div>
         </div>
 
+        <div>
+          <p className="text-xs font-semibold mb-1" style={{ color: 'var(--color-muted)' }}>Invoice details</p>
+          <div className="flex gap-2">
+            <input value={invFrom} onChange={(ev) => setInvFrom(ev.target.value)} placeholder={`From (default: ${e.name})`} className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={wsField} />
+            <input value={billTo} onChange={(ev) => setBillTo(ev.target.value)} placeholder="Bill to" className="flex-1 rounded-xl px-3 py-2 text-sm outline-none" style={wsField} />
+            <button onClick={() => void write(db().from('emp_employees').update({ invoice_from: invFrom.trim(), invoice_bill_to: billTo.trim() }).eq('id', e.id), 'Invoice details saved')}
+              className="rounded-xl px-3.5 text-sm font-semibold" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>Save</button>
+          </div>
+          <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>Used on new invoices. Invoices already sent keep what they were sent with.</p>
+        </div>
+
         <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text)' }}>
           <input type="checkbox" checked={e.active}
             onChange={(ev) => void write(db().from('emp_employees').update({ active: ev.target.checked }).eq('id', e.id), ev.target.checked ? 'Access on' : 'Access off — signed out')} />
           Access on (turn off to lock {e.name} out immediately)
         </label>
       </div>
+    </Panel>
+  )
+}
+
+/** His link and your way in, side by side above his details. */
+function AccessBar({ e, onOpen }: { e: Employee; onOpen: () => void }) {
+  const { toast } = useToast()
+  const link = `${window.location.origin}/employee`
+  const first = e.name.split(' ')[0]
+  const sms = `sms:?&body=${encodeURIComponent(`Your Employee OS: ${link} (sign in with your code)`)}`
+  return (
+    <Card className="p-4 mb-4 flex flex-wrap items-center gap-3">
+      <button onClick={onOpen} className="rounded-xl px-4 py-2.5 text-sm font-semibold"
+        style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>Open {first}'s OS →</button>
+      <div className="flex-1 min-w-[220px]">
+        <p className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>{first}'s direct link</p>
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{link}</p>
+      </div>
+      <button onClick={() => { void navigator.clipboard?.writeText(link); toast('Link copied') }}
+        className="rounded-xl px-3.5 py-2 text-sm font-semibold" style={{ border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>Copy link</button>
+      <a href={sms} className="rounded-xl px-3.5 py-2 text-sm font-semibold" style={{ border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>Text {first} the link</a>
+    </Card>
+  )
+}
+
+/**
+ * Pay — Rolando's rate for this employee (only editable here) and the
+ * invoices he sends. A new rate takes effect from the date chosen; hours
+ * before that keep the old rate, and sent invoices never change.
+ */
+function PayPanel({ e, write, rev }: { e: Employee; write: Write; rev: number }) {
+  const { toast } = useToast()
+  const [pay, setPay] = useState<Payroll | null>(null)
+  const [rates, setRates] = useState<Rate[]>([])
+  const [missing, setMissing] = useState(false)
+  const [rate, setRate] = useState('')
+  const [from, setFrom] = useState(todayISO())
+  const [inv, setInv] = useState<EmpInvoice | null>(null)
+  const first = e.name.split(' ')[0]
+
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const [p, r] = await Promise.all([
+        db().rpc('emp_owner_payroll', { p_employee: e.id, p_weeks: 2 }),
+        db().from('emp_rates').select('id,rate,effective_from,created_at').eq('employee_id', e.id).order('effective_from', { ascending: false }),
+      ])
+      if (!alive) return
+      if (p.error) { setMissing(true); return }
+      setMissing(false); setPay(p.data as Payroll); setRates((r.data || []) as Rate[])
+    })()
+    return () => { alive = false }
+  }, [e.id, rev])
+
+  useEffect(() => { if (inv && pay) setInv(pay.invoices.find((x) => x.id === inv.id) || null) }, [pay]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveRate = async () => {
+    const n = Number(rate)
+    if (!(n >= 0) || rate.trim() === '') { toast('Type the hourly amount, e.g. 22.50'); return }
+    const ok = await write(db().from('emp_rates').insert({ employee_id: e.id, rate: n, effective_from: from }), `Rate set: ${money(n)}/h from ${from}`)
+    if (ok) setRate('')
+  }
+  const setStatus = (v: EmpInvoice, status: EmpInvoice['status']) => write(db().from('emp_invoices').update({
+    status,
+    approved_at: status === 'sent' ? null : v.approved_at || new Date().toISOString(),
+    paid_at: status === 'paid' ? new Date().toISOString() : null,
+  }).eq('id', v.id), `Invoice ${STATUS_LABEL[status].toLowerCase()}`)
+
+  if (missing) return (
+    <Panel title="Pay & invoices">
+      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>One-time setup: run <b>supabase/employee_os_03_payroll.sql</b> in Supabase, then reload.</p>
+    </Panel>
+  )
+  const current = pay?.weeks[0]
+  return (
+    <Panel title="Pay & invoices" right={<span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{pay?.rate != null ? `${money(pay.rate)}/h` : 'No rate yet'}</span>}>
+      <p className="text-xs font-semibold mb-1" style={{ color: 'var(--color-muted)' }}>{first}'s hourly rate (only you can change it)</p>
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[120px]">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--color-muted)' }}>$</span>
+          <input value={rate} onChange={(ev) => setRate(ev.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder={pay?.rate != null ? String(pay.rate) : '0.00'}
+            className="w-full rounded-xl pl-7 pr-3 py-2 text-sm outline-none" style={wsField} />
+        </div>
+        <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-muted)' }}>from
+          <input type="date" value={from} onChange={(ev) => setFrom(ev.target.value)} className="rounded-xl px-2 py-2 text-sm outline-none" style={wsField} />
+        </label>
+        <button onClick={() => void saveRate()} className="rounded-xl px-3.5 py-2 text-sm font-semibold" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>Set rate</button>
+      </div>
+      {rates.length > 0 && (
+        <p className="text-xs mt-1.5" style={{ color: 'var(--color-muted)' }}>
+          History: {rates.slice(0, 4).map((r) => `${money(r.rate)} from ${new Date(r.effective_from + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric' })}`).join(' · ')}
+        </p>
+      )}
+
+      {current && (
+        <div className="mt-4 rounded-xl px-3 py-2.5 flex items-center justify-between" style={{ background: 'var(--color-bg)' }}>
+          <div>
+            <p className="text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>This week so far · {weekLabel(current.week_start, current.week_end)}</p>
+            <p className="text-sm" style={{ color: 'var(--color-text)' }}>{hoursLabel(current.minutes)}</p>
+          </div>
+          <p className="text-lg font-semibold tnum" style={{ color: 'var(--color-text)' }}>{money(current.amount)}</p>
+        </div>
+      )}
+
+      <p className="text-[11px] font-semibold uppercase tracking-wide mt-4 mb-1" style={{ color: 'var(--color-muted)' }}>Invoices from {first}</p>
+      {!pay?.invoices.length && <p className="text-sm" style={{ color: 'var(--color-muted)' }}>None yet. He sends one after each week ends.</p>}
+      <ul>
+        {pay?.invoices.map((v, i) => (
+          <li key={v.id} className="flex items-center gap-2 py-2" style={i ? { borderTop: '1px solid var(--color-border)' } : undefined}>
+            <button onClick={() => setInv(v)} className="flex-1 text-left">
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>No. {invoiceNo(v.from_name, v.number)} · {weekLabel(v.week_start, v.week_end)}</p>
+              <p className="text-xs" style={{ color: 'var(--color-muted)' }}>{hoursLabel(v.minutes)} · {money(v.total)}</p>
+            </button>
+            <span className="text-[10.5px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+              style={{ background: `color-mix(in srgb, ${STATUS_COLOR[v.status]} 14%, transparent)`, color: STATUS_COLOR[v.status] }}>{STATUS_LABEL[v.status]}</span>
+            {v.status === 'sent' && <button onClick={() => void setStatus(v, 'approved')} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>Approve</button>}
+            {v.status === 'approved' && <button onClick={() => void setStatus(v, 'paid')} className="text-xs font-semibold" style={{ color: '#16a34a' }}>Mark paid</button>}
+          </li>
+        ))}
+      </ul>
+      {inv && (
+        <InvoiceView inv={inv} onClose={() => setInv(null)} actions={
+          inv.status === 'sent' ? <button onClick={() => void setStatus(inv, 'approved')} className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: '#b45309', color: '#fff' }}>Approve</button>
+          : inv.status === 'approved' ? <button onClick={() => void setStatus(inv, 'paid')} className="rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: '#16a34a', color: '#fff' }}>Mark paid</button>
+          : undefined
+        } />
+      )}
     </Panel>
   )
 }
