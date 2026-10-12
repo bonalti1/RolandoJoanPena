@@ -61,6 +61,45 @@ const SEED_TEAM: Partial<Record<CompanyId, Record<string, SeedPerson[]>>> = {
   },
 }
 
+
+// ---- Q4 2026 quarterly meeting (Oct 12) — dictated by Rolando, seeded once ----
+// Q3 rows feed the "Last quarter" panel: what each department carried in and
+// how it got resolved. Q4 rows are the live review. Only empty fields fill.
+type QbrItem = Partial<ListItem> & { text: string }
+type QbrReview = { status?: Status; items?: QbrItem[]; goals?: string; future?: string; summary?: string; lead?: string; feedback?: Rating }
+const QBR_Q3: Record<string, QbrItem[]> = {
+  'Content': [{ text: 'Over-focused on ad spend, under-invested in branding', fixed: true, fixedOn: '2026-10-12', fix: 'Carlos joined and brought personal-brand marketing; launching TikTok as STB; Betsy producing content; Graciela and others adding branded content.' }],
+  'Ad spend': [{ text: 'No marketing budget — consumed by overhead (houses stuck in phases 4–6, builds taking double the time)', carry: true, level: 'High', fix: 'AI-driven tight scheduling deadlines to surface bottlenecks early; meetings monitored & recorded; 3 meetings/week + daily morning message + 4 p.m. day-summary.' }],
+  'GHL': [{ text: "Rolando's personal credit card covers all GHL expenses", carry: true, level: 'High', fix: 'Once the marketing budget finalizes: large monthly deposit to the company account so GHL charges a company card, never the personal one.' }],
+  'Mortgage': [{ text: 'Finish off the lending side', fixed: true, fixedOn: '2026-10-12', fix: 'Done — lending is now very strong, with solid lenders in place.' }],
+  'Client communication': [{ text: "Clients still asking for information — the Monday report wasn't enough", fixed: true, fixedOn: '2026-10-12', fix: 'Jackie now requests subcontractor photos and sends them to clients, so they always have an update on their home.' }],
+  'Permits, draws & payroll': [{ text: 'No phase 4/5/6 investor or line of credit to cover budgets the bank holds back', carry: true, level: 'High', fix: 'Finalize credit lines with third-party funding companies or investors — $100,000 line requested, dedicated to this department.' }],
+  'QC / Runner': [{ text: 'Ángel split between cabinets and construction-runner duties', fixed: true, fixedOn: '2026-10-12', fix: 'Hired Roberto, which alleviated the problem.' }],
+  'Scheduling / selections': [{ text: 'Ramiro fully utilizing the scheduling app', fixed: true, fixedOn: '2026-10-12', fix: 'Helped tremendously — utilization at 80% and climbing toward fully used.' }],
+}
+const QBR_Q4: Record<string, QbrReview> = {
+  'Content': { status: 'yellow', items: [{ text: 'High-end content', level: 'High', carry: true, fix: 'Goes back to cash flow — fix it, and by end of quarter afford high-quality cameras for everybody.' }], goals: 'Finalize the cash flow issue. By end of quarter: high-quality cameras for everybody so we can record more when needed.', future: 'A full content team — high quality, distributing content across channels.' },
+  'Ad spend': { status: 'yellow', items: [{ text: 'Marketing budget still consumed by overhead', level: 'High', carry: true, fix: 'Make the AI scheduling deadlines stick so build-phase bottlenecks surface early; free the budget as phases 4–6 unstick.' }], summary: "Branding is so good that growth held without proper ad spend — but those numbers can't be relied on at that speed." },
+  'GHL': { status: 'yellow', lead: 'Yamir Gonzalez', feedback: 'good', items: [{ text: 'System outages when the personal card declines', level: 'High', carry: true, fix: 'Monthly deposit to the company account — company card, never the personal one.' }, { text: 'Not ready for increased ad spend', level: 'Med', fix: 'Update websites; verify every phone number; verify every automation.' }], goals: 'Finalize the monthly-deposit setup and prove it works. Websites, phone numbers and automations ready for scale.' },
+  'Appointment setter': { status: 'green', goals: "Keep the team engaged — don't let them lose interest. Strongest department in the company.", summary: 'No bottlenecks last quarter or this one. Commission-based morale rides on lead flow; strong home sales are keeping the team happy — cash flow still caps what they could earn.' },
+  'Mortgage': { status: 'yellow', items: [{ text: "Get approved with Armando's one-time closing", level: 'Med', fix: 'Secure the approval; line up as many one-time closings as needed to keep the process moving.' }], goals: 'Finalize opening the mortgage team. Rolando may obtain the license so the team operates legally under us.', future: 'Duplicate the appointment-setter system into mortgage — leads through STB and through mortgage itself, with a referral system. Target: running by Q2 2027.' },
+  'Drafting': { status: 'yellow', items: [{ text: 'No software for accountability / the deposit-to-scheduling pipeline', level: 'Low', fix: 'Deposit lands → file auto-created (Nadia owns T/C side, Loom links) → drafters upload revisions → one click sends it to the scheduling app. Not urgent — efficiency.' }], goals: 'Stand up the pipeline, hopefully within the quarter.' },
+  'Construction loans': { status: 'yellow', items: [{ text: 'Two-time closings are very risky for us and the client', level: 'High', fix: 'Interest during long builds eats the client\u2019s closing money — move to one-time closings as the preferred product.' }, { text: 'Bank approval blocked until five homes are turned in', level: 'Med', fix: 'Deliver on time — speed unblocks the approval that would already be in hand.' }], goals: "Get Armando's one-time closing approved; as many one-time closings as needed." },
+  'T/C': { status: 'yellow', feedback: 'good', items: [{ text: 'Owner visibility ran on Looms — no source of truth', level: 'Med', fix: 'Daily text message flags possible problems the moment they happen. Needs-work until the agent proves itself.' }, { text: 'T/C needs its own internal software', level: 'Med', fix: 'Rolando designs it; the lead owns it — updated daily, implemented across the team.' }], goals: 'Prove the daily alert agent; build the internal T/C software.', summary: 'T/C IS speed: faster files close → faster construction starts → faster finish → faster funded → faster everything.' },
+  'Client communication': { status: 'yellow', lead: 'Jackie', feedback: 'good', goals: 'Finalize change orders, orders, and the start-to-finish client experience — selections finalized before construction starts.', future: 'An in-house person who can step in whenever Jackie needs more help.' },
+  'Permits, draws & payroll': { status: 'red', items: [{ text: 'Orlando finds money instead of writing checks — payroll covered by pulling from the next houses', level: 'High', carry: true, fix: 'Land the $100,000 dedicated line of credit — third-party funding companies or investors. Daily money meeting dropped on purpose: it was firefighting, not a fix.' }], goals: 'Fix this quarter. One of the biggest problems in the company.', summary: 'Speed fixes this eventually, but that is a process — the line of credit gives immediate access now.' },
+  'Scheduling / selections': { status: 'yellow', items: [
+    { text: 'Pre-phase — switch the yard sign to a framer-set 4×4 post for the render', level: 'Low', fix: 'Cost about the same; visibility for selling future projects tremendous. We don\u2019t operate like anybody else.' },
+    { text: 'Phase 1 — Edgar is slacking badly', level: 'High', fix: 'Align him or choose another sub. Red checklist, not to be passed: pre-form survey · electrical rough-in · windstorm metals check · windstorm inspection (RG Structure) · sunken showers where needed.' },
+    { text: 'Phase 2 — framing crews affected by the ICE situation', level: 'Med', fix: 'Cachas regrouped his crews greatly; bottleneck tied to his status, looks like it resolves. Backup framer via Gillo\u2019s recommendation. Verify.' },
+    { text: 'Phase 3 (MEPs) — Ray on watch, South Texas Plumbing on watch', level: 'Med', fix: '3G HVAC extremely solid. Beto takes the next project. New whole-team cleanup/QC visit preps Javi\u2019s cabinet meeting and the client walk-through; inspection requested right after.' },
+    { text: 'Phase 4 — tape & float, texture, ceiling paint', level: 'Low', fix: 'Plenty of painters; adding Tino should fix this phase.' },
+    { text: 'Phase 5 — flooring, shower tile, cabinets: still needs work', level: 'Med', fix: 'Urbano excellent on tile. Cabinets install the moment showers are done — new shop with Ángel, plus Josué, Noel and the Harvey-stores builder ready. Countertops good.' },
+  ], goals: 'Push app utilization from 80% to fully used. Checklist one by one — nothing gets mixed. Selections finalized before construction, always.' },
+  'QC / Runner': { status: 'yellow', lead: 'Roberto', items: [{ text: 'Saving the day instead of running a system', level: 'High', carry: true, fix: 'The system is basically done — implement it once the current houses clear: a checklist Roberto follows. If builds ran on time (Pulido: 5 months, not a year), nobody would be rescuing houses.' }], goals: "Finalize Roberto's software. Full cleanup after MEPs; second whole-team cleanup + walkthrough + QC after cabinets, before painters. During phases 4–6, choose the moments as a team." },
+  'Accountant': { status: 'yellow', items: [{ text: 'No eyes on the money', level: 'Med', fix: 'AI agent analyzing every dollar in and out: vendor overcharges, payments due, never a missed vendor, weekly payroll report, balance alerts, alignment checks.' }], goals: 'Books fully in order going into 2027. Stand up the AI money agent.', summary: 'Foundation is excellent: account per house, payroll person, weekly reconciliation, clean chart of accounts, good budget. The gap is visibility.' },
+}
+
 const STATUS_META: Record<Status, { dot: string; label: string }> = {
   green: { dot: '#22c55e', label: 'On track' },
   yellow: { dot: '#eab308', label: 'Needs work' },
@@ -474,6 +513,7 @@ export default function Companies() {
   const [savedAt, setSavedAt] = useStore<number>('companies.savedAt', 0)
 
   const [seeded, setSeeded] = useStore<Record<string, number>>('companies.seeded', {})
+  const [qbrSeeded, setQbrSeeded] = useStore<number>('companies.qbr2026q4', 0)
   const [selected, setSelected] = useState<CompanyId | null>(null)
   const [quarter, setQuarter] = useState<string>(quarters[0] ?? currentQuarter())
   const [deptSel, setDeptSel] = useState<string | null>(null)
@@ -556,6 +596,43 @@ export default function Companies() {
       return next
     })
     setSeeded((prev) => ({ ...prev, [selected]: SEED_VERSION }))
+    setSavedAt(Date.now())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
+
+  // One-time load of the Q4 2026 quarterly meeting into STB's review — the
+  // dictated session, placed where the five sections expect it. Fills only
+  // fields that are still empty, so nothing typed in-app is ever overwritten.
+  const QBR_VERSION = 1
+  useEffect(() => {
+    if (selected !== 'stb' || (Number(qbrSeeded) || 0) >= QBR_VERSION) return
+    const deptByName = Object.fromEntries(deptsFor('stb').map((d) => [d.name, d.id]))
+    setQuarters((prev) => prev.includes('2026-Q3') ? prev : [...prev, '2026-Q3'])
+    setReviews((prev) => {
+      const next = { ...prev }
+      const fill = (q: string, name: string, patch: Review) => {
+        const id = deptByName[name]; if (!id) return
+        const k = `stb|${q}|${id}`
+        const cur = next[k] ?? {}
+        const merged: Review = { ...cur }
+        if ((!cur.bottlenecks || cur.bottlenecks.length === 0) && patch.bottlenecks?.length) merged.bottlenecks = patch.bottlenecks
+        if (!cur.status && patch.status) merged.status = patch.status
+        if (!cur.goals && patch.goals) merged.goals = patch.goals
+        if (!cur.futureGoals && patch.futureGoals) merged.futureGoals = patch.futureGoals
+        if (!cur.summary && patch.summary) merged.summary = patch.summary
+        if (!cur.leadName && patch.leadName) merged.leadName = patch.leadName
+        if (!cur.feedback && patch.feedback) merged.feedback = patch.feedback
+        next[k] = merged
+      }
+      const toItems = (items?: QbrItem[]) => (items ?? []).map((x) => ({ level: 'Med' as Level, ...x, id: uid('li') }))
+      for (const [name, items] of Object.entries(QBR_Q3)) fill('2026-Q3', name, { bottlenecks: toItems(items) })
+      for (const [name, rv] of Object.entries(QBR_Q4)) fill('2026-Q4', name, {
+        status: rv.status, goals: rv.goals, futureGoals: rv.future, summary: rv.summary,
+        leadName: rv.lead, feedback: rv.feedback, bottlenecks: toItems(rv.items),
+      })
+      return next
+    })
+    setQbrSeeded(QBR_VERSION)
     setSavedAt(Date.now())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected])
