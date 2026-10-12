@@ -36,6 +36,7 @@ type Review = {
   team?: Member[]
   hiring?: 'no' | 'maybe' | 'yes'
   sop?: string; costsNotes?: string; goals?: string
+  futureGoals?: string   // where the company wants this department in future quarters
 }
 
 // One-time starting roster for South Texas Builders (names/roles only — photos
@@ -299,8 +300,8 @@ function PrevQuarterPanel({ fromQ, items, carriedTexts, onFix, onViewPrev }: {
     <Card className="p-5">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
         <div>
-          <h2 className="text-lg font-bold leading-tight" style={{ color: 'var(--color-text)' }}>Previous quarter problems</h2>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>From {quarterLabel(fromQ)}</p>
+          <h2 className="text-lg font-bold leading-tight" style={{ color: 'var(--color-text)' }}>1 · Last quarter's bottlenecks</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>From {quarterLabel(fromQ)} — 2 · the progress: how it went, and how each one got fixed</p>
         </div>
         <div className="flex items-center gap-3 text-xs font-semibold">
           {fixed.length > 0 && <span style={{ color: '#16a34a' }}>{fixed.length} fixed</span>}
@@ -589,6 +590,7 @@ export default function Companies() {
     if (r.headcount) out.headcount = r.headcount
     if (r.cost) out.cost = r.cost
     if (r.team && r.team.length) out.team = r.team.map((m) => ({ id: uid('m'), name: m.name, role: m.role, photo: m.photo }))
+    if (r.futureGoals) out.futureGoals = r.futureGoals
     const bl = carryList(r.bottlenecks); if (bl.length) out.bottlenecks = bl
     const pl = carryList(r.problems); if (pl.length) out.problems = pl
     return out
@@ -793,10 +795,20 @@ export default function Companies() {
                 <button onClick={() => confirmDelete({ label: dept.name ? `the “${dept.name}” department` : 'this department', detail: 'This department and its review will be removed.', onConfirm: () => { setDepts((prev) => prev.filter((x) => x.id !== dept.id)); setDeptSel(null); setSavedAt(Date.now()) } })} title="Delete department" aria-label="Delete department" className="shrink-0 rounded-lg p-2 transition" style={{ color: '#dc2626', background: 'color-mix(in srgb, #dc2626 10%, var(--color-surface))' }}><IconTrash width={16} height={16} /></button>
               </div>
             </div>
-            <Section title="Bottlenecks"><ListEditor items={r.bottlenecks} onChange={(items) => set({ bottlenecks: items })} /></Section>
-            <Section title="Problems"><ListEditor items={r.problems} onChange={(items) => set({ problems: items })} /></Section>
+            <Section title="3 · This quarter's bottlenecks — and how we plan to fix them">
+              <ListEditor
+                items={[...(r.bottlenecks ?? []), ...(r.problems ?? [])]}
+                onChange={(items) => set({ bottlenecks: items, problems: [] })}
+              />
+            </Section>
 
-            <Section title="Goals for the quarter"><TextArea value={r.goals} onChange={(v) => set({ goals: v })} rows={6} placeholder="What this department must achieve…" /></Section>
+            <Section title="4 · Goals for the quarter">
+              <TextArea value={r.goals} onChange={(v) => set({ goals: v })} rows={6} placeholder="What this department must achieve this quarter…" />
+            </Section>
+
+            <Section title="5 · Future quarters — where this department is going">
+              <TextArea value={r.futureGoals} onChange={(v) => set({ futureGoals: v })} rows={4} placeholder="The company's goals for this department beyond this quarter…" />
+            </Section>
 
             <Section title="Quick summary">
               <TextArea value={r.summary} onChange={(v) => set({ summary: v })} rows={3} placeholder="Key takeaways this quarter…" />
