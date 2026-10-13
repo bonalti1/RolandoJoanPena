@@ -515,7 +515,19 @@ export default function Companies() {
   const [seeded, setSeeded] = useStore<Record<string, number>>('companies.seeded', {})
   const [qbrSeeded, setQbrSeeded] = useStore<number>('companies.qbr2026q4', 0)
   const [selected, setSelected] = useState<CompanyId | null>(null)
-  const [quarter, setQuarter] = useState<string>(quarters[0] ?? currentQuarter())
+  // Companies always opens on the quarter you're living in. quarters[] keeps
+  // insertion order, so trusting its first entry opened old quarters once a
+  // new one existed — the right default is today's quarter when it's on the
+  // list, otherwise the most recent one recorded.
+  const defaultQuarter = (qs: string[]) =>
+    qs.includes(currentQuarter()) ? currentQuarter() : [...qs].sort((a, b) => b.localeCompare(a))[0] ?? currentQuarter()
+  const [quarter, setQuarter] = useState<string>(() => defaultQuarter(quarters))
+  // Cloud sync can deliver the quarter list after mount — if the selected
+  // quarter isn't on it, snap to the right one rather than showing a ghost.
+  useEffect(() => {
+    if (quarters.length && !quarters.includes(quarter)) setQuarter(defaultQuarter(quarters))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quarters])
   const [deptSel, setDeptSel] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [editDepts, setEditDepts] = useState(false)
