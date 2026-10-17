@@ -1,12 +1,15 @@
-import { useMemo, useState, type SVGProps } from 'react'
+import { useEffect, useMemo, useState, type SVGProps } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Button, Input } from '../components/ui'
 import { IconCheck, IconPayments, IconHome, IconPlus, IconTrash, IconBell } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
-import { todayISO, startOfWeek, toISO } from '../lib/dates'
+import { todayISO, startOfWeek, toISO, addDays, parseDate } from '../lib/dates'
 import { money } from '../lib/format'
 import { OWNER_NAME, OWNER_FIRST } from '../lib/brand'
+import { useToast } from '../lib/toast'
+import { useBotMarks } from '../lib/bots'
+import { BOT_ACCENT, IconBot, BotTaskList, BotStatusNote, useBotTasks } from '../components/BotItems'
 
 type Task = { id: string; text: string; done: boolean; created: number; due?: string }
 type Scope = 'week' | 'weekend' | 'all'
@@ -55,18 +58,20 @@ const IconSlider = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
-/** Shell for a Today's-Focus card: coloured icon + title, a "View all" link, body, and a footer link. */
-function FocusCard({ accent, icon, title, note, viewAllLabel = 'View all', onViewAll, viewAllTo, footerLabel, footerTo, onFooter, children }: {
+/** Shell for a Today's-Focus card: coloured icon + title, a "View all" link, body, and a footer link (both optional). */
+function FocusCard({ accent, icon, title, note, viewAllLabel = 'View all', onViewAll, viewAllTo, footerLabel, footerTo, onFooter, className = '', children }: {
   accent: string; icon: React.ReactNode; title: string; note?: string
   viewAllLabel?: string; onViewAll?: () => void; viewAllTo?: string
-  footerLabel: string; footerTo?: string; onFooter?: () => void
+  footerLabel?: string; footerTo?: string; onFooter?: () => void
+  className?: string
   children: React.ReactNode
 }) {
   const viewAll = viewAllTo
     ? <Link to={viewAllTo} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>{viewAllLabel} →</Link>
-    : <button onClick={onViewAll} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>{viewAllLabel} →</button>
+    : onViewAll ? <button onClick={onViewAll} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>{viewAllLabel} →</button>
+    : null
   return (
-    <div className="rounded-[20px] p-5 flex flex-col" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
+    <div className={`rounded-[20px] p-5 flex flex-col ${className}`} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="shrink-0" style={{ color: accent }}>{icon}</span>
@@ -78,11 +83,13 @@ function FocusCard({ accent, icon, title, note, viewAllLabel = 'View all', onVie
         {viewAll}
       </div>
       <div className="flex-1">{children}</div>
-      <div className="mt-4 pt-3 text-center" style={{ borderTop: '1px solid var(--color-border)' }}>
-        {footerTo
-          ? <Link to={footerTo} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</Link>
-          : <button onClick={onFooter} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</button>}
-      </div>
+      {footerLabel && (
+        <div className="mt-4 pt-3 text-center" style={{ borderTop: '1px solid var(--color-border)' }}>
+          {footerTo
+            ? <Link to={footerTo} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</Link>
+            : <button onClick={onFooter} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</button>}
+        </div>
+      )}
     </div>
   )
 }
@@ -185,6 +192,7 @@ export default function Home() {
   const [homeBoard, setHomeBoard] = useStore<WBoard>('work.home', { backlog: [], weeks: {} })
   const [quick, setQuick] = useState('')
   const confirmDelete = useConfirmDelete()
+  const { toast } = useToast()
 
   const today = todayISO()
   const now = new Date()
@@ -206,22 +214,51 @@ export default function Home() {
   // Daily scorecard the weekly report reads — which non-negotiables were hit
   // on which date, and how many applied that day. Without this, yesterday's
   // checkmarks vanish at midnight and there is nothing to report on.
-  const [, setNnHistory] = useStore<Record<string, { done: string[]; total: number }>>('home.nonneg.history', {})
+  const [nnHistory, setNnHistory] = useStore<Record<string, { done: string[]; total: number }>>('home.nonneg.history', {})
   const [nnDraft, setNnDraft] = useState('')
   const [nnView, setNnView] = useState<Scope>('week')
   const [nnEdit, setNnEdit] = useState(false)
 
   const nnDone = nnToday.date === today ? nnToday.done : []
-  const isWeekend = [0, 6].includes(now.getDay())
   const scopeOf = (n: NonNeg): Scope => n.scope ?? 'all'
-  const appliesToday = (n: NonNeg) => scopeOf(n) === 'all' || scopeOf(n) === (isWeekend ? 'weekend' : 'week')
+  const appliesOn = (n: NonNeg, d: Date) => scopeOf(n) === 'all' || scopeOf(n) === ([0, 6].includes(d.getDay()) ? 'weekend' : 'week')
+  const appliesToday = (n: NonNeg) => appliesOn(n, now)
   const todayList = nonNegs.filter(appliesToday)
   const nnOrdered = [...todayList.filter((n) => nnDone.includes(n.id)), ...todayList.filter((n) => !nnDone.includes(n.id))]
   const firstOpenId = todayList.find((n) => !nnDone.includes(n.id))?.id
+
+  // Bot ticks ("hice gym"). A bot never writes your checklist itself: its tick
+  // waits in Supabase and is folded in here through the same setters a tap
+  // uses, so it syncs like any other check. Past days (the app wasn't opened)
+  // go into the history the weekly report reads.
+  const { marks: botMarks, clear: clearBotMark } = useBotMarks(toISO(addDays(now, -13)))
+  const botTickToday = (id: string) => botMarks.find((m) => m.day === today && m.nonneg_id === id)
+  useEffect(() => {
+    const patch: Record<string, { done: string[]; total: number }> = {}
+    for (const m of botMarks) {
+      const day = parseDate(m.day)
+      const n = nonNegs.find((x) => x.id === m.nonneg_id)
+      if (!day || !n || !appliesOn(n, day) || m.day > today) continue
+      const base = patch[m.day] ?? (m.day === today
+        ? { done: nnDone, total: todayList.length }
+        : nnHistory[m.day] ?? { done: [], total: nonNegs.filter((x) => appliesOn(x, day)).length })
+      if (!base.done.includes(n.id)) patch[m.day] = { ...base, done: [...base.done, n.id] }
+    }
+    if (Object.keys(patch).length === 0) return
+    if (patch[today]) setNnToday({ date: today, done: patch[today].done })
+    setNnHistory((prev) => ({ ...prev, ...patch }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botMarks, nonNegs, nnToday, nnHistory, today])
+
   const toggleNonNeg = (id: string) => {
-    const done = nnDone.includes(id) ? nnDone.filter((x) => x !== id) : [...nnDone, id]
+    const unticking = nnDone.includes(id)
+    const done = unticking ? nnDone.filter((x) => x !== id) : [...nnDone, id]
     setNnToday({ date: today, done })
     setNnHistory((prev) => ({ ...prev, [today]: { done, total: todayList.length } }))
+    // Taking back a bot's tick clears it at the source too, or it would fold straight back in.
+    if (unticking && botTickToday(id)) {
+      void clearBotMark(today, id).then((ok) => { if (!ok) toast("Couldn't reach the cloud — your bot's check stays on for now.") })
+    }
   }
   const editList = nonNegs.filter((n) => scopeOf(n) === nnView)
   const addNonNeg = () => {
@@ -257,6 +294,9 @@ export default function Home() {
     weeks[weekKey] = wk
     return { ...b, weeks }
   })
+
+  // ---- From my bots (os_items) ----
+  const bots = useBotTasks()
 
   // ---- Upcoming bills (pay.bills / pay.cells) ----
   const upcomingBills = useMemo(
@@ -303,7 +343,7 @@ export default function Home() {
           <span style={{ color: 'var(--color-accent)' }}><IconTarget /></span>
           <div>
             <h2 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>Today's Main Focus</h2>
-            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Only what's on today — non-negotiables, business and home.</p>
+            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Only what's on today — non-negotiables, business, home and your bots.</p>
           </div>
         </div>
         <button onClick={() => setNnEdit(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl shrink-0" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
@@ -326,6 +366,7 @@ export default function Home() {
                         {done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
                       </button>
                       <span className="flex-1" style={{ color: done ? 'var(--color-muted)' : 'var(--color-text)' }}>{n.text}</span>
+                      {done && botTickToday(n.id) && <span className="text-[10px] shrink-0" style={{ color: 'var(--color-muted)' }}>via {botTickToday(n.id)!.bot}</span>}
                       {!done && n.id === firstOpenId && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: 'var(--color-accent)', background: 'var(--color-surface)', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }}>Next up</span>}
                     </li>
                   )
@@ -355,6 +396,16 @@ export default function Home() {
             <AddRow accent="#16a34a" placeholder="Add a task for today" onAdd={(t) => addBoardTask(setHomeBoard, t)} />
           </div>
         </FocusCard>
+
+        {/* What your AI bots left you → os_items (hidden when there's no cloud) */}
+        {bots.status !== 'off' && (
+          <FocusCard accent={BOT_ACCENT} icon={<IconBot />} title="De mis bots" className="lg:col-span-3"
+            note={bots.status === 'ready' ? (bots.openCount ? `${bots.openCount} open` : 'All clear') : undefined}>
+            {bots.status === 'ready'
+              ? <BotTaskList items={bots.items} showArea empty="Nothing from your bots right now. Tasks they add show up here." onToggle={bots.toggle} />
+              : <BotStatusNote status={bots.status} />}
+          </FocusCard>
+        )}
       </div>
 
       {/* Upcoming bills */}
