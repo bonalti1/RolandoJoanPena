@@ -45,9 +45,11 @@ export function Button({ variant = 'solid', className = '', style, ...rest }: Bt
 }
 
 export function Input({ className = '', ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  // 16px on phones: iOS Safari zooms the page into any smaller input you tap,
+  // and it then pans side to side. Desktop keeps the compact 14px.
   return (
     <input
-      className={`rounded-xl px-3 py-2 text-sm outline-none w-full ${className}`}
+      className={`rounded-xl px-3 py-2 text-base sm:text-sm outline-none w-full ${className}`}
       style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
       {...rest}
     />

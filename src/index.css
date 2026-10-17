@@ -33,6 +33,12 @@ html, body, #root {
   margin: 0;
 }
 
+/* Keep iOS from enlarging text on its own (e.g. after rotating the phone). */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;

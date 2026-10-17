@@ -126,7 +126,7 @@ function BoardRow({ item, accent, onToggleDone, onToggleUrgent }: { item: WItem;
       <button onClick={onToggleDone} className="h-5 w-5 rounded-md grid place-items-center shrink-0 transition" style={{ border: `2px solid ${urgent ? URGENT : accent}`, background: done ? accent : 'transparent' }} aria-label={done ? 'Mark not done' : 'Complete task'}>
         {done && <IconCheck width={12} height={12} style={{ color: '#fff' }} />}
       </button>
-      <span className="flex-1" style={{ color: done ? 'var(--color-muted)' : urgent ? URGENT : 'var(--color-text)', fontWeight: urgent ? 600 : 400 }}>{item.text}</span>
+      <span className="flex-1 min-w-0" style={{ color: done ? 'var(--color-muted)' : urgent ? URGENT : 'var(--color-text)', fontWeight: urgent ? 600 : 400 }}>{item.text}</span>
       {!done && (
         <button onClick={onToggleUrgent} title={urgent ? 'Remove urgent' : 'Mark urgent'} aria-label={urgent ? 'Remove urgent' : 'Mark urgent'}
           className={`shrink-0 transition ${urgent ? '' : 'opacity-0 group-hover:opacity-60'}`} style={{ color: urgent ? URGENT : 'var(--color-muted)' }}>
@@ -194,7 +194,7 @@ function TodayList({ items, accent, empty, onToggleDone, onToggleUrgent }: {
     <div className="flex items-center gap-2.5">
       <span className="grid place-items-center h-5 w-5 rounded-full shrink-0" style={{ color: accent }}><IconPlus width={15} height={15} /></span>
       <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submit() }} onBlur={submit}
-        placeholder={placeholder} className="flex-1 bg-transparent outline-none text-sm" style={{ color: 'var(--color-text)' }} />
+        placeholder={placeholder} className="flex-1 min-w-0 bg-transparent outline-none text-base sm:text-sm" style={{ color: 'var(--color-text)' }} />
     </div>
   )
 }
@@ -348,7 +348,7 @@ export default function Home() {
   const initials = (profile.name || OWNER_FIRST || 'B').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
-    <div className="fade-up">
+    <div className="fade-up break-words">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
@@ -378,9 +378,9 @@ export default function Home() {
 
       {/* Today's Main Focus */}
       <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2.5">
-          <span style={{ color: 'var(--color-accent)' }}><IconTarget /></span>
-          <div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="shrink-0" style={{ color: 'var(--color-accent)' }}><IconTarget /></span>
+          <div className="min-w-0">
             <h2 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>Today's Main Focus</h2>
             <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Only what's on today — your score, the week's priorities, non-negotiables, business, home and your bots.</p>
           </div>
@@ -390,7 +390,7 @@ export default function Home() {
         </button>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-5 mb-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
         {/* Marcador del día */}
         <FocusCard accent="var(--color-accent)" icon={<IconGauge />} title="Marcador del día" note="Today's non-negotiables">
           <DayScore score={score} streak={streak} />
@@ -414,7 +414,7 @@ export default function Home() {
         </FocusCard>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-5 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         {/* Non-negotiables */}
         <FocusCard accent="var(--color-accent)" icon={<IconCheck width={22} height={22} />} title="Non-negotiables" onViewAll={() => setNnEdit(true)} footerLabel="Manage non-negotiables" onFooter={() => setNnEdit(true)}>
           {todayList.length === 0 ? (
@@ -428,7 +428,7 @@ export default function Home() {
                       <button onClick={() => toggleNonNeg(n.id)} className="h-5 w-5 rounded-md grid place-items-center shrink-0" style={{ border: '2px solid var(--color-accent)', background: done ? 'var(--color-accent)' : 'transparent' }} aria-label={done ? 'Mark not done' : 'Mark done'}>
                         {done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
                       </button>
-                      <span className="flex-1" style={{ color: done ? 'var(--color-muted)' : 'var(--color-text)' }}>{n.text}</span>
+                      <span className="flex-1 min-w-0" style={{ color: done ? 'var(--color-muted)' : 'var(--color-text)' }}>{n.text}</span>
                       {done && botTickToday(n.id) && <span className="text-[10px] shrink-0" style={{ color: 'var(--color-muted)' }}>via {botTickToday(n.id)!.bot}</span>}
                       {isPlanWeek(n) && <button onClick={openReview} className="text-[11px] font-semibold shrink-0" style={{ color: 'var(--color-accent)' }}>Review {isSunday ? '↓' : '→'}</button>}
                       {!done && n.id === firstOpenId && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: 'var(--color-accent)', background: 'var(--color-surface)', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }}>Next up</span>}

@@ -114,7 +114,9 @@ export default function App() {
           <span className="ml-auto text-sm tnum font-medium" style={{ color: 'var(--color-muted)' }}>{time}</span>
         </div>
 
-        <div key={location.pathname} className={`${/^\/(home-tasks|work-tasks|companies)/.test(location.pathname) ? 'max-w-[100rem]' : 'max-w-6xl'} mx-auto px-5 sm:px-6 md:px-10 pt-6 md:pt-8 pb-28 lg:pb-8`}>
+        {/* Home never scrolls sideways: anything wider than the screen is clipped
+            at this padded edge (card shadows stay), so the page can't pan. */}
+        <div key={location.pathname} className={`${/^\/(home-tasks|work-tasks|companies)/.test(location.pathname) ? 'max-w-[100rem]' : 'max-w-6xl'} ${location.pathname === '/home' ? 'overflow-x-clip' : ''} mx-auto px-5 sm:px-6 md:px-10 pt-6 md:pt-8 pb-28 lg:pb-8`}>
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
