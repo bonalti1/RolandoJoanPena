@@ -1,12 +1,21 @@
-import { useMemo, useState, type SVGProps } from 'react'
+import { useEffect, useMemo, useState, type SVGProps } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Button, Input } from '../components/ui'
 import { IconCheck, IconPayments, IconHome, IconPlus, IconTrash, IconBell } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
-import { todayISO, startOfWeek, toISO } from '../lib/dates'
+import { todayISO, startOfWeek, toISO, addDays } from '../lib/dates'
 import { money } from '../lib/format'
 import { OWNER_NAME, OWNER_FIRST } from '../lib/brand'
+import { useToast } from '../lib/toast'
+import { useBotEvents, useBotMarks } from '../lib/bots'
+import { appliesOn as appliesOnDay, dayScore, mondayOf, prioritiesFor, streaks, type Priorities } from '../lib/osCore'
+import {
+  BOT_ACCENT, WAITING_ACCENT, EVENT_ACCENT, IconBot, IconWaiting, IconEvent,
+  BotTaskList, BotStatusNote, BotEventList, useBotTasks,
+} from '../components/BotItems'
+import DayScore from '../components/DayScore'
+import WeekReview, { PrioritiesEditor, PriorityList } from '../components/WeekReview'
 
 type Task = { id: string; text: string; done: boolean; created: number; due?: string }
 type Scope = 'week' | 'weekend' | 'all'
@@ -49,24 +58,36 @@ const IconBriefcase = (p: SVGProps<SVGSVGElement>) => (
     <rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M3 12h18" />
   </svg>
 )
+const IconGauge = (p: SVGProps<SVGSVGElement>) => (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M4 18a8 8 0 1 1 16 0" /><path d="M12 18l4-6" /><circle cx="12" cy="18" r="1.4" fill="currentColor" />
+  </svg>
+)
+const IconStar = (p: SVGProps<SVGSVGElement>) => (
+  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6-4.5-4.2 6.1-.7L12 3Z" />
+  </svg>
+)
 const IconSlider = (p: SVGProps<SVGSVGElement>) => (
   <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" {...p}>
     <path d="M4 6h11M18 6h2M4 12h2M9 12h11M4 18h11M18 18h2" /><circle cx="16" cy="6" r="2" /><circle cx="7" cy="12" r="2" /><circle cx="16" cy="18" r="2" />
   </svg>
 )
 
-/** Shell for a Today's-Focus card: coloured icon + title, a "View all" link, body, and a footer link. */
-function FocusCard({ accent, icon, title, note, viewAllLabel = 'View all', onViewAll, viewAllTo, footerLabel, footerTo, onFooter, children }: {
+/** Shell for a Today's-Focus card: coloured icon + title, a "View all" link, body, and a footer link (both optional). */
+function FocusCard({ accent, icon, title, note, viewAllLabel = 'View all', onViewAll, viewAllTo, footerLabel, footerTo, onFooter, className = '', children }: {
   accent: string; icon: React.ReactNode; title: string; note?: string
   viewAllLabel?: string; onViewAll?: () => void; viewAllTo?: string
-  footerLabel: string; footerTo?: string; onFooter?: () => void
+  footerLabel?: string; footerTo?: string; onFooter?: () => void
+  className?: string
   children: React.ReactNode
 }) {
   const viewAll = viewAllTo
     ? <Link to={viewAllTo} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>{viewAllLabel} →</Link>
-    : <button onClick={onViewAll} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>{viewAllLabel} →</button>
+    : onViewAll ? <button onClick={onViewAll} className="text-xs font-semibold" style={{ color: 'var(--color-accent)' }}>{viewAllLabel} →</button>
+    : null
   return (
-    <div className="rounded-[20px] p-5 flex flex-col" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
+    <div className={`rounded-[20px] p-5 flex flex-col ${className}`} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="shrink-0" style={{ color: accent }}>{icon}</span>
@@ -78,11 +99,13 @@ function FocusCard({ accent, icon, title, note, viewAllLabel = 'View all', onVie
         {viewAll}
       </div>
       <div className="flex-1">{children}</div>
-      <div className="mt-4 pt-3 text-center" style={{ borderTop: '1px solid var(--color-border)' }}>
-        {footerTo
-          ? <Link to={footerTo} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</Link>
-          : <button onClick={onFooter} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</button>}
-      </div>
+      {footerLabel && (
+        <div className="mt-4 pt-3 text-center" style={{ borderTop: '1px solid var(--color-border)' }}>
+          {footerTo
+            ? <Link to={footerTo} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</Link>
+            : <button onClick={onFooter} className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{footerLabel} →</button>}
+        </div>
+      )}
     </div>
   )
 }
@@ -185,6 +208,7 @@ export default function Home() {
   const [homeBoard, setHomeBoard] = useStore<WBoard>('work.home', { backlog: [], weeks: {} })
   const [quick, setQuick] = useState('')
   const confirmDelete = useConfirmDelete()
+  const { toast } = useToast()
 
   const today = todayISO()
   const now = new Date()
@@ -206,23 +230,75 @@ export default function Home() {
   // Daily scorecard the weekly report reads — which non-negotiables were hit
   // on which date, and how many applied that day. Without this, yesterday's
   // checkmarks vanish at midnight and there is nothing to report on.
-  const [, setNnHistory] = useStore<Record<string, { done: string[]; total: number }>>('home.nonneg.history', {})
+  const [nnHistory, setNnHistory] = useStore<Record<string, { done: string[]; total: number }>>('home.nonneg.history', {})
   const [nnDraft, setNnDraft] = useState('')
   const [nnView, setNnView] = useState<Scope>('week')
   const [nnEdit, setNnEdit] = useState(false)
 
   const nnDone = nnToday.date === today ? nnToday.done : []
-  const isWeekend = [0, 6].includes(now.getDay())
   const scopeOf = (n: NonNeg): Scope => n.scope ?? 'all'
-  const appliesToday = (n: NonNeg) => scopeOf(n) === 'all' || scopeOf(n) === (isWeekend ? 'weekend' : 'week')
+  const appliesOn = (n: NonNeg, iso: string) => appliesOnDay(n, iso)
+  const appliesToday = (n: NonNeg) => appliesOn(n, today)
   const todayList = nonNegs.filter(appliesToday)
   const nnOrdered = [...todayList.filter((n) => nnDone.includes(n.id)), ...todayList.filter((n) => !nnDone.includes(n.id))]
   const firstOpenId = todayList.find((n) => !nnDone.includes(n.id))?.id
+
+  // Bot ticks ("hice gym"). A bot never writes your checklist itself: its tick
+  // waits in Supabase and is folded in here through the same setters a tap
+  // uses, so it syncs like any other check. Past days (the app wasn't opened)
+  // go into the history the weekly report reads.
+  const { marks: botMarks, clear: clearBotMark } = useBotMarks(toISO(addDays(now, -13)))
+  const botTickToday = (id: string) => botMarks.find((m) => m.day === today && m.nonneg_id === id)
+  useEffect(() => {
+    const patch: Record<string, { done: string[]; total: number }> = {}
+    for (const m of botMarks) {
+      const n = nonNegs.find((x) => x.id === m.nonneg_id)
+      if (!n || !appliesOn(n, m.day) || m.day > today) continue
+      // A history day stored in some other shape is left alone, not crashed on.
+      const recorded: unknown = nnHistory[m.day]
+      if (m.day !== today && recorded !== undefined && !Array.isArray((recorded as { done?: unknown } | null)?.done)) continue
+      const base = patch[m.day] ?? (m.day === today
+        ? { done: nnDone, total: todayList.length }
+        : nnHistory[m.day] ?? { done: [], total: nonNegs.filter((x) => appliesOn(x, m.day)).length })
+      if (!base.done.includes(n.id)) patch[m.day] = { ...base, done: [...base.done, n.id] }
+    }
+    if (Object.keys(patch).length === 0) return
+    if (patch[today]) setNnToday({ date: today, done: patch[today].done })
+    setNnHistory((prev) => ({ ...prev, ...patch }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botMarks, nonNegs, nnToday, nnHistory, today])
+
   const toggleNonNeg = (id: string) => {
-    const done = nnDone.includes(id) ? nnDone.filter((x) => x !== id) : [...nnDone, id]
+    const unticking = nnDone.includes(id)
+    const done = unticking ? nnDone.filter((x) => x !== id) : [...nnDone, id]
     setNnToday({ date: today, done })
     setNnHistory((prev) => ({ ...prev, [today]: { done, total: todayList.length } }))
+    // Taking back a bot's tick clears it at the source too, or it would fold straight back in.
+    if (unticking && botTickToday(id)) {
+      void clearBotMark(today, id).then((ok) => { if (!ok) toast("Couldn't reach the cloud — your bot's check stays on for now.") })
+    }
   }
+  // ---- Marcador del día: today's % and days in a row at 100% ----
+  const score = dayScore(nonNegs, today, nnDone)
+  const streak = streaks(nnHistory, today, score)
+
+  // ---- The week: 3 priorities (week.priorities) and, on Sunday, the review ----
+  const [priorities, setPriorities] = useStore<Priorities>('week.priorities', {})
+  const thisWeek = mondayOf(today)
+  const weekPriorities = prioritiesFor(priorities, thisWeek)
+  const [editPriorities, setEditPriorities] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const isSunday = now.getDay() === 0
+  const isPlanWeek = (n: NonNeg) => n.id === 'nn_wend_plan' || /plan (the|my|next) week/i.test(n.text)
+  const openReview = () => {
+    if (isSunday) document.getElementById('week-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    else setReviewOpen(true)
+  }
+
+  // ---- Events bots sent for today (os_events) ----
+  const { events: botEvents } = useBotEvents(today)
+  const eventsToday = botEvents.filter((e) => e.day === today)
+
   const editList = nonNegs.filter((n) => scopeOf(n) === nnView)
   const addNonNeg = () => {
     const t = nnDraft.trim()
@@ -257,6 +333,9 @@ export default function Home() {
     weeks[weekKey] = wk
     return { ...b, weeks }
   })
+
+  // ---- From my bots (os_items): waiting for you, and the rest ----
+  const bots = useBotTasks()
 
   // ---- Upcoming bills (pay.bills / pay.cells) ----
   const upcomingBills = useMemo(
@@ -303,12 +382,36 @@ export default function Home() {
           <span style={{ color: 'var(--color-accent)' }}><IconTarget /></span>
           <div>
             <h2 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>Today's Main Focus</h2>
-            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Only what's on today — non-negotiables, business and home.</p>
+            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Only what's on today — your score, the week's priorities, non-negotiables, business, home and your bots.</p>
           </div>
         </div>
         <button onClick={() => setNnEdit(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl shrink-0" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
           <IconSlider /> Customize
         </button>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-5 mb-5">
+        {/* Marcador del día */}
+        <FocusCard accent="var(--color-accent)" icon={<IconGauge />} title="Marcador del día" note="Today's non-negotiables">
+          <DayScore score={score} streak={streak} />
+        </FocusCard>
+
+        {/* This week's 3 priorities (week.priorities) */}
+        <FocusCard accent="#ca8a04" icon={<IconStar />} title="Prioridades de la semana" className="lg:col-span-2"
+          note={`Week of ${new Date(thisWeek + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
+          viewAllLabel={weekPriorities.length && !editPriorities ? 'Edit' : undefined} onViewAll={weekPriorities.length && !editPriorities ? () => setEditPriorities(true) : undefined}
+          footerLabel="Resumen de la semana" onFooter={openReview}>
+          {weekPriorities.length && !editPriorities ? (
+            <PriorityList items={weekPriorities} />
+          ) : (
+            <>
+              {weekPriorities.length === 0 && <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>Pick the 3 things that would make this week a win.</p>}
+              <PrioritiesEditor key={thisWeek} initial={weekPriorities} saveLabel="Save priorities"
+                onCancel={weekPriorities.length ? () => setEditPriorities(false) : undefined}
+                onSave={(items) => { setPriorities((prev) => ({ ...prev, [thisWeek]: items })); setEditPriorities(false) }} />
+            </>
+          )}
+        </FocusCard>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5 mb-6">
@@ -326,6 +429,8 @@ export default function Home() {
                         {done && <IconCheck width={12} height={12} style={{ color: 'var(--color-on-accent)' }} />}
                       </button>
                       <span className="flex-1" style={{ color: done ? 'var(--color-muted)' : 'var(--color-text)' }}>{n.text}</span>
+                      {done && botTickToday(n.id) && <span className="text-[10px] shrink-0" style={{ color: 'var(--color-muted)' }}>via {botTickToday(n.id)!.bot}</span>}
+                      {isPlanWeek(n) && <button onClick={openReview} className="text-[11px] font-semibold shrink-0" style={{ color: 'var(--color-accent)' }}>Review {isSunday ? '↓' : '→'}</button>}
                       {!done && n.id === firstOpenId && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: 'var(--color-accent)', background: 'var(--color-surface)', border: '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)' }}>Next up</span>}
                     </li>
                   )
@@ -355,6 +460,42 @@ export default function Home() {
             <AddRow accent="#16a34a" placeholder="Add a task for today" onAdd={(t) => addBoardTask(setHomeBoard, t)} />
           </div>
         </FocusCard>
+
+        {/* Sunday: the week in review, next to "Plan the week ahead" */}
+        {isSunday && (
+          <div id="week-review" className="lg:col-span-3 scroll-mt-20">
+            <FocusCard accent="var(--color-accent)" icon={<IconStar />} title="Resumen de la semana" note="How the week went — and next week's 3 priorities">
+              <WeekReview today={today} nonNegs={nonNegs} history={nnHistory} todayDone={nnDone}
+                homeBoard={homeBoard} workBoard={workBoard} priorities={priorities} setPriorities={setPriorities} />
+            </FocusCard>
+          </div>
+        )}
+
+        {/* Events a bot sent for today (os_events) — school, the kids' activities */}
+        {eventsToday.length > 0 && (
+          <FocusCard accent={EVENT_ACCENT} icon={<IconEvent />} title="Eventos de hoy" className="lg:col-span-3"
+            note={todayName} viewAllLabel="Calendar" viewAllTo="/calendar">
+            <BotEventList events={eventsToday} />
+          </FocusCard>
+        )}
+
+        {/* Only you can do or approve these (os_items, needs_me) */}
+        {bots.status === 'ready' && bots.waiting.length > 0 && (
+          <FocusCard accent={WAITING_ACCENT} icon={<IconWaiting />} title="Esperando por ti" className="lg:col-span-3"
+            note={bots.waitingCount ? `${bots.waitingCount} need${bots.waitingCount === 1 ? 's' : ''} you — PRs, scripts, purchases, decisions` : 'All handled'}>
+            <BotTaskList items={bots.waiting} accent={WAITING_ACCENT} showArea empty="Nothing waiting on you." onToggle={bots.toggle} />
+          </FocusCard>
+        )}
+
+        {/* What your AI bots left you → os_items (hidden when there's no cloud) */}
+        {bots.status !== 'off' && (
+          <FocusCard accent={BOT_ACCENT} icon={<IconBot />} title="De mis bots" className="lg:col-span-3"
+            note={bots.status === 'ready' ? (bots.openCount ? `${bots.openCount} open` : 'All clear') : undefined}>
+            {bots.status === 'ready'
+              ? <BotTaskList items={bots.tasks} showArea empty="Nothing from your bots right now. Tasks they add show up here." onToggle={bots.toggle} />
+              : <BotStatusNote status={bots.status} />}
+          </FocusCard>
+        )}
       </div>
 
       {/* Upcoming bills */}
@@ -378,6 +519,21 @@ export default function Home() {
         )}
         <Link to="/finances" className="mt-4 block text-center py-2.5 rounded-xl text-sm font-semibold" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>Manage bills &amp; finances →</Link>
       </Card>
+
+      {/* Weekly review, any day of the week */}
+      {reviewOpen && (
+        <>
+          <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setReviewOpen(false)} />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[92%] max-w-2xl max-h-[90vh] overflow-y-auto p-5 rounded-2xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Resumen de la semana</h3>
+              <button onClick={() => setReviewOpen(false)} className="text-lg" style={{ color: 'var(--color-muted)' }} aria-label="Close">✕</button>
+            </div>
+            <WeekReview today={today} nonNegs={nonNegs} history={nnHistory} todayDone={nnDone}
+              homeBoard={homeBoard} workBoard={workBoard} priorities={priorities} setPriorities={setPriorities} />
+          </div>
+        </>
+      )}
 
       {/* Customize non-negotiables modal */}
       {nnEdit && (

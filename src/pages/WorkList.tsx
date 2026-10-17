@@ -7,6 +7,7 @@ import { useConfirmDelete } from '../lib/confirmDelete'
 import { startOfWeek, addDays, toISO, todayISO, isoWeek, formatWeekRange } from '../lib/dates'
 import { COMPANIES, companyById, type CompanyId } from '../lib/companies'
 import { money } from '../lib/format'
+import { BotHomeTasks } from '../components/BotItems'
 
 type Bill = { id: string; name: string; amount: number; dueDay?: number }
 const ordinalDay = (n: number) => { const s = ['th', 'st', 'nd', 'rd']; const v = n % 100; return `${n}${s[(v - 20) % 10] || s[v] || s[0]}` }
@@ -560,6 +561,9 @@ export default function WorkList({ fixedBoard }: { fixedBoard?: Tab }) {
           {DAYS.map((day, idx) => renderDay(day, idx, false))}
         </div>
       )}
+
+      {/* Home tasks your bots added (os_items, area 'casa') — only when there are some */}
+      {!isWork && <BotHomeTasks />}
 
       {/* Master List */}
       <div
