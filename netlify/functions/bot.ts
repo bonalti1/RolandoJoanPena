@@ -12,6 +12,7 @@
  *  • os_events — add a dated event (school, the kids' activities).
  *  • os_nonneg_marks — tick one of TODAY's existing non-negotiables, by hand
  *    or from today's Strava workouts.
+ *  • os_bot_activity — set_status: a bot says what it's doing (Oficina tab).
  *  • app_state — READ ONLY: today's non-negotiables and your streak, today's
  *    home and work tasks, the week's summary and your 3 priorities. This
  *    function never writes app_state. The app on your devices stays its only
@@ -354,6 +355,20 @@ async function syncStravaNow(cfg: Config) {
   return syncStrava(cfg, env)
 }
 
+const BOT_STATUSES = ['working', 'idle', 'paused']
+
+/** A bot reports what it's doing — shown live on the Oficina tab. Insert only. */
+async function setStatus(cfg: Config, body: Json) {
+  const bot = text(body, 'bot', 60, true)
+  const status = typeof body.status === 'string' ? body.status.trim().toLowerCase() : ''
+  if (!BOT_STATUSES.includes(status)) throw new ApiError(400, 'bad_status', '"status" must be one of: working, idle, paused.')
+  const activity = text(body, 'activity', 500, false)
+  const [row] = await db<{ id: string; bot: string; status: string; activity: string; created_at: string }>(
+    cfg, 'POST', 'os_bot_activity', { select: 'id,bot,status,activity,created_at' },
+    [{ user_id: cfg.owner, bot, status, activity }], 'return=representation')
+  return { ok: true, activity: row }
+}
+
 const ACTIONS: Record<string, (cfg: Config, body: Json) => Promise<unknown>> = {
   add_task: (cfg, body) => addTask(cfg, body),
   add_home_task: (cfg, body) => addTask(cfg, body, 'casa'),
@@ -364,6 +379,7 @@ const ACTIONS: Record<string, (cfg: Config, body: Json) => Promise<unknown>> = {
   add_event: addEvent,
   week_summary: weekSummaryView,
   sync_strava: (cfg) => syncStravaNow(cfg),
+  set_status: setStatus,
 }
 
 // ── Handler ─────────────────────────────────────────────────────────────────
