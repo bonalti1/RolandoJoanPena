@@ -254,6 +254,9 @@ export default function Home() {
     for (const m of botMarks) {
       const n = nonNegs.find((x) => x.id === m.nonneg_id)
       if (!n || !appliesOn(n, m.day) || m.day > today) continue
+      // A history day stored in some other shape is left alone, not crashed on.
+      const recorded: unknown = nnHistory[m.day]
+      if (m.day !== today && recorded !== undefined && !Array.isArray((recorded as { done?: unknown } | null)?.done)) continue
       const base = patch[m.day] ?? (m.day === today
         ? { done: nnDone, total: todayList.length }
         : nnHistory[m.day] ?? { done: [], total: nonNegs.filter((x) => appliesOn(x, m.day)).length })

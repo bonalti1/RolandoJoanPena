@@ -12,13 +12,18 @@
  * (`sync_strava` in functions/bot.ts).
  *
  * Keys: STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN in the
- * environment. Strava hands out a new refresh token as it refreshes and the
- * old one stops working, so the latest one is kept in os_tokens (a table only
- * the service key can read). Putting a new STRAVA_REFRESH_TOKEN in Netlify
- * always wins over the saved one.
+ * environment — from a Strava API app used only by the OS. Strava hands out a
+ * new refresh token as it refreshes and the old one stops working, so the
+ * latest one is kept in os_tokens (a table only the service key can read).
+ * Putting a new STRAVA_REFRESH_TOKEN in Netlify always wins over the saved one.
+ *
+ * When Strava refuses the login, an open "Reconnect Strava" task (needs_me)
+ * lands in "Esperando por ti", so it's seen on Home and not only in the logs.
  */
 import { createHash } from 'node:crypto'
 import { ApiError, db, fold, nonNegsToday, readState, tickNonNeg, today, type Config } from './server'
+
+const RECONNECT_TITLE = 'Reconnect Strava'
 
 const STRAVA = 'https://www.strava.com'
 const MIN_MINUTES = 10
@@ -72,7 +77,9 @@ async function accessToken(cfg: Config, env: StravaEnv): Promise<string> {
   if (!tokens && current && current.refresh_token !== env.refreshToken) tokens = await refresh(env, env.refreshToken)
   if (!tokens) throw new ApiError(503, 'strava_auth', 'Strava refused the login — get a new STRAVA_REFRESH_TOKEN (docs/BOT_API.md).')
 
-  await db(cfg, 'POST', 'os_tokens', { on_conflict: 'user_id,provider' }, [{
+  // Strava has already retired the old refresh token: this new one is the only
+  // copy. One retry, then shout — losing it means logging in to Strava again.
+  const save = () => db(cfg, 'POST', 'os_tokens', { on_conflict: 'user_id,provider' }, [{
     user_id: cfg.owner,
     provider: 'strava',
     refresh_token: tokens.refresh_token,
@@ -81,10 +88,57 @@ async function accessToken(cfg: Config, env: StravaEnv): Promise<string> {
     seed_hash: seed,
     updated_at: new Date().toISOString(),
   }], 'resolution=merge-duplicates,return=minimal')
+  try {
+    await save()
+  } catch {
+    await new Promise((r) => setTimeout(r, 500))
+    try {
+      await save()
+    } catch (e) {
+      console.error(
+        '🚨 STRAVA TOKEN NOT SAVED 🚨 Strava issued a new refresh token and saving it to os_tokens failed twice ' +
+        `(${e instanceof ApiError ? e.code : (e as Error)?.message}). The old token no longer works, so the next ` +
+        'refresh will fail: put a fresh STRAVA_REFRESH_TOKEN in Netlify (docs/BOT_API.md → Strava) and redeploy.',
+      )
+    }
+  }
   return tokens.access_token
 }
 
+/**
+ * One open "Reconnect Strava" in "Esperando por ti", however many syncs fail.
+ * Never hides the original error: if this fails too, it's only logged.
+ */
+async function askToReconnect(cfg: Config, reason: string) {
+  try {
+    const open = await db<{ id: string }>(cfg, 'GET', 'os_items', {
+      select: 'id', user_id: `eq.${cfg.owner}`, bot: 'eq.strava', title: `eq.${RECONNECT_TITLE}`, status: 'eq.abierta', limit: '1',
+    })
+    if (open.length) return
+    await db(cfg, 'POST', 'os_items', {}, [{
+      user_id: cfg.owner,
+      title: RECONNECT_TITLE,
+      notes: `${reason} Until then your workouts won't tick the exercise non-negotiable. Check this off once it's done.`,
+      bot: 'strava',
+      area: 'salud',
+      priority: 'alta',
+      needs_me: true,
+    }], 'return=minimal')
+  } catch (e) {
+    console.error('strava: could not add "Reconnect Strava" to Esperando por ti:', e instanceof ApiError ? e.code : (e as Error)?.message)
+  }
+}
+
 export async function syncStrava(cfg: Config, env: StravaEnv) {
+  try {
+    return await sync(cfg, env)
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'strava_auth') await askToReconnect(cfg, e.message)
+    throw e
+  }
+}
+
+async function sync(cfg: Config, env: StravaEnv) {
   const t = today(cfg.tz)
   const token = await accessToken(cfg, env)
   const after = Math.floor(Date.now() / 1000) - 36 * 3600

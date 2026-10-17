@@ -186,7 +186,10 @@ async function checkIns(cfg: Config, state: Record<string, unknown>, t: Today, f
   const history: Record<string, HistDay> = { ...raw }
   for (const m of marks) {
     if (m.day >= t.date || !list.some((n) => n.id === m.nonneg_id && appliesOn(n, m.day))) continue
-    const h = history[m.day] ?? { done: [], total: nonNegsOn(list, m.day).length }
+    // A day the history holds in some other shape is left as it is, not crashed on.
+    const recorded: unknown = history[m.day]
+    if (recorded !== undefined && !(isObj(recorded) && Array.isArray(recorded.done))) continue
+    const h = (recorded as HistDay | undefined) ?? { done: [], total: nonNegsOn(list, m.day).length }
     if (!h.done.includes(m.nonneg_id)) history[m.day] = { ...h, done: [...h.done, m.nonneg_id] }
   }
   const botToday = new Map(marks.filter((m) => m.day === t.date).map((m) => [m.nonneg_id, m.bot]))

@@ -233,7 +233,8 @@ export default function Calendar() {
                   <span className="text-xs font-semibold w-[72px] shrink-0 tnum" style={{ color: 'var(--color-accent)' }}>{e.start_time ? fmtTime(e.start_time) : 'All day'}</span>
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{e.title}</span>
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{AREA_LABEL[e.area]} · bot</span>
-                  <button onClick={() => confirmRemoveBot(e)} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }} aria-label="Remove event"><IconTrash width={14} height={14} /></button>
+                  {/* Always shown on touch screens (no hover there); on a mouse it appears on hover. */}
+                  <button onClick={() => confirmRemoveBot(e)} className="shrink-0 p-1 -m-1 opacity-60 [@media(hover:hover)]:opacity-0 group-hover:opacity-60 focus-visible:opacity-100" style={{ color: 'var(--color-muted)' }} aria-label={`Remove ${e.title}`}><IconTrash width={14} height={14} /></button>
                 </li>
               ))}
               {dayEvents(selected).map((e) => (

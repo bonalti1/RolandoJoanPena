@@ -382,7 +382,7 @@ Toda respuesta trae `"ok"`. Si es `false`, también trae `error` (un código) y
 | 502 | `database_error`, `strava_error` | Supabase o Strava no contestaron bien. Revisa los logs de la función en Netlify. |
 | 503 | `not_configured` | Falta una variable de entorno, o la llave de Supabase no es la secreta (el `message` dice cuál). |
 | 503 | `not_set_up` | Todavía no corres la migración en Supabase (o corriste una versión anterior: córrela otra vez). |
-| 503 | `strava_auth` | Strava no aceptó tu login: saca un `STRAVA_REFRESH_TOKEN` nuevo (abajo). |
+| 503 | `strava_auth` | Strava no aceptó tu login: saca un `STRAVA_REFRESH_TOKEN` nuevo (abajo). También aparece "Reconnect Strava" en Esperando por ti. |
 
 ---
 
@@ -397,9 +397,9 @@ Netlify → tu sitio → **Site configuration → Environment variables**.
 | `BOT_USER_ID` | Sí | Tu id de usuario. Supabase → **Authentication → Users** → tu correo → **User UID**. Todo lo que hagan los bots queda a tu nombre. |
 | `SUPABASE_URL` | No | Si no la pones, usa `VITE_SUPABASE_URL`, que ya tienes. |
 | `BOT_TIMEZONE` | No | Qué es "hoy" para los bots y para Strava. Si no la pones: `America/Chicago` (hora de Texas). |
-| `STRAVA_CLIENT_ID` | Para Strava | El número de tu app de Strava (ver abajo). |
-| `STRAVA_CLIENT_SECRET` | Para Strava | El secreto de tu app de Strava. |
-| `STRAVA_REFRESH_TOKEN` | Para Strava | Tu permiso para leer tus entrenos (ver abajo). |
+| `STRAVA_CLIENT_ID` | Para Strava | El número de la app de Strava **solo del OS** (ver abajo). Nunca el de tu otro bot. |
+| `STRAVA_CLIENT_SECRET` | Para Strava | El secreto de esa misma app del OS. |
+| `STRAVA_REFRESH_TOKEN` | Para Strava | Tu permiso para que la app del OS lea tus entrenos (ver abajo). |
 
 > ⚠️ **Muy importante:**
 > - **Nunca** le pongas `VITE_` al principio a ninguna de estas. Todo lo que
@@ -410,20 +410,51 @@ Netlify → tu sitio → **Site configuration → Environment variables**.
 > - La llave de servicio de Supabase salta tu seguridad (RLS). Solo vive en
 >   Netlify; nunca en el código, nunca en un bot.
 
-### Cómo sacar las llaves de Strava (una sola vez, ~10 minutos)
+### Cómo sacar las llaves de Strava (una sola vez, ~15 minutos)
 
-1. Entra a <https://www.strava.com/settings/api> y crea una app ("My API
-   Application"). En **Authorization Callback Domain** pon `localhost`.
-   Copia el **Client ID** y el **Client Secret** → son `STRAVA_CLIENT_ID` y
-   `STRAVA_CLIENT_SECRET`.
-2. Abre esta dirección en tu navegador (cambia `TU_CLIENT_ID`) y dale
-   **Authorize**:
+> ⚠️ **Usa una app de Strava SOLO para el OS, con su propio Client ID y Client
+> Secret.** No reuses la app ni el token de tu otro bot de Strava. Strava
+> cambia el refresh token cada vez que lo renueva y el viejo deja de servir:
+> si el OS y tu otro bot renuevan el **mismo** token, el que renueve primero
+> deja al otro sin acceso. Con apps separadas, cada uno tiene sus propios
+> tokens y nunca se pisan.
+
+**Primero, revisa si tu cuenta ya tiene una app.** Strava permite **una sola
+app de API por cuenta**. Entra a <https://www.strava.com/settings/api> con tu
+cuenta de siempre:
+
+- **Si te deja crear una app** (tu otro bot usa la app de otro servicio, no
+  una tuya): créala ahí mismo para el OS y salta al paso 4.
+- **Si ya ves una app ahí** (la de tu otro bot): **no la toques ni copies sus
+  llaves.** Haz los pasos 1 a 3 para crear la del OS con una segunda cuenta.
+
+**Crear la app del OS con una segunda cuenta**
+
+1. Cierra sesión en Strava y crea una cuenta nueva y gratis con otro correo
+   (por ejemplo `tucorreo+os@…`). Esa cuenta solo es "dueña" de la app; tus
+   entrenos siguen en tu cuenta de siempre.
+2. Con esa cuenta nueva, entra a <https://www.strava.com/settings/api> y crea
+   la app, por ejemplo "RJP OS". En **Authorization Callback Domain** pon
+   `localhost`.
+3. En esa misma página, sube la **capacidad de atletas** (Athlete Capacity)
+   de 1 a más. Las apps nuevas empiezan en "Single Player Mode", donde **solo
+   la cuenta dueña** se puede conectar; Strava deja subirla a 10 desde ahí
+   mismo, sin revisión. Si no ves la opción, pídela con el formulario de
+   desarrolladores de Strava antes de seguir.
+
+**Conectar la app del OS con tu cuenta de siempre**
+
+4. Copia el **Client ID** y el **Client Secret** de la app **del OS** → son
+   `STRAVA_CLIENT_ID` y `STRAVA_CLIENT_SECRET`.
+5. Cierra sesión y entra a Strava con **tu cuenta de siempre** (la que tiene
+   tus entrenos). Abre esta dirección (cambia `TU_CLIENT_ID` por el de la app
+   del OS) y dale **Authorize**:
    ```text
    https://www.strava.com/oauth/authorize?client_id=TU_CLIENT_ID&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=activity:read_all
    ```
-3. Te manda a una página que "no carga" — está bien. Copia de la barra de
+6. Te manda a una página que "no carga" — está bien. Copia de la barra de
    direcciones lo que viene después de `code=` (hasta el `&`).
-4. En tu terminal (cambia los tres valores):
+7. En tu terminal (cambia los tres valores, con el Client ID y Secret **del OS**):
    ```bash
    curl -X POST https://www.strava.com/oauth/token \
      -d client_id=TU_CLIENT_ID \
@@ -431,13 +462,28 @@ Netlify → tu sitio → **Site configuration → Environment variables**.
      -d code=EL_CODE_QUE_COPIASTE \
      -d grant_type=authorization_code
    ```
-5. De la respuesta, copia `refresh_token` → es tu `STRAVA_REFRESH_TOKEN`.
+8. De la respuesta, copia `refresh_token` → es tu `STRAVA_REFRESH_TOKEN`.
+   En la misma respuesta, `athlete` debe ser **tú** (tu cuenta de siempre), no
+   la cuenta nueva.
 
-> Strava cambia ese token cada vez que lo renueva y el viejo deja de servir.
-> Por eso la app guarda el más reciente en la tabla `os_tokens` de Supabase,
-> que **solo** las funciones del servidor pueden leer (ni la app ni el
-> navegador). Si algún día pones un `STRAVA_REFRESH_TOKEN` nuevo en Netlify,
-> ese gana.
+Pon las **tres** variables juntas en Netlify. Si algún día cambias de app,
+cambia las tres a la vez; un token de una app no sirve con el Client ID de
+otra.
+
+> Strava cambia el refresh token cada vez que lo renueva y el viejo deja de
+> servir. Por eso el OS guarda el más reciente en la tabla `os_tokens` de
+> Supabase, que **solo** las funciones del servidor pueden leer (ni la app ni
+> el navegador). Si algún día pones un `STRAVA_REFRESH_TOKEN` nuevo en
+> Netlify, ese gana. Si guardar el token nuevo falla, el OS lo reintenta una
+> vez; si vuelve a fallar, deja un error muy visible en los logs de la función
+> ("STRAVA TOKEN NOT SAVED") y la siguiente sincronización te pedirá
+> reconectar.
+
+**Si Strava deja de aceptar el login**, no tienes que buscar en los logs:
+aparece **"Reconnect Strava"** en **Inicio → Esperando por ti** (área salud,
+del bot `strava`). Saca un `STRAVA_REFRESH_TOKEN` nuevo con los pasos 5 a 8,
+ponlo en Netlify, haz **Trigger deploy** y palomea el aviso. Nunca se junta
+más de un aviso abierto.
 
 ---
 
@@ -456,7 +502,8 @@ Netlify → tu sitio → **Site configuration → Environment variables**.
    y tu User UID (`BOT_USER_ID`). Ver la tabla de arriba.
 4. **Crea tu llave de bots:** `openssl rand -hex 32` → esa es tu `BOT_API_KEY`.
    Guárdala en tu gestor de contraseñas.
-5. **(Opcional) Strava:** saca las 3 llaves (sección de arriba).
+5. **(Opcional) Strava:** crea la app **solo del OS** y saca sus 3 llaves
+   (sección de arriba). No uses las de tu otro bot de Strava.
 6. **Ponlas en Netlify** (Environment variables): `BOT_API_KEY`,
    `SUPABASE_SERVICE_ROLE_KEY`, `BOT_USER_ID` y, si quieres Strava,
    `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` y `STRAVA_REFRESH_TOKEN`.
