@@ -52,7 +52,7 @@ export function PriorityList({ items }: { items: string[] }) {
       {items.map((p, i) => (
         <li key={i} className="flex items-start gap-3 text-sm">
           <span className="h-6 w-6 rounded-full grid place-items-center text-xs font-bold shrink-0" style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}>{i + 1}</span>
-          <span className="pt-0.5" style={{ color: 'var(--color-text)' }}>{p}</span>
+          <span className="pt-0.5 min-w-0" style={{ color: 'var(--color-text)' }}>{p}</span>
         </li>
       ))}
     </ol>
