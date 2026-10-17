@@ -4,6 +4,8 @@ import { IconPlus, IconTrash } from '../components/icons'
 import { useStore, uid } from '../lib/store'
 import { useConfirmDelete } from '../lib/confirmDelete'
 import { taskAgenda, agendaByDate } from '../lib/agenda'
+import { AREA_LABEL, useBotEvents } from '../lib/bots'
+import { useToast } from '../lib/toast'
 
 type Event = { id: string; date: string; title: string; time?: string }
 type GEvent = { date: string; time?: string; title: string; location?: string; allDay?: boolean }
@@ -20,6 +22,7 @@ const fmtTime = (t?: string) => {
 
 export default function Calendar() {
   const confirmDelete = useConfirmDelete()
+  const { toast } = useToast()
   const today = new Date()
   const todayStr = iso(today.getFullYear(), today.getMonth(), today.getDate())
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() })
@@ -51,6 +54,15 @@ export default function Calendar() {
   // Refresh once on open if already connected.
   useEffect(() => { if (icsConf.url) doSync(icsConf.url, false) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const disconnect = () => { setIcsConf({}); setGoogleEvents([]); setIcsUrl(''); setSyncErr('') }
+
+  // Events your bots sent (os_events) — school, the kids' activities. Read-only
+  // here apart from removing one; they live in Supabase, not in your calendar list.
+  const { events: botEvents, remove: removeBotEvent } = useBotEvents()
+  const dayBot = (d: string) => botEvents.filter((e) => e.day === d).sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''))
+  const confirmRemoveBot = (e: { id: string; title: string }) => confirmDelete({
+    label: `“${e.title}”`, detail: 'This event your bot added will be removed.',
+    onConfirm: () => { void removeBotEvent(e.id).then((ok) => { if (!ok) toast("Couldn't remove it — check your connection.") }) },
+  })
 
   const taskMap = useMemo(() => agendaByDate(taskAgenda()), [])
   const dayTasks = (d: string) => taskMap[d] ?? []
@@ -87,12 +99,13 @@ export default function Calendar() {
     const items: { date: string; time?: string; title: string; tag: string; id?: string }[] = []
     events.forEach((e) => { if (e.date >= todayStr) items.push({ date: e.date, time: e.time, title: e.title, tag: 'Event', id: e.id }) })
     googleEvents.forEach((e) => { if (e.date >= todayStr) items.push({ date: e.date, time: e.time, title: e.title, tag: 'Google' }) })
+    botEvents.forEach((e) => { if (e.day >= todayStr) items.push({ date: e.day, time: e.start_time ?? undefined, title: e.title, tag: AREA_LABEL[e.area] }) })
     taskAgenda().forEach((a) => { if (a.date >= todayStr && !a.done) items.push({ date: a.date, title: a.title, tag: a.source }) })
     items.sort((a, b) => (a.date + (a.time ?? '')).localeCompare(b.date + (b.time ?? '')))
     const byDate: Record<string, typeof items> = {}
     items.forEach((it) => (byDate[it.date] ??= []).push(it))
     return byDate
-  }, [events, googleEvents, todayStr])
+  }, [events, googleEvents, botEvents, todayStr])
 
   return (
     <div>
@@ -177,7 +190,7 @@ export default function Calendar() {
               {grid.map((d, i) => {
                 if (d === null) return <div key={i} />
                 const dateStr = iso(view.y, view.m, d)
-                const markers = dayEvents(dateStr).length + dayTasks(dateStr).length + dayGoogle(dateStr).length
+                const markers = dayEvents(dateStr).length + dayBot(dateStr).length + dayTasks(dateStr).length + dayGoogle(dateStr).length
                 const isToday = dateStr === todayStr
                 const isSel = dateStr === selected
                 return (
@@ -186,7 +199,7 @@ export default function Calendar() {
                     <span className="text-sm font-semibold" style={{ color: isSel ? 'var(--color-on-accent)' : 'var(--color-text)' }}>{d}</span>
                     <div className="flex flex-wrap gap-0.5 mt-auto">
                       {Array.from({ length: Math.min(markers, 4) }).map((_, k) => (
-                        <span key={k} className="h-1.5 w-1.5 rounded-full" style={{ background: isSel ? 'var(--color-on-accent)' : 'var(--color-accent)', opacity: k < dayEvents(dateStr).length ? 1 : 0.5 }} />
+                        <span key={k} className="h-1.5 w-1.5 rounded-full" style={{ background: isSel ? 'var(--color-on-accent)' : 'var(--color-accent)', opacity: k < dayEvents(dateStr).length + dayBot(dateStr).length ? 1 : 0.5 }} />
                       ))}
                     </div>
                   </button>
@@ -205,7 +218,7 @@ export default function Calendar() {
               <Button type="submit"><IconPlus width={16} height={16} /></Button>
             </form>
             <ul className="flex flex-col gap-1">
-              {dayEvents(selected).length === 0 && dayTasks(selected).length === 0 && dayGoogle(selected).length === 0 && (
+              {dayEvents(selected).length === 0 && dayBot(selected).length === 0 && dayTasks(selected).length === 0 && dayGoogle(selected).length === 0 && (
                 <li className="text-sm py-4 text-center" style={{ color: 'var(--color-muted)' }}>Nothing planned.</li>
               )}
               {dayGoogle(selected).map((e, i) => (
@@ -213,6 +226,14 @@ export default function Calendar() {
                   <span className="text-xs font-semibold w-[72px] shrink-0 tnum" style={{ color: 'var(--color-accent)' }}>{e.allDay ? 'All day' : fmtTime(e.time)}</span>
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{e.title}</span>
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>Google</span>
+                </li>
+              ))}
+              {dayBot(selected).map((e) => (
+                <li key={e.id} className="group flex items-center gap-2 py-1.5 px-2 rounded-lg" title={[e.notes, `Added by ${e.bot}`].filter(Boolean).join(' — ')}>
+                  <span className="text-xs font-semibold w-[72px] shrink-0 tnum" style={{ color: 'var(--color-accent)' }}>{e.start_time ? fmtTime(e.start_time) : 'All day'}</span>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{e.title}</span>
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-muted)' }}>{AREA_LABEL[e.area]} · bot</span>
+                  <button onClick={() => confirmRemoveBot(e)} className="opacity-0 group-hover:opacity-60" style={{ color: 'var(--color-muted)' }} aria-label="Remove event"><IconTrash width={14} height={14} /></button>
                 </li>
               ))}
               {dayEvents(selected).map((e) => (
