@@ -49,7 +49,7 @@ let channelSeq = 0
 type Load<T> = () => PromiseLike<{ data: T[] | null; error: { code?: string } | null }>
 
 /** One table's rows for the signed-in user, kept live. */
-function useLiveRows<T>(table: string, load: Load<T>, reloadKey = '') {
+export function useLiveRows<T>(table: string, load: Load<T>, reloadKey = '') {
   const [rows, setRows] = useState<T[]>([])
   const [status, setStatus] = useState<BotStatus>(() => (supabase && !isDelegating() ? 'loading' : 'off'))
   const loadRef = useRef(load)
@@ -170,6 +170,18 @@ export function useBotEvents(fromDay?: string) {
   }
 
   return { events: rows, status, remove }
+}
+
+export type BotActivity = { id: string; bot: string; status: 'working' | 'idle' | 'paused'; activity: string; created_at: string }
+
+/** What each bot has reported (os_bot_activity, via the bot function's set_status), newest first, kept live. */
+export function useBotActivity() {
+  const { rows, status } = useLiveRows<BotActivity>('os_bot_activity', () =>
+    supabase!.from('os_bot_activity').select('id,bot,status,activity,created_at')
+      .eq('user_id', currentUserId()!)
+      .order('created_at', { ascending: false })
+      .limit(500))
+  return { activity: rows, status }
 }
 
 /** Bot tasks finished since `fromIso` (a timestamp) — for the week's summary. */

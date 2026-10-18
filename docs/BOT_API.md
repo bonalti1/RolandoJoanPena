@@ -23,6 +23,19 @@ dirección protegida con una llave (`BOT_API_KEY`).
 | Agregar un evento (escuela, actividades de los niños) | `add_event` |
 | Leer el resumen de la semana | `week_summary` |
 | Revisar Strava ahora y marcar gym/ejercicio si entrenaste | `sync_strava` |
+| Avisar qué está haciendo un bot (pestaña **Oficina**) | `set_status` |
+
+`set_status` guarda una fila en `os_bot_activity` (no toca `app_state`):
+
+```bash
+curl -X POST "$URL" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "set_status", "bot": "scheduling", "status": "working", "activity": "Reagendando citas de mañana"}'
+```
+
+`bot`: bonalti, grok, scheduling, ranch, appt, accounting, founder, ceo, salud, familia, research, email, tc, closers, selections, youtube, news.
+`status`: `working`, `idle` o `paused`. `activity` es opcional (máx. 500 caracteres).
 
 - **Solo lectura:** tus no negociables, tus check-ins, tus tableros de casa y
   trabajo y tus 3 prioridades. El bot los puede ver, pero **no** cambiarlos.

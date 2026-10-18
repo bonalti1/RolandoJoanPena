@@ -15,6 +15,7 @@ import { useStore } from './store'
 import { isHiddenTab } from './brand'
 
 export const HIDEABLE_PAGES: { path: string; label: string }[] = [
+  { path: 'oficina', label: 'Oficina' },
   { path: 'home-tasks', label: 'Home tasks' },
   { path: 'work-tasks', label: 'Work tasks' },
   { path: 'companies', label: 'Companies' },

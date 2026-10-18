@@ -22,7 +22,18 @@ export const IconHome = (p: P) => (
   </svg>
 )
 
-export const IconMenu = (p: P) => (
+export const IconOffice = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="5" y="8" width="14" height="11" rx="3" />
+    <path d="M12 8V5" />
+    <circle cx="12" cy="4" r="1" />
+    <circle cx="9.2" cy="13" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="14.8" cy="13" r="1.1" fill="currentColor" stroke="none" />
+    <path d="M3 21h18" />
+  </svg>
+)
+
+export const IconMenu =(p: P) => (
   <svg {...base(p)}><path d="M3 6h18M3 12h18M3 18h18" /></svg>
 )
 
