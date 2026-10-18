@@ -11,17 +11,17 @@ import { useBotActivity, useBotItems, type BotActivity, type BotItem } from './b
  */
 
 export type OfficeState = 'working' | 'needs' | 'paused'
-export type OfficeBotDef = { key: string; name: string; main: boolean }
+export type OfficeBotDef = { key: string; name: string; main: boolean; short?: string }
 
 export const MAIN_BOTS: OfficeBotDef[] = [
-  { key: 'bonalti', name: 'Bonalti bot', main: true },
-  { key: 'grok', name: 'Grok Bot', main: true },
-  { key: 'scheduling', name: 'Scheduling', main: true },
-  { key: 'ranch', name: 'Ranch Deals', main: true },
-  { key: 'appt', name: 'Appt Setting', main: true },
-  { key: 'accounting', name: 'Accounting', main: true },
-  { key: 'founder', name: 'Founder Assistant', main: true },
-  { key: 'ceo', name: 'CEO Assistant', main: true },
+  { key: 'bonalti', name: 'Bonalti bot', main: true, short: 'Bonalti' },
+  { key: 'grok', name: 'Grok Bot', main: true, short: 'Grok' },
+  { key: 'scheduling', name: 'Scheduling', main: true, short: 'Agenda' },
+  { key: 'ranch', name: 'Ranch Deals', main: true, short: 'Ranch' },
+  { key: 'appt', name: 'Appt Setting', main: true, short: 'Citas' },
+  { key: 'accounting', name: 'Accounting', main: true, short: 'Contabilidad' },
+  { key: 'founder', name: 'Founder Assistant', main: true, short: 'Founder' },
+  { key: 'ceo', name: 'CEO Assistant', main: true, short: 'CEO' },
 ]
 export const OTHER_BOTS: OfficeBotDef[] = [
   { key: 'salud', name: 'Salud', main: false },

@@ -32,6 +32,7 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const time = useClockShort()
+  const dark = location.pathname === '/oficina'
   const guest = isDelegating() ? actingOwner() : null
   const { isHidden } = useHiddenTabs()
   /** A hidden page's route bounces home, so it can't be reached by URL. */
@@ -105,10 +106,12 @@ export default function App() {
         </div>
       )}
 
-      <main className="flex-1 h-full overflow-y-auto">
+      <main className="flex-1 h-full overflow-y-auto" style={dark ? { background: '#000' } : undefined}>
         {/* Mobile top bar */}
-        <div className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-3 glass" style={{ borderBottom: '1px solid var(--color-border)' }}>
-          <button onClick={() => setMobileOpen(true)} aria-label="Menu" style={{ color: 'var(--color-text)' }}>
+        <div className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-3 glass" style={dark
+          ? { background: '#000', borderBottom: '1px solid rgba(255,255,255,0.12)', paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }
+          : { borderBottom: '1px solid var(--color-border)' }}>
+          <button onClick={() => setMobileOpen(true)} aria-label="Menu" style={{ color: dark ? '#fff' : 'var(--color-text)' }}>
             <IconMenu width={24} height={24} />
           </button>
           <Logo height={24} />
@@ -117,7 +120,7 @@ export default function App() {
 
         {/* Home never scrolls sideways: anything wider than the screen is clipped
             at this padded edge (card shadows stay), so the page can't pan. */}
-        <div key={location.pathname} className={`${/^\/(home-tasks|work-tasks|companies)/.test(location.pathname) ? 'max-w-[100rem]' : 'max-w-6xl'} ${location.pathname === '/home' || location.pathname === '/oficina' ?'overflow-x-clip' : ''} mx-auto px-5 sm:px-6 md:px-10 pt-6 md:pt-8 pb-28 lg:pb-8`}>
+        <div key={location.pathname} style={dark ? { background: '#000' } : undefined} className={`${/^\/(home-tasks|work-tasks|companies)/.test(location.pathname) ? 'max-w-[100rem]' : 'max-w-6xl'} ${location.pathname === '/home' || dark ? 'overflow-x-clip' : ''} ${dark ? 'min-h-full' : ''} mx-auto px-5 sm:px-6 md:px-10 pt-6 md:pt-8 pb-28 lg:pb-8`}>
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<Home />} />
@@ -146,7 +149,7 @@ export default function App() {
       </main>
 
       {/* Mobile bottom tab bar */}
-      <BottomNav onMore={() => setMobileOpen(true)} />
+      <BottomNav dark={dark} onMore={() => setMobileOpen(true)} />
     </div>
   )
 }

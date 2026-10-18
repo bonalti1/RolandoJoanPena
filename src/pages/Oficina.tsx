@@ -80,25 +80,25 @@ function Dots({ color }: { color: string }) {
   )
 }
 
-function Pill({ bot }: { bot: OfficeBot }) {
+function Pill({ bot, short }: { bot: OfficeBot; short?: boolean }) {
   const color = STATE_COLOR[bot.state]
   return (
-    <span className="inline-flex items-center gap-1 max-w-full min-w-0 rounded-full px-2 py-[3px] text-[10px] font-semibold"
+    <span className="relative z-10 inline-flex items-center gap-1 max-w-full min-w-0 rounded-full px-2 py-[3px] text-[10px] font-semibold"
       style={{ background: '#0b0b0b', border: `1px solid ${LINE}`, color: INK }}>
       <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />
-      <span className="truncate min-w-0">{bot.name}</span>
+      <span className="truncate min-w-0">{short ? bot.short ?? bot.name : bot.name}</span>
       {bot.state === 'needs' && <span className="shrink-0 tnum" style={{ color: STATE_COLOR.needs }}>{bot.pending.length}</span>}
       {bot.state === 'working' && <Dots color={color} />}
     </span>
   )
 }
 
-function BotButton({ bot, onOpen }: { bot: OfficeBot; onOpen: (b: OfficeBot) => void }) {
+function BotButton({ bot, onOpen, short }: { bot: OfficeBot; onOpen: (b: OfficeBot) => void; short?: boolean }) {
   return (
     <button onClick={() => onOpen(bot)} className="flex flex-col items-center gap-0.5 w-full min-w-0 active:scale-95 transition-transform"
       aria-label={`${bot.name}, ${STATE_LABEL[bot.state]}`}>
-      <Pill bot={bot} />
-      <div className={`w-[88%] ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt n={bot.image} paused={bot.state === 'paused'} /></div>
+      <Pill bot={bot} short={short} />
+      <div className={`w-[88%] pointer-events-none ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt n={bot.image} paused={bot.state === 'paused'} /></div>
     </button>
   )
 }
@@ -229,7 +229,7 @@ export default function Oficina() {
 
   return (
     <div className="-mx-5 sm:-mx-6 md:-mx-10 -mt-6 md:-mt-8 -mb-28 lg:-mb-8 px-5 sm:px-6 md:px-10 pt-6 pb-32 lg:pb-10 min-h-full overflow-x-clip min-w-0"
-      style={{ background: '#000', color: INK }}>
+      style={{ background: '#000', color: INK, minHeight: '100dvh' }}>
       <div className="max-w-md mx-auto min-w-0">
         {view === 'others' ? (
           <div className="fade-in">
@@ -268,8 +268,8 @@ export default function Oficina() {
                 const a = (i / main.length) * 2 * Math.PI - Math.PI / 2
                 return (
                   <div key={b.key} className="absolute w-[27%] min-w-0"
-                    style={{ left: `${50 + 36 * Math.cos(a)}%`, top: `${50 + 36 * Math.sin(a)}%`, transform: 'translate(-50%, -50%)' }}>
-                    <BotButton bot={b} onOpen={(x) => setOpenKey(x.key)} />
+                    style={{ left: `${50 + 36 * Math.cos(a)}%`, top: `${50 + 36 * Math.sin(a)}%`, marginLeft: '-13.5%', marginTop: '-14.5%' }}>
+                    <BotButton bot={b} short onOpen={(x) => setOpenKey(x.key)} />
                   </div>
                 )
               })}
