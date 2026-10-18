@@ -98,9 +98,9 @@ function BotButton({ bot, onOpen, short, main }: { bot: OfficeBot; onOpen: (b: O
   return (
     <button onClick={() => onOpen(bot)} className="group block w-full min-w-0"
       aria-label={`${bot.name}, ${STATE_LABEL[bot.state]}`}>
-      <div className="flex flex-col items-center gap-0.5 w-full min-w-0 group-active:scale-95 transition-transform">
+      <div className="flex flex-col items-center gap-0.5 w-full min-w-0 group-active:opacity-70">
         <Pill bot={bot} short={short} />
-        <div className={`${main ? 'w-[125%] -mt-2 -mb-4' : 'w-full'} pointer-events-none ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt bot={bot} /></div>
+        <div className={`${main ? 'w-[102%] -mt-2 -mb-3' : 'w-full'} pointer-events-none ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt bot={bot} /></div>
       </div>
     </button>
   )
@@ -152,7 +152,7 @@ function BotSheet({ bot, onClose, onDone }: { bot: OfficeBot; onClose: () => voi
         style={{ background: '#0b0b0b', border: `1px solid ${LINE}`, color: INK, paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
         <div className="mx-auto h-1 w-10 rounded-full mb-4" style={{ background: LINE }} />
         <div className="flex items-center gap-3 min-w-0">
-          <div className="h-16 w-16 shrink-0"><RobotArt bot={bot} /></div>
+          <div className="h-16 w-16 shrink-0 bg-black rounded-2xl overflow-hidden"><RobotArt bot={bot} /></div>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold truncate" style={{ fontFamily: SERIF }}>{bot.name}</h2>
             <span className="inline-flex items-center gap-1.5 text-xs" style={{ color }}>
@@ -263,7 +263,7 @@ export default function Oficina() {
 
             {/* The circle: 8 desks around the name. */}
             <div className="relative w-full aspect-square mt-4">
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-[26px] tracking-[0.18em] font-light" style={{ fontFamily: SERIF }}>BONALTI</span>
                 <span className="text-[9px] tracking-[0.5em] mt-1" style={{ color: DIM }}>OFICINA</span>
               </div>
@@ -277,7 +277,7 @@ export default function Oficina() {
                 )
               })}
             </div>
-            <div className="mt-2"><Legend /></div>
+            <div className="relative z-20 mt-8"><Legend /></div>
 
             <button onClick={() => setView('others')} className="mt-6 w-full flex items-center gap-3 rounded-2xl p-3.5 text-left min-w-0 active:scale-[0.99] transition-transform"
               style={{ background: PANEL, border: `1px solid ${LINE}` }}>
