@@ -11,17 +11,21 @@ import { useBotActivity, useBotItems, type BotActivity, type BotItem } from './b
  */
 
 export type OfficeState = 'working' | 'needs' | 'paused'
-export type OfficeBotDef = { key: string; name: string; main: boolean; short?: string }
+export type OfficeBotDef = { key: string; name: string; main: boolean; short?: string; image?: number; mirror?: boolean }
+
+/** Base URL of robot-N.webp (N = 1..8). Change to '/robots' once the files live in public/robots/. */
+export const ROBOT_BASE = 'https://wwzsgfzfjykcvyoimwva.supabase.co/storage/v1/object/public/oficina-robots'
+export const robotUrl = (n: number) => `${ROBOT_BASE}/robot-${n}.webp`
 
 export const MAIN_BOTS: OfficeBotDef[] = [
-  { key: 'bonalti', name: 'Bonalti bot', main: true, short: 'Bonalti' },
-  { key: 'grok', name: 'Grok Bot', main: true, short: 'Grok' },
-  { key: 'scheduling', name: 'Scheduling', main: true, short: 'Agenda' },
-  { key: 'ranch', name: 'Ranch Deals', main: true, short: 'Ranch' },
-  { key: 'appt', name: 'Appt Setting', main: true, short: 'Citas' },
-  { key: 'accounting', name: 'Accounting', main: true, short: 'Contab.' },
-  { key: 'founder', name: 'Founder Assistant', main: true, short: 'Founder' },
-  { key: 'ceo', name: 'CEO Assistant', main: true, short: 'CEO' },
+  { key: 'bonalti', name: 'Bonalti bot', main: true, short: 'Bonalti', image: 5, mirror: false },
+  { key: 'grok', name: 'Grok Bot', main: true, short: 'Grok', image: 2, mirror: false },
+  { key: 'scheduling', name: 'Scheduling', main: true, short: 'Agenda', image: 6, mirror: false },
+  { key: 'ranch', name: 'Ranch Deals', main: true, short: 'Ranch', image: 4, mirror: true },
+  { key: 'appt', name: 'Appt Setting', main: true, short: 'Citas', image: 8, mirror: false },
+  { key: 'accounting', name: 'Accounting', main: true, short: 'Contab.', image: 3, mirror: false },
+  { key: 'founder', name: 'Founder Assistant', main: true, short: 'Founder', image: 7, mirror: false },
+  { key: 'ceo', name: 'CEO Assistant', main: true, short: 'CEO', image: 1, mirror: false },
 ]
 export const OTHER_BOTS: OfficeBotDef[] = [
   { key: 'salud', name: 'Salud', main: false },
@@ -43,8 +47,9 @@ const WORKING_WINDOW_MS = 30 * 60 * 1000
 
 export type OfficeAction = { id: string; text: string; at: string }
 export type OfficeBot = OfficeBotDef & {
-  /** 1-based index into public/robots/robot-N.png (cycles after 8). */
+  /** 1-based robot-N image. */
   image: number
+  mirror: boolean
   state: OfficeState
   pending: BotItem[]
   now: string
@@ -76,7 +81,8 @@ export function buildOffice(items: BotItem[], activity: BotActivity[], nowMs: nu
 
     return {
       ...def,
-      image: (i % 8) + 1,
+      image: def.image ?? (i % 8) + 1,
+      mirror: def.mirror ?? i % 2 === 1,
       state,
       pending,
       now: working ? latest.activity : '',

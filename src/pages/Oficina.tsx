@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useToast } from '../lib/toast'
 import { BotStatusNote } from '../components/BotItems'
 import {
-  MAIN_BOTS, OTHER_BOTS, STATE_COLOR, STATE_LABEL, greeting, useOffice,
+  MAIN_BOTS, OTHER_BOTS, STATE_COLOR, robotUrl, STATE_LABEL, greeting, useOffice,
   type OfficeBot, type OfficeState,
 } from '../lib/office'
 
@@ -57,14 +57,15 @@ function RobotSvg() {
   )
 }
 
-/** Image from public/robots if it exists, otherwise the SVG. */
-function RobotArt({ n, paused }: { n: number; paused: boolean }) {
+/** Real robot image (WebP, black background); falls back to the SVG if it fails. */
+function RobotArt({ bot }: { bot: OfficeBot }) {
   const [broken, setBroken] = useState(false)
   return (
-    <div className="w-full aspect-square" style={{ opacity: paused ? 0.45 : 1, transition: 'opacity .3s' }}>
+    <div className="w-full aspect-square" style={{ opacity: bot.state === 'paused' ? 0.45 : 1, transition: 'opacity .3s', background: '#000' }}>
       {broken ? <RobotSvg /> : (
-        <img src={`/robots/robot-${n}.png`} alt="" draggable={false} loading="lazy"
-          onError={() => setBroken(true)} className="w-full h-full object-contain select-none" />
+        <img src={robotUrl(bot.image)} alt={bot.name} width={600} height={600} draggable={false}
+          loading="lazy" decoding="async" onError={() => setBroken(true)}
+          className={`w-full h-full object-contain select-none pointer-events-none ${bot.mirror ? 'scale-x-[-1]' : ''}`} />
       )}
     </div>
   )
@@ -93,13 +94,13 @@ function Pill({ bot, short }: { bot: OfficeBot; short?: boolean }) {
   )
 }
 
-function BotButton({ bot, onOpen, short }: { bot: OfficeBot; onOpen: (b: OfficeBot) => void; short?: boolean }) {
+function BotButton({ bot, onOpen, short, main }: { bot: OfficeBot; onOpen: (b: OfficeBot) => void; short?: boolean; main?: boolean }) {
   return (
     <button onClick={() => onOpen(bot)} className="group block w-full min-w-0"
       aria-label={`${bot.name}, ${STATE_LABEL[bot.state]}`}>
       <div className="flex flex-col items-center gap-0.5 w-full min-w-0 group-active:scale-95 transition-transform">
         <Pill bot={bot} short={short} />
-        <div className={`w-[88%] pointer-events-none ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt n={bot.image} paused={bot.state === 'paused'} /></div>
+        <div className={`${main ? 'w-[125%] -mt-2 -mb-4' : 'w-full'} pointer-events-none ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt bot={bot} /></div>
       </div>
     </button>
   )
@@ -122,7 +123,7 @@ function Mini({ bot }: { bot: OfficeBot }) {
   return (
     <span className="relative h-8 w-8 rounded-full overflow-hidden shrink-0 grid place-items-center"
       style={{ background: '#161616', border: `1px solid ${STATE_COLOR[bot.state]}55` }}>
-      <span className="w-[130%] h-[130%] block" style={{ marginTop: '4%' }}><RobotArt n={bot.image} paused={bot.state === 'paused'} /></span>
+      <span className="w-[130%] h-[130%] block" style={{ marginTop: '4%' }}><RobotArt bot={bot} /></span>
     </span>
   )
 }
@@ -151,7 +152,7 @@ function BotSheet({ bot, onClose, onDone }: { bot: OfficeBot; onClose: () => voi
         style={{ background: '#0b0b0b', border: `1px solid ${LINE}`, color: INK, paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
         <div className="mx-auto h-1 w-10 rounded-full mb-4" style={{ background: LINE }} />
         <div className="flex items-center gap-3 min-w-0">
-          <div className="h-16 w-16 shrink-0"><RobotArt n={bot.image} paused={bot.state === 'paused'} /></div>
+          <div className="h-16 w-16 shrink-0"><RobotArt bot={bot} /></div>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold truncate" style={{ fontFamily: SERIF }}>{bot.name}</h2>
             <span className="inline-flex items-center gap-1.5 text-xs" style={{ color }}>
@@ -271,7 +272,7 @@ export default function Oficina() {
                 return (
                   <div key={b.key} className="absolute w-[27%] min-w-0"
                     style={{ left: `${50 + 36 * Math.cos(a)}%`, top: `${50 + 36 * Math.sin(a)}%`, marginLeft: '-13.5%', marginTop: '-14.5%' }}>
-                    <BotButton bot={b} short onOpen={(x) => setOpenKey(x.key)} />
+                    <BotButton bot={b} short main onOpen={(x) => setOpenKey(x.key)} />
                   </div>
                 )
               })}
