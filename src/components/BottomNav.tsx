@@ -36,7 +36,7 @@ export default function BottomNav({ onMore, dark = false }: { onMore: () => void
   return (
     <nav
       className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass"
-      style={{ ...(dark ? { background: '#000' } : {}), borderTop: dark ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--color-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ background: dark ? '#000' : 'var(--color-surface)', borderTop: dark ? '1px solid rgba(255,255,255,0.12)' : '1px solid var(--color-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex items-stretch">
         {tabs.map(({ to, label, Icon }) => (
