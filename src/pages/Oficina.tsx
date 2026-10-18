@@ -98,9 +98,9 @@ function BotButton({ bot, onOpen, short, main }: { bot: OfficeBot; onOpen: (b: O
   return (
     <button onClick={() => onOpen(bot)} className="group block w-full min-w-0"
       aria-label={`${bot.name}, ${STATE_LABEL[bot.state]}`}>
-      <div className="flex flex-col items-center gap-0.5 w-full min-w-0 group-active:opacity-70">
+      <div className="flex flex-col items-center gap-0.5 w-full min-w-0">
         <Pill bot={bot} short={short} />
-        <div className={`${main ? 'w-[102%] -mt-2 -mb-3' : 'w-full'} pointer-events-none ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt bot={bot} /></div>
+        <div className={`${main ? 'w-[94%] -mt-1 -mb-2' : 'w-full'} pointer-events-none group-active:opacity-70 ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt bot={bot} /></div>
       </div>
     </button>
   )
@@ -262,7 +262,7 @@ export default function Oficina() {
             <BotStatusNote status={status} />
 
             {/* The circle: 8 desks around the name. */}
-            <div className="relative w-full aspect-square mt-4">
+            <div className="relative w-full aspect-[100/122] mt-4">
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-[26px] tracking-[0.18em] font-light" style={{ fontFamily: SERIF }}>BONALTI</span>
                 <span className="text-[9px] tracking-[0.5em] mt-1" style={{ color: DIM }}>OFICINA</span>
@@ -271,7 +271,7 @@ export default function Oficina() {
                 const a = (i / main.length) * 2 * Math.PI - Math.PI / 2
                 return (
                   <div key={b.key} className="absolute w-[27%] min-w-0"
-                    style={{ left: `${50 + 36 * Math.cos(a)}%`, top: `${50 + 36 * Math.sin(a)}%`, marginLeft: '-13.5%', marginTop: '-14.5%' }}>
+                    style={{ left: `${50 + 36 * Math.cos(a)}%`, top: `${50 + 36 * Math.sin(a)}%`, marginLeft: '-13.5%', marginTop: '-14.5%', zIndex: 1 + Math.round((Math.sin(a) + 1) * 4) }}>
                     <BotButton bot={b} short main onOpen={(x) => setOpenKey(x.key)} />
                   </div>
                 )
