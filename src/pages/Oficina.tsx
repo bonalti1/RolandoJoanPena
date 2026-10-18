@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useToast } from '../lib/toast'
 import { BotStatusNote } from '../components/BotItems'
 import {
-  MAIN_BOTS, OTHER_BOTS, STATE_COLOR, robotUrl, STATE_LABEL, greeting, useOffice,
+  MAIN_BOTS, OTHER_BOTS, STATE_COLOR, robotUrl, ROBOT_BASE, STATE_LABEL, greeting, useOffice,
   type OfficeBot, type OfficeState,
 } from '../lib/office'
 
@@ -264,7 +264,8 @@ export default function Oficina() {
             {/* The circle: 8 desks around the name. */}
             <div className="relative w-full aspect-[100/122] mt-4">
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-[26px] tracking-[0.18em] font-light" style={{ fontFamily: SERIF }}>BONALTI</span>
+                <img src={`${ROBOT_BASE}/center-logo-stacked.webp`} alt="Bonalti" width={589} height={321}
+                  decoding="async" draggable={false} className="w-[42%] h-auto select-none mt-4" />
                 <span className="text-[9px] tracking-[0.5em] mt-1" style={{ color: DIM }}>OFICINA</span>
               </div>
               {main.map((b, i) => {
