@@ -95,10 +95,12 @@ function Pill({ bot, short }: { bot: OfficeBot; short?: boolean }) {
 
 function BotButton({ bot, onOpen, short }: { bot: OfficeBot; onOpen: (b: OfficeBot) => void; short?: boolean }) {
   return (
-    <button onClick={() => onOpen(bot)} className="flex flex-col items-center gap-0.5 w-full min-w-0 active:scale-95 transition-transform"
+    <button onClick={() => onOpen(bot)} className="group block w-full min-w-0"
       aria-label={`${bot.name}, ${STATE_LABEL[bot.state]}`}>
-      <Pill bot={bot} short={short} />
-      <div className={`w-[88%] pointer-events-none ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt n={bot.image} paused={bot.state === 'paused'} /></div>
+      <div className="flex flex-col items-center gap-0.5 w-full min-w-0 group-active:scale-95 transition-transform">
+        <Pill bot={bot} short={short} />
+        <div className={`w-[88%] pointer-events-none ${bot.state === 'working' ? 'bot-float' : ''}`}><RobotArt n={bot.image} paused={bot.state === 'paused'} /></div>
+      </div>
     </button>
   )
 }

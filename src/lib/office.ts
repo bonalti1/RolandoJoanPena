@@ -19,7 +19,7 @@ export const MAIN_BOTS: OfficeBotDef[] = [
   { key: 'scheduling', name: 'Scheduling', main: true, short: 'Agenda' },
   { key: 'ranch', name: 'Ranch Deals', main: true, short: 'Ranch' },
   { key: 'appt', name: 'Appt Setting', main: true, short: 'Citas' },
-  { key: 'accounting', name: 'Accounting', main: true, short: 'Contabilidad' },
+  { key: 'accounting', name: 'Accounting', main: true, short: 'Contab.' },
   { key: 'founder', name: 'Founder Assistant', main: true, short: 'Founder' },
   { key: 'ceo', name: 'CEO Assistant', main: true, short: 'CEO' },
 ]
