@@ -12,7 +12,7 @@
  * Required Netlify environment variable:
  *   OPENAI_API_KEY   – your OpenAI secret key
  * Optional:
- *   OPENAI_VISION_MODEL – defaults to "gpt-4o"
+ *   OPENAI_VISION_MODEL – defaults to "gpt-6-luna"
  */
 
 const json = (body: unknown, status = 200) =>
@@ -46,14 +46,15 @@ export default async (req: Request): Promise<Response> => {
     return json({ ok: false, reason: 'unsupported', message: 'Auto-read works with a photo or PNG/JPG of the scan.' })
   }
 
-  const model = process.env.OPENAI_VISION_MODEL || 'gpt-4o'
+  const model = process.env.OPENAI_VISION_MODEL || 'gpt-6-luna'
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model,
-        temperature: 0,
+        reasoning_effort: 'low',
+        max_completion_tokens: 2000,
         response_format: { type: 'json_object' },
         messages: [
           {
@@ -64,12 +65,11 @@ export default async (req: Request): Promise<Response> => {
             ],
           },
         ],
-        max_tokens: 300,
       }),
     })
     if (!res.ok) {
       const detail = await res.text()
-      console.error('extract-dexa OpenAI error:', res.status, detail.slice(0, 200))
+      console.error('extract-dexa OpenAI error:', res.status, detail.slice(0, 1000))
       return json({ ok: false, reason: 'ai_error', message: 'Could not read the scan. Enter the numbers manually.' })
     }
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }

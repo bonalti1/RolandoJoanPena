@@ -12,7 +12,7 @@
  * Required Netlify environment variable:
  *   OPENAI_API_KEY   – your OpenAI secret key
  * Optional:
- *   OPENAI_MODEL     – defaults to "gpt-4o-mini"
+ *   OPENAI_MODEL     – defaults to "gpt-6-luna"
  */
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string }
@@ -35,7 +35,7 @@ async function callOpenAI(question: string, context: string, history: ChatMessag
   if (!apiKey) {
     throw Object.assign(new Error('not_configured'), { code: 'not_configured' })
   }
-  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+  const model = process.env.OPENAI_MODEL || 'gpt-6-luna'
 
   const messages: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -46,12 +46,14 @@ async function callOpenAI(question: string, context: string, history: ChatMessag
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, messages, temperature: 0.2, max_tokens: 600 }),
+    // gpt-6-luna is a reasoning model: no temperature/max_tokens; reasoning tokens count against the cap.
+    body: JSON.stringify({ model, messages, reasoning_effort: 'low', max_completion_tokens: 2000 }),
   })
 
   if (!res.ok) {
     const detail = await res.text()
-    throw new Error(`OpenAI ${res.status}: ${detail.slice(0, 300)}`)
+    console.error('ask OpenAI error:', res.status, detail.slice(0, 1000))
+    throw new Error(`OpenAI ${res.status}`)
   }
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
   return data.choices?.[0]?.message?.content?.trim() || "Sorry, I couldn't come up with an answer."
